@@ -32,15 +32,10 @@ int __io_putchar(int ch)
 //#endif
 }
 
-int main(void)
+void init_gpio(void)
 {
-	SystemCoreClockUpdate();
-
 	GPIO_InitTypeDef  GPIO_InitStructure;
-	USART_InitTypeDef USART_InitStructure;
-//	NVIC_InitTypeDef NVIC_InitStructure;
 
-	// GPIOS LEDS
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
 
 	/* Configure PG6 and PG8 in output pushpull mode */
@@ -54,8 +49,13 @@ int main(void)
 	GPIO_SetBits(GPIOC, GPIO_Pin_8);
 	GPIO_SetBits(GPIOC, GPIO_Pin_9);
 	GPIO_SetBits(GPIOC, GPIO_Pin_10);
+}
 
-	// USART
+void init_uart(void)
+{
+	GPIO_InitTypeDef  GPIO_InitStructure;
+	USART_InitTypeDef USART_InitStructure;
+
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
 
@@ -86,6 +86,14 @@ int main(void)
 	printf("[log] SYSCLK frequency: %lu\n", RCC_ClockFreq.SYSCLK_Frequency);
 	printf("[log] PCLK1 frequency: %lu\n", RCC_ClockFreq.PCLK1_Frequency);
 	printf("[log] PCLK2 frequency: %lu\n", RCC_ClockFreq.PCLK2_Frequency);
+}
+
+int main(void)
+{
+	SystemCoreClockUpdate();
+
+	init_gpio();
+	init_uart();
 
 	for(;;)
 	{
