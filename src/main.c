@@ -38,6 +38,8 @@ void init_gpio(void)
 	GPIO_InitTypeDef  GPIO_InitStructure;
 
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
 
 	/* Configure PG6 and PG8 in output pushpull mode */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10;
@@ -47,8 +49,6 @@ void init_gpio(void)
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
-
 	/* Configure PG6 and PG8 in output pushpull mode */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
@@ -57,12 +57,23 @@ void init_gpio(void)
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
+	/* Configure PG6 and PG8 in output pushpull mode */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init(GPIOD, &GPIO_InitStructure);
+
 	GPIO_SetBits(GPIOC, GPIO_Pin_8);
 	GPIO_SetBits(GPIOC, GPIO_Pin_9);
 	GPIO_SetBits(GPIOC, GPIO_Pin_10);
 
 	// ADC reset off
 	GPIO_SetBits(GPIOB, GPIO_Pin_9);
+
+	// Enable channel 7 pwr
+//	GPIO_SetBits(GPIOD, GPIO_Pin_7);
 }
 
 void init_uart(void)
@@ -231,21 +242,26 @@ void scan()
 	tcaselect(0);
 	tcaselect(7);
 
-	for (int i = 0; i < 128; i++) {
-		int ret = I2C_Start(I2C1, (i << 1), I2C_Direction_Transmitter);
-		if (ret != 3) printf("found at %X\n", i);
-		I2C_stop(I2C1);
-	}
+//	for (int i = 0; i < 128; i++) {
+//		int ret = I2C_Start(I2C1, (i << 1), I2C_Direction_Transmitter);
+//		if (ret != 3) printf("found at %X\n", i);
+//		I2C_stop(I2C1);
+//	}
 
-	int ret = I2C_Start(I2C1, (0x49 << 1), I2C_Direction_Transmitter);
-	I2C_Write(I2C1, 0x00);
-	I2C_Write(I2C1, 128);
+	// DAC writing
+	// 1st byte 0-0-PD1-PD2-B11-B10-B9-B8
+	// 2nd byte B7-B6-B5-B4-B3-B2-B1-B0
+//	int ret = I2C_Start(I2C1, (0x4C << 1), I2C_Direction_Transmitter);
+//	I2C_Write(I2C1, 0x04);
+//	I2C_Write(I2C1, 0x00);
+//	I2C_stop(I2C1);
+
+	I2C_Start(I2C1, ((0x49 << 1)), I2C_Direction_Transmitter);
+	I2C_Write(I2C1, 0x16);
 	I2C_stop(I2C1);
 
-	I2C_Start(I2C1, (0x49 << 1), I2C_Direction_Receiver);
-	I2C_Write(I2C1, 0x00);
+	I2C_Start(I2C1, ((0x49 << 1) | 0x01), I2C_Direction_Receiver);
 	printf("rcv %d\n", I2C_read_nack(I2C1));
-	I2C_stop(I2C1);
 
 	printf("done\n");
 }
