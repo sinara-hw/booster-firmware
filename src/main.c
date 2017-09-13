@@ -14,6 +14,7 @@
 #include "stm32f4xx_gpio.h"
 #include "stm32f4xx_usart.h"
 #include "stm32f4xx_rcc.h"
+#include "stm32f4xx_i2c.h"
 
 int __io_putchar(int ch)
 {
@@ -46,9 +47,22 @@ void init_gpio(void)
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+
+	/* Configure PG6 and PG8 in output pushpull mode */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+
 	GPIO_SetBits(GPIOC, GPIO_Pin_8);
 	GPIO_SetBits(GPIOC, GPIO_Pin_9);
 	GPIO_SetBits(GPIOC, GPIO_Pin_10);
+
+	// ADC reset off
+	GPIO_SetBits(GPIOB, GPIO_Pin_9);
 }
 
 void init_uart(void)
@@ -88,6 +102,154 @@ void init_uart(void)
 	printf("[log] PCLK2 frequency: %lu\n", RCC_ClockFreq.PCLK2_Frequency);
 }
 
+#define TCAADDR 0x70
+#define I2C_TIMEOUT 2000
+
+int16_t I2C_Start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction)
+{
+	uint32_t timeout = I2C_TIMEOUT;
+
+	// wait until I2C1 is not busy anymore
+	while (I2C_GetFlagStatus(I2Cx, I2C_FLAG_BUSY)) {
+		if (--timeout == 0x00) {
+			return 1;
+		}
+	}
+
+	// Send I2C1 START condition
+	I2C_GenerateSTART(I2Cx, ENABLE);
+
+	// wait for I2C1 EV5 --> Slave has acknowledged start condition
+	timeout = I2C_TIMEOUT;
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_MODE_SELECT)) {
+		if (--timeout == 0x00) {
+			return 2;
+		}
+	}
+
+	// Send slave Address for write
+	I2C_Send7bitAddress(I2Cx, address, direction);
+
+	/* wait for I2C1 EV6, check if
+	 * either Slave has acknowledged Master transmitter or
+	 * Master receiver mode, depending on the transmission
+	 * direction
+	 */
+	if (direction == I2C_Direction_Transmitter) {
+		timeout = I2C_TIMEOUT;
+		while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) {
+			if (--timeout == 0x00) {
+				return 3;
+			}
+		}
+	}
+
+	else if (direction == I2C_Direction_Receiver) {
+		timeout = I2C_TIMEOUT;
+		while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) {
+			if (--timeout == 0x00) {
+				return 3;
+			}
+		}
+	}
+
+	return 0;
+}
+
+int16_t I2C_Write(I2C_TypeDef* I2Cx, uint8_t data)
+{
+	uint32_t timeout = I2C_TIMEOUT;
+
+	I2C_SendData(I2Cx, data);
+	// wait for I2C1 EV8_2 --> byte has been transmitted
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) {
+		if (--timeout == 0x00) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/* This function reads one byte from the slave device
+ * and acknowledges the byte (requests another byte)
+ */
+int8_t I2C_read_ack(I2C_TypeDef* I2Cx) {
+
+	uint32_t timeout = I2C_TIMEOUT;
+	// enable acknowledge of recieved data
+	I2C_AcknowledgeConfig(I2Cx, ENABLE);
+	// wait until one byte has been received
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
+		if (--timeout == 0x00) {
+			return -1;
+		}
+	}
+	// read data from I2C data register and return data byte
+	uint8_t data = I2C_ReceiveData(I2Cx);
+	return data;
+}
+
+/* This function reads one byte from the slave device
+ * and doesn't acknowledge the recieved data
+ */
+uint16_t I2C_read_nack(I2C_TypeDef* I2Cx) {
+	uint32_t timeout = I2C_TIMEOUT;
+	// disabe acknowledge of received data
+	// nack also generates stop condition after last byte received
+	// see reference manual for more info
+	I2C_AcknowledgeConfig(I2Cx, DISABLE);
+	I2C_GenerateSTOP(I2Cx, ENABLE);
+	// wait until one byte has been received
+	while( !I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED) ) {
+		if (--timeout == 0x00) {
+			return 256;
+		}
+	}
+	// read data from I2C data register and return data byte
+	uint8_t data = I2C_ReceiveData(I2Cx);
+	return data;
+}
+
+void I2C_stop(I2C_TypeDef* I2Cx){
+	// Send I2C1 STOP Condition
+	I2C_GenerateSTOP(I2Cx, ENABLE);
+}
+
+void tcaselect(uint8_t i) {
+	if (i > 7) return;
+
+	I2C_Start(I2C1, (TCAADDR << 1), I2C_Direction_Transmitter);
+	I2C_Write(I2C1, (1 << i));
+	I2C_stop(I2C1);
+}
+
+void scan()
+{
+	printf("\nTCAScanner ready!\n");
+
+	tcaselect(0);
+	tcaselect(7);
+
+	for (int i = 0; i < 128; i++) {
+		int ret = I2C_Start(I2C1, (i << 1), I2C_Direction_Transmitter);
+		if (ret != 3) printf("found at %X\n", i);
+		I2C_stop(I2C1);
+	}
+
+	int ret = I2C_Start(I2C1, (0x49 << 1), I2C_Direction_Transmitter);
+	I2C_Write(I2C1, 0x00);
+	I2C_Write(I2C1, 128);
+	I2C_stop(I2C1);
+
+	I2C_Start(I2C1, (0x49 << 1), I2C_Direction_Receiver);
+	I2C_Write(I2C1, 0x00);
+	printf("rcv %d\n", I2C_read_nack(I2C1));
+	I2C_stop(I2C1);
+
+	printf("done\n");
+}
+
 int main(void)
 {
 	SystemCoreClockUpdate();
@@ -95,7 +257,41 @@ int main(void)
 	init_gpio();
 	init_uart();
 
+	I2C_InitTypeDef  I2C_InitStructure;
+	GPIO_InitTypeDef GPIO_InitStructure;
+
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+	// Connect I2C1 pins to AF
+	GPIO_PinAFConfig(GPIOB, GPIO_PinSource6, GPIO_AF_I2C1);	// SCL
+	GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_I2C1); // SDA
+
+	// configure I2C1
+	I2C_InitStructure.I2C_ClockSpeed = 100000; 			// 100kHz
+	I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;			// I2C mode
+	I2C_InitStructure.I2C_DutyCycle = I2C_DutyCycle_2;	// 50% duty cycle --> standard
+	I2C_InitStructure.I2C_OwnAddress1 = 0x00;			// own address, not relevant in master mode
+	I2C_InitStructure.I2C_Ack = I2C_Ack_Disable;		// disable acknowledge when reading (can be changed later on)
+	I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit; // set address length to 7 bit addresses
+	I2C_InitStructure.I2C_OwnAddress1 = 0x00;
+	I2C_Init(I2C1, &I2C_InitStructure);		// init I2C1
+	// enable I2C1
+	I2C_Cmd(I2C1, ENABLE);
+
+	scan();
+
+
+
 	for(;;)
 	{
+
 	}
 }
