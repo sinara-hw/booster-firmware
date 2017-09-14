@@ -278,9 +278,14 @@ int main(void)
 	init_i2c();
 
 	tcaselect(0);
-//	tcaselect(7);
+	i2c_scan_devices();
+	tcaselect(7);
+	i2c_scan_devices();
 
-//	printf("recv: %d\n", i2c_read(I2C1, 0x49, 0x16));
+	printf("recv: %d\n", i2c_read(I2C1, 0x49, 0x16));
+
+
+
 
 	for(;;)
 	{

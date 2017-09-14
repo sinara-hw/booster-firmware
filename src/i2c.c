@@ -49,6 +49,22 @@ void init_i2c(void)
 	I2C_Cmd(I2C1, ENABLE);
 }
 
+uint8_t i2c_scan_devices(void)
+{
+	uint8_t connected = 0;
+
+	for (int addr = 0; addr < 128; addr++)
+	{
+		if (i2c_device_connected(I2C1, addr))
+		{
+			printf("[i2c_scan] Found I2C device at %X\n", addr);
+			connected++;
+		}
+	}
+
+	return connected;
+}
+
 uint8_t i2c_device_connected(I2C_TypeDef* I2Cx, uint8_t address)
 {
 	uint8_t connected = 0;
@@ -130,21 +146,9 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 }
 
 
-uint8_t i2c_stop(I2C_TypeDef* I2Cx)
+void i2c_stop(I2C_TypeDef* I2Cx)
 {
-	/* Wait till transmitter not empty */
-	uint32_t timeout = I2C_TIMEOUT;
-
-	while (((!(I2Cx->SR1 & I2C_SR1_TXE)) || (!(I2Cx->SR1 & I2C_SR1_BTF)))) {
-		if (--timeout == 0x00) {
-			return 1;
-		}
-	}
-
-	/* Generate stop */
 	I2C_GenerateSTOP(I2Cx, ENABLE);
-
-	return 0;
 }
 
 
