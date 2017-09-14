@@ -130,8 +130,8 @@ int main(void)
 
 	printf("recv: %d\n", i2c_read(I2C1, 0x49, 0x16));
 
-	i2c_write(I2C1, 0x49, 0x00, 128);
-	printf("recv: %d\n", i2c_read(I2C1, 0x49, 0x00));
+	i2c_write(I2C1, 0x49, 0x12, 0x02);
+	printf("recv: %d\n", i2c_read(I2C1, 0x49, 0x12));
 
 	for(;;)
 	{
