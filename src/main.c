@@ -19,7 +19,7 @@
 
 int __io_putchar(int ch)
 {
-//#ifdef DEBUG
+#ifdef DEBUG
 //	taskENTER_CRITICAL();
 	/* Place your implementation of fputc here */
 	/* e.g. write a character to the USART */
@@ -31,7 +31,7 @@ int __io_putchar(int ch)
 //	taskEXIT_CRITICAL();
 
 	return ch;
-//#endif
+#endif
 }
 
 void init_gpio(void)
@@ -114,161 +114,6 @@ void init_uart(void)
 	printf("[log] PCLK2 frequency: %lu\n", RCC_ClockFreq.PCLK2_Frequency);
 }
 
-#define TCAADDR 0x70
-#define I2C_TIMEOUT 2000
-
-//int16_t I2C_Start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction)
-//{
-//	uint32_t timeout = I2C_TIMEOUT;
-//
-//	// wait until I2C1 is not busy anymore
-//	while (I2C_GetFlagStatus(I2Cx, I2C_FLAG_BUSY)) {
-//		if (--timeout == 0x00) {
-//			return 1;
-//		}
-//	}
-//
-//	// Send I2C1 START condition
-//	I2C_GenerateSTART(I2Cx, ENABLE);
-//
-//	// wait for I2C1 EV5 --> Slave has acknowledged start condition
-//	timeout = I2C_TIMEOUT;
-//	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_MODE_SELECT)) {
-//		if (--timeout == 0x00) {
-//			return 2;
-//		}
-//	}
-//
-//	// Send slave Address for write
-//	I2C_Send7bitAddress(I2Cx, address, direction);
-//
-//	/* wait for I2C1 EV6, check if
-//	 * either Slave has acknowledged Master transmitter or
-//	 * Master receiver mode, depending on the transmission
-//	 * direction
-//	 */
-//	if (direction == I2C_Direction_Transmitter) {
-//		timeout = I2C_TIMEOUT;
-//		while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) {
-//			if (--timeout == 0x00) {
-//				return 3;
-//			}
-//		}
-//	}
-//
-//	else if (direction == I2C_Direction_Receiver) {
-//		timeout = I2C_TIMEOUT;
-//		while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) {
-//			if (--timeout == 0x00) {
-//				return 3;
-//			}
-//		}
-//	}
-//
-//	return 0;
-//}
-//
-//int16_t I2C_Write(I2C_TypeDef* I2Cx, uint8_t data)
-//{
-//	uint32_t timeout = I2C_TIMEOUT;
-//
-//	I2C_SendData(I2Cx, data);
-//	// wait for I2C1 EV8_2 --> byte has been transmitted
-//	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) {
-//		if (--timeout == 0x00) {
-//			return 1;
-//		}
-//	}
-//
-//	return 0;
-//}
-//
-///* This function reads one byte from the slave device
-// * and acknowledges the byte (requests another byte)
-// */
-//int8_t I2C_read_ack(I2C_TypeDef* I2Cx) {
-//
-//	uint32_t timeout = I2C_TIMEOUT;
-//	// enable acknowledge of recieved data
-//	I2C_AcknowledgeConfig(I2Cx, ENABLE);
-//	// wait until one byte has been received
-//	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
-//		if (--timeout == 0x00) {
-//			return -1;
-//		}
-//	}
-//	// read data from I2C data register and return data byte
-//	uint8_t data = I2C_ReceiveData(I2Cx);
-//	return data;
-//}
-//
-///* This function reads one byte from the slave device
-// * and doesn't acknowledge the recieved data
-// */
-//uint16_t I2C_read_nack(I2C_TypeDef* I2Cx) {
-//	uint32_t timeout = I2C_TIMEOUT;
-//	// disabe acknowledge of received data
-//	// nack also generates stop condition after last byte received
-//	// see reference manual for more info
-//	I2C_AcknowledgeConfig(I2Cx, DISABLE);
-//	I2C_GenerateSTOP(I2Cx, ENABLE);
-//	// wait until one byte has been received
-//	while( !I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED) ) {
-//		if (--timeout == 0x00) {
-//			return 256;
-//		}
-//	}
-//	// read data from I2C data register and return data byte
-//	uint8_t data = I2C_ReceiveData(I2Cx);
-//	return data;
-//}
-//
-//void I2C_stop(I2C_TypeDef* I2Cx){
-//	// Send I2C1 STOP Condition
-//	I2C_GenerateSTOP(I2Cx, ENABLE);
-//}
-//
-void tcaselect(uint8_t i)
-{
-	if (i > 7) return;
-
-	i2c_start(I2C1, TCAADDR, I2C_Direction_Transmitter, 0);
-	i2c_write_byte(I2C1, (1 << i));
-	i2c_stop(I2C1);
-}
-
-//
-//void scan()
-//{
-//	printf("\nTCAScanner ready!\n");
-//
-//	tcaselect(0);
-//	tcaselect(7);
-//
-////	for (int i = 0; i < 128; i++) {
-////		int ret = I2C_Start(I2C1, (i << 1), I2C_Direction_Transmitter);
-////		if (ret != 3) printf("found at %X\n", i);
-////		I2C_stop(I2C1);
-////	}
-//
-//	// DAC writing
-//	// 1st byte 0-0-PD1-PD2-B11-B10-B9-B8
-//	// 2nd byte B7-B6-B5-B4-B3-B2-B1-B0
-////	int ret = I2C_Start(I2C1, (0x4C << 1), I2C_Direction_Transmitter);
-////	I2C_Write(I2C1, 0x04);
-////	I2C_Write(I2C1, 0x00);
-////	I2C_stop(I2C1);
-//
-//	I2C_Start(I2C1, ((0x49 << 1)), I2C_Direction_Transmitter);
-//	I2C_Write(I2C1, 0x16);
-//	I2C_stop(I2C1);
-//
-//	I2C_Start(I2C1, ((0x49 << 1) | 0x01), I2C_Direction_Receiver);
-//	printf("rcv %d\n", I2C_read_nack(I2C1));
-//
-//	printf("done\n");
-//}
-
 int main(void)
 {
 	SystemCoreClockUpdate();
@@ -277,15 +122,16 @@ int main(void)
 	init_uart();
 	init_i2c();
 
-	tcaselect(0);
-	i2c_scan_devices();
-	tcaselect(7);
-	i2c_scan_devices();
+//	i2c_mux_select(0);
+//	i2c_scan_devices();
+
+	i2c_mux_select(7);
+//	i2c_scan_devices();
 
 	printf("recv: %d\n", i2c_read(I2C1, 0x49, 0x16));
 
-
-
+	i2c_write(I2C1, 0x49, 0x00, 128);
+	printf("recv: %d\n", i2c_read(I2C1, 0x49, 0x00));
 
 	for(;;)
 	{

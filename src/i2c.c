@@ -13,6 +13,7 @@
 #define I2C_TIMEOUT 		2000
 #define I2C_ACK_ENABLE		1
 #define I2C_ACK_DISABLE		0
+#define I2C_MUX_ADDR		0x70
 
 void init_i2c(void)
 {
@@ -47,6 +48,21 @@ void init_i2c(void)
 
 	// enable I2C1
 	I2C_Cmd(I2C1, ENABLE);
+}
+
+uint8_t i2c_mux_select(uint8_t channel)
+{
+	if (channel > 7) return 2;
+
+	if (!i2c_start(I2C1, I2C_MUX_ADDR, I2C_Direction_Transmitter, 0))
+	{
+		i2c_write_byte(I2C1, (1 << channel));
+		i2c_stop(I2C1);
+
+		return 0;
+	}
+
+	return 1;
 }
 
 uint8_t i2c_scan_devices(void)
@@ -93,8 +109,11 @@ uint8_t i2c_read(I2C_TypeDef* I2Cx, uint8_t address, uint8_t reg)
 	i2c_start(I2Cx, address, I2C_Direction_Transmitter, I2C_ACK_DISABLE);
 	i2c_write_byte(I2Cx, reg);
 	i2c_stop(I2Cx);
+
 	i2c_start(I2Cx, address, I2C_Direction_Receiver, I2C_ACK_DISABLE);
 	received_data = i2c_read_byte_nack(I2Cx);
+	i2c_stop(I2Cx);
+
 	return received_data;
 }
 
@@ -182,7 +201,7 @@ uint8_t i2c_read_byte_nack(I2C_TypeDef* I2Cx)
 {
 	uint32_t timeout = I2C_TIMEOUT;
 
-	I2C_AcknowledgeConfig(I2Cx, ENABLE);
+	I2C_AcknowledgeConfig(I2Cx, DISABLE);
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED) && --timeout);
 
 	return I2C_ReceiveData(I2Cx);
