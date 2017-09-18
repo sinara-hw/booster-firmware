@@ -69,6 +69,8 @@ uint8_t i2c_scan_devices(void)
 {
 	uint8_t connected = 0;
 
+	printf("[i2c_scan] start\n");
+
 	for (int addr = 0; addr < 128; addr++)
 	{
 		if (i2c_device_connected(I2C1, addr))
@@ -77,6 +79,8 @@ uint8_t i2c_scan_devices(void)
 			connected++;
 		}
 	}
+
+	printf("[i2c_scan] end\n");
 
 	return connected;
 }
