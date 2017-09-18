@@ -16,6 +16,7 @@
 #include "stm32f4xx_rcc.h"
 
 #include "i2c.h"
+#include "ads7924.h"
 
 int __io_putchar(int ch)
 {
@@ -122,19 +123,23 @@ int main(void)
 	init_uart();
 	init_i2c();
 
-//	i2c_mux_select(0);
+	i2c_mux_select(0);
 //	i2c_scan_devices();
 
 	i2c_mux_select(7);
-//	i2c_scan_devices();
+	i2c_scan_devices();
 
-	printf("recv: %d\n", i2c_read(I2C1, 0x49, 0x16));
-
-	i2c_write(I2C1, 0x49, 0x12, 0x02);
-	printf("recv: %d\n", i2c_read(I2C1, 0x49, 0x12));
+	ads7924_init();
 
 	for(;;)
 	{
-
+		uint16_t dt[4] = { 0 };
+		ads7924_get_data(dt);
+		printf("--------\n");
+		printf("ch0 %d\n", dt[0]);
+		printf("ch1 %d\n", dt[1]);
+		printf("ch2 %d\n", dt[2]);
+		printf("ch3 %d\n", dt[3]);
+		for (int i = 0; i < 8400000; i++){};
 	}
 }
