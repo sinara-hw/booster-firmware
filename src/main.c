@@ -8,7 +8,7 @@
   ******************************************************************************
 */
 
-#include "stdio.h"
+#include "config.h"
 
 #include "stm32f4xx.h"
 #include "stm32f4xx_gpio.h"
@@ -115,13 +115,27 @@ void init_uart(void)
 	printf("[log] PCLK2 frequency: %lu\n", RCC_ClockFreq.PCLK2_Frequency);
 }
 
-int main(void)
+static void prvSetupHardware(void)
 {
 	SystemCoreClockUpdate();
 
 	init_gpio();
 	init_uart();
 	init_i2c();
+}
+
+void prvLEDTask(void *pvParameters)
+{
+	for (;;)
+	{
+		GPIO_ToggleBits(BOARD_LED1);
+		vTaskDelay(1000);
+	}
+}
+
+int main(void)
+{
+	prvSetupHardware();
 
 	i2c_mux_select(0);
 //	i2c_scan_devices();
@@ -131,15 +145,22 @@ int main(void)
 
 	ads7924_init();
 
+	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
+
+	/* Start the scheduler. */
+	vTaskStartScheduler();
+
+	return 1;
+
 	for(;;)
 	{
-		uint16_t dt[4] = { 0 };
-		ads7924_get_data(dt);
-		printf("--------\n");
-		printf("ch0 %d\n", dt[0]);
-		printf("ch1 %d\n", dt[1]);
-		printf("ch2 %d\n", dt[2]);
-		printf("ch3 %d\n", dt[3]);
-		for (int i = 0; i < 8400000; i++){};
+//		uint16_t dt[4] = { 0 };
+//		ads7924_get_data(dt);
+//		printf("--------\n");
+//		printf("ch0 %d\n", dt[0]);
+//		printf("ch1 %d\n", dt[1]);
+//		printf("ch2 %d\n", dt[2]);
+//		printf("ch3 %d\n", dt[3]);
+//		for (int i = 0; i < 8400000; i++){};
 	}
 }

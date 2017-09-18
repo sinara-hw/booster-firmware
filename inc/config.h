@@ -15,6 +15,9 @@
 
 #include "stm32f4xx.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 #define BOARD_LED1 GPIOC, GPIO_Pin_8
 #define BOARD_LED2 GPIOC, GPIO_Pin_9
 #define BOARD_LED3 GPIOC, GPIO_Pin_10
