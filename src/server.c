@@ -21,42 +21,42 @@ static void udp_int_init(void)
 	NVIC_InitTypeDef 	NVIC_InitStruct;
 
 	// interrupt PF15
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOF, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
 
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
 
-	GPIO_Init(GPIOF, &GPIO_InitStructure);
-	SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOF, EXTI_PinSource15);
+	GPIO_Init(GPIOG, &GPIO_InitStructure);
+	SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOG, EXTI_PinSource6);
 
-	EXTI_InitStruct.EXTI_Line = EXTI_Line15;
+	EXTI_InitStruct.EXTI_Line = EXTI_Line6;
 	EXTI_InitStruct.EXTI_LineCmd = ENABLE;
 	EXTI_InitStruct.EXTI_Mode = EXTI_Mode_Interrupt;
 	EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Falling;
 	EXTI_Init(&EXTI_InitStruct);
 
-	NVIC_InitStruct.NVIC_IRQChannel = EXTI15_10_IRQn;
+	NVIC_InitStruct.NVIC_IRQChannel = EXTI9_5_IRQn;
 	NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 0x0F;
 	NVIC_InitStruct.NVIC_IRQChannelSubPriority = 0x0F;
 	NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStruct);
 }
 
-void EXTI15_10_IRQHandler(void)
+void EXTI9_5_IRQHandler(void)
 {
 	static long xHigherPriorityTaskWoken;
 	xHigherPriorityTaskWoken = pdFALSE;
 
-	if (EXTI_GetITStatus(EXTI_Line15) != RESET)
+	if (EXTI_GetITStatus(EXTI_Line6) != RESET)
 	{
 		GPIO_ToggleBits(BOARD_LED1);
 		xSemaphoreGiveFromISR(xUDPMessageAvailable, &xHigherPriorityTaskWoken);
-    	EXTI_ClearITPendingBit(EXTI_Line15);
-    	NVIC_DisableIRQ(EXTI15_10_IRQn);
+    	EXTI_ClearITPendingBit(EXTI_Line6);
+    	NVIC_DisableIRQ(EXTI9_5_IRQn);
     }
 
 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
@@ -101,7 +101,7 @@ void prvUDPServerTask(void *pvParameters)
 
 	for (;;)
 	{
-		if (xSemaphoreTake(xUDPMessageAvailable, configTICK_RATE_HZ))
+		if (xSemaphoreTake(xUDPMessageAvailable, portMAX_DELAY))
 		{
 			if (xSemaphoreTake(xEthInterfaceAvailable, portMAX_DELAY))
 			{
@@ -115,7 +115,7 @@ void prvUDPServerTask(void *pvParameters)
 						if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
 						len = recvfrom(0, rx_buffer, len, destip, (uint16_t*)&destport);
 						rx_buffer[len] = '\0';
-	//					printf("%d | %s\n", len, rx_buffer);
+						printf("%d | %s\n", (int) len, rx_buffer);
 
 //						if (scpi_context.user_context != NULL) {
 //							user_data_t * u = (user_data_t *) (scpi_context.user_context);
@@ -131,7 +131,7 @@ void prvUDPServerTask(void *pvParameters)
 
 					setSn_IR(0, Sn_IR_RECV);
 					ctlwizchip(CW_CLR_INTERRUPT, IK_SOCK_0);
-					NVIC_EnableIRQ(EXTI15_10_IRQn);
+					NVIC_EnableIRQ(EXTI9_5_IRQn);
 				}
 
 				xSemaphoreGive(xEthInterfaceAvailable);

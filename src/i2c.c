@@ -15,7 +15,7 @@
 #define I2C_ACK_DISABLE		0
 #define I2C_MUX_ADDR		0x70
 
-void init_i2c(void)
+void i2c_init(void)
 {
 	I2C_InitTypeDef  I2C_InitStructure;
 	GPIO_InitTypeDef GPIO_InitStructure;

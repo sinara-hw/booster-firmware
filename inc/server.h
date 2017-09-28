@@ -15,9 +15,6 @@ typedef struct {
 	uint16_t 	ipsrc_port;
 } user_data_t;
 
-//static void udp_int_init(void);
-//void EXTI15_10_IRQHandler(void);
-//static void prvSetupUDPServer(void);
 void prvUDPServerTask(void *pvParameters);
 
 #endif /* INC_SERVER_H_ */

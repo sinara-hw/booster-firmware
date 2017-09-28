@@ -20,6 +20,8 @@
 #include "ads7924.h"
 #include "wizchip_conf.h"
 #include "network.h"
+#include "dhcp.h"
+#include "server.h"
 
 void gpio_init(void)
 {
@@ -56,9 +58,6 @@ void gpio_init(void)
 
 	// ADC reset off
 	GPIO_SetBits(GPIOB, GPIO_Pin_9);
-
-	// Enable channel 7 pwr
-//	GPIO_SetBits(GPIOD, GPIO_Pin_7);
 }
 
 static void prvSetupHardware(void)
@@ -67,7 +66,7 @@ static void prvSetupHardware(void)
 
 	gpio_init();
 	uart_init();
-	init_i2c();
+	i2c_init();
 	spi_init();
 }
 
@@ -80,18 +79,25 @@ void prvLEDTask(void *pvParameters)
 	}
 }
 
+extern SemaphoreHandle_t xEthInterfaceAvailable;
+extern TaskHandle_t	xDHCPTask;
+
 int main(void)
 {
 	prvSetupHardware();
 
+	xEthInterfaceAvailable = xSemaphoreCreateMutex();
+	xSemaphoreGive(xEthInterfaceAvailable);
+
 	uint16_t val = adc_autotest();
-	printf("[adc_test] %s | raw: %d | VRefInt %.2f V\n", val == 0 ? "FAIL" : "SUCCESS", val, (float) ((val * 2.5)/4096));
+	printf("[adc_test] %s | raw: %d | VrefInt %.2f V\n", val == 0 ? "fail" : "success", val, (float) ((val * 2.5) / 4096));
 
 	i2c_mux_select(0);
 	i2c_scan_devices();
 
 //	ads7924_init();
 	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
+	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
 
 	/* Start the scheduler. */
 	vTaskStartScheduler();
@@ -100,6 +106,5 @@ int main(void)
 
 	for(;;)
 	{
-
 	}
 }

@@ -50,12 +50,12 @@ void wizchip_deselect(void)
 
 void wizchip_write(uint8_t wb)
 {
-	SPI_SendByte(wb);
+	spi_send_byte(wb);
 }
 
 uint8_t wizchip_read()
 {
-	return SPI_ReceiveByte();
+	return spi_receive_byte();
 }
 
 void net_init(void)
@@ -73,7 +73,6 @@ void net_init(void)
 		while(1);
 	}
 
-	uint8_t retry = 10;
 	/* PHY link status check */
 	do
 	{
@@ -202,7 +201,6 @@ void ldhcp_ip_assign(void)
    printf("[log] DHCP lease time: %ld s\n", getDHCPLeasetime());
 
    prvRestartServerTask();
-//   xSemaphoreGive(xNetworkInitComplete);
 }
 
 void ldhcp_ip_conflict(void)
