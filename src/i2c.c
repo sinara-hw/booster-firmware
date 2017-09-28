@@ -15,7 +15,7 @@
 #define I2C_ACK_DISABLE		0
 #define I2C_MUX_ADDR		0x70
 
-void init_i2c(void)
+void i2c_init(void)
 {
 	I2C_InitTypeDef  I2C_InitStructure;
 	GPIO_InitTypeDef GPIO_InitStructure;
@@ -69,6 +69,8 @@ uint8_t i2c_scan_devices(void)
 {
 	uint8_t connected = 0;
 
+	printf("[i2c_scan] start\n");
+
 	for (int addr = 0; addr < 128; addr++)
 	{
 		if (i2c_device_connected(I2C1, addr))
@@ -77,6 +79,8 @@ uint8_t i2c_scan_devices(void)
 			connected++;
 		}
 	}
+
+	printf("[i2c_scan] end\n");
 
 	return connected;
 }
