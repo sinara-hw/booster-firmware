@@ -24,6 +24,8 @@ void spi_init(void)
 
 	// Clocks init
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
+
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA2, ENABLE);
 
@@ -34,10 +36,11 @@ void spi_init(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 
-	GPIO_PinAFConfig(GPIOA, GPIO_PinSource5, GPIO_AF6_SPI1);
-	GPIO_PinAFConfig(GPIOA, GPIO_PinSource6, GPIO_AF6_SPI1);
-	GPIO_PinAFConfig(GPIOA, GPIO_PinSource7, GPIO_AF6_SPI1);
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	GPIO_PinAFConfig(GPIOA, GPIO_PinSource5, GPIO_AF_SPI1);
+	GPIO_PinAFConfig(GPIOA, GPIO_PinSource6, GPIO_AF_SPI1);
+	GPIO_PinAFConfig(GPIOA, GPIO_PinSource7, GPIO_AF_SPI1);
 
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
@@ -48,6 +51,19 @@ void spi_init(void)
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 	GPIO_SetBits(BOARD_WIZNET_CS);
 
+	//WIZNET RST --------------------------
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+
+	GPIO_Init(GPIOG, &GPIO_InitStructure);
+	GPIO_SetBits(BOARD_WIZNET_RST);
+
+	//--------------------------------------
+
 	SPI_I2S_DeInit(SPI1);
 	SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
 	SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
@@ -55,13 +71,12 @@ void spi_init(void)
 	SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
 	SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
 	SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_4;
+	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_32;
 	SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
 	SPI_InitStructure.SPI_CRCPolynomial = 7;
 
 	SPI_Init(SPI1, &SPI_InitStructure);
 	SPI_Cmd(SPI1, ENABLE);
-	SPI_DataSizeConfig(SPI1, SPI_DataSize_8b);
 }
 
 uint8_t spi_send_byte(uint8_t byte)
@@ -70,7 +85,7 @@ uint8_t spi_send_byte(uint8_t byte)
 
 	SPI_I2S_SendData(SPI1, byte);
 	while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_BSY) == SET) {
-		if (--timeout == 0x00) break;
+		if (--timeout == 0x00) return 66;
 	}
 
 	return SPI_I2S_ReceiveData(SPI1);
@@ -81,14 +96,14 @@ uint8_t spi_receive_byte(void)
 	uint32_t timeout = SPI_TIMEOUT;
 
 	while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_BSY) == SET) {
-		if (--timeout == 0x00) break;
+		if (--timeout == 0x00) return 66;
 	}
 
 	SPI_I2S_SendData(SPI1, 0);
 
 	timeout = SPI_TIMEOUT;
 	while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) == RESET) {
-		if (--timeout == 0x00) break;
+		if (--timeout == 0x00) return 99;
 	}
 
 	return SPI_I2S_ReceiveData(SPI1);
@@ -143,15 +158,15 @@ void spi_dma_read(uint8_t* Addref, uint8_t* pRxBuf, uint16_t rx_len)
 	DMA_Cmd(DMA2_Stream2, ENABLE);
 
 	/* Waiting the end of Data transfer */
-//	while (DMA_GetFlagStatus(DMA1_FLAG_TC2) == RESET);
-//	while (DMA_GetFlagStatus(DMA1_FLAG_TC3) == RESET);
+	while (DMA_GetFlagStatus(DMA2_Stream3, DMA_FLAG_TCIF3) == RESET);
+	while (DMA_GetFlagStatus(DMA2_Stream2, DMA_FLAG_TCIF2) == RESET);
 //	xSemaphoreTake( xDMATxComplete, tcpLONG_DELAY );
 //	xSemaphoreTake( xDMARxComplete, tcpLONG_DELAY );
 
 	GPIO_SetBits(BOARD_WIZNET_CS);
 
-//	DMA_ClearFlag (DMA1_FLAG_TC2);
-//	DMA_ClearFlag (DMA1_FLAG_TC3);
+	DMA_ClearFlag(DMA2_Stream3, DMA_FLAG_TCIF3);
+	DMA_ClearFlag(DMA2_Stream2, DMA_FLAG_TCIF2);
 
 	DMA_Cmd(DMA2_Stream3, DISABLE);
 	DMA_Cmd(DMA2_Stream2, DISABLE);
@@ -211,15 +226,15 @@ void spi_dma_write(uint8_t* Addref, uint8_t* pTxBuf, uint16_t tx_len)
 	SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Tx, ENABLE);
 
 	/* Waiting the end of Data transfer */
-//	while (DMA_GetFlagStatus(DMA1_FLAG_TC2) == RESET);
-//	while (DMA_GetFlagStatus(DMA1_FLAG_TC3) == RESET);
+	while (DMA_GetFlagStatus(DMA2_Stream3, DMA_FLAG_TCIF3) == RESET);
+	while (DMA_GetFlagStatus(DMA2_Stream2, DMA_FLAG_TCIF2) == RESET);
 //	xSemaphoreTake( xDMATxComplete, tcpLONG_DELAY );
 //	xSemaphoreTake( xDMARxComplete, tcpLONG_DELAY );
 
 	GPIO_SetBits(BOARD_WIZNET_CS);
 
-//	DMA_ClearFlag (DMA1_FLAG_TC2);
-//	DMA_ClearFlag (DMA1_FLAG_TC3);
+	DMA_ClearFlag(DMA2_Stream3, DMA_FLAG_TCIF3);
+	DMA_ClearFlag(DMA2_Stream2, DMA_FLAG_TCIF2);
 
 	DMA_Cmd(DMA2_Stream3, DISABLE);
 	DMA_Cmd(DMA2_Stream2, DISABLE);

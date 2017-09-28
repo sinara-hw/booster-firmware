@@ -17,9 +17,10 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 
-#define BOARD_LED1 GPIOC, GPIO_Pin_8
-#define BOARD_LED2 GPIOC, GPIO_Pin_9
+#define BOARD_LED1 GPIOC, GPIO_Pin_9
+#define BOARD_LED2 GPIOC, GPIO_Pin_8
 #define BOARD_LED3 GPIOC, GPIO_Pin_10
 
 #define BOARD_ADC_IN0 		GPIOA, GPIO_Pin_0
@@ -38,6 +39,10 @@
 #define BOARD_ADC_IN13 		GPIOC, GPIO_Pin_3
 #define BOARD_ADC_IN14 		GPIOF, GPIO_Pin_4
 #define BOARD_ADC_IN15 		GPIOF, GPIO_Pin_5
+
 #define BOARD_WIZNET_CS 	GPIOA, GPIO_Pin_4
+#define BOARD_WIZNET_RST	GPIOG, GPIO_Pin_5
+#define BOARD_WIZNET_INT	GPIOG, GPIO_Pin_6
+
 
 #endif /* CONFIG_H_ */

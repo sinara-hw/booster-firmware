@@ -13,9 +13,13 @@
 // platform drivers
 #include "uart.h"
 #include "i2c.h"
+#include "spi.h"
+#include "adc.h"
 
 // board drivers
 #include "ads7924.h"
+#include "wizchip_conf.h"
+#include "network.h"
 
 void gpio_init(void)
 {
@@ -64,14 +68,15 @@ static void prvSetupHardware(void)
 	gpio_init();
 	uart_init();
 	init_i2c();
+	spi_init();
 }
 
 void prvLEDTask(void *pvParameters)
 {
 	for (;;)
 	{
-		GPIO_ToggleBits(BOARD_LED1);
-		vTaskDelay(1000);
+		GPIO_ToggleBits(BOARD_LED2);
+		vTaskDelay(500);
 	}
 }
 
@@ -79,11 +84,13 @@ int main(void)
 {
 	prvSetupHardware();
 
+	uint16_t val = adc_autotest();
+	printf("[adc_test] %s | raw: %d | VRefInt %.2f V\n", val == 0 ? "FAIL" : "SUCCESS", val, (float) ((val * 2.5)/4096));
+
 	i2c_mux_select(0);
 	i2c_scan_devices();
 
 //	ads7924_init();
-
 	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
 
 	/* Start the scheduler. */
@@ -93,13 +100,6 @@ int main(void)
 
 	for(;;)
 	{
-//		uint16_t dt[4] = { 0 };
-//		ads7924_get_data(dt);
-//		printf("--------\n");
-//		printf("ch0 %d\n", dt[0]);
-//		printf("ch1 %d\n", dt[1]);
-//		printf("ch2 %d\n", dt[2]);
-//		printf("ch3 %d\n", dt[3]);
-//		for (int i = 0; i < 8400000; i++){};
+
 	}
 }
