@@ -47,7 +47,7 @@ static const CLI_Command_Definition_t xIPStats =
 
 BaseType_t prvTaskStatsCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
-	const char *const pcHeader = "Task State  Priority  Stack	#\r\n************************************************\r\n";
+	const char *const pcHeader = "Task\t\tState\tPriority\tStack\t#\r\n**************************************************\r\n";
 
 	/* Remove compile time warnings about unused parameters, and check the
 	write buffer is not NULL.  NOTE - for simplicity, this example assumes the
