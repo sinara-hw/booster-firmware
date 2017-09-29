@@ -90,13 +90,13 @@ void prvUDPServerTask(void *pvParameters)
 	uint8_t rx_buffer[MAX_RX_LENGTH];
 
 	// prvWaitForNetwork();
-	printf("Network init done, starting\n");
+	printf("[log] network init done, starting server..\n");
 	udp_int_init();
 	prvSetupUDPServer();
 
 	uint16_t imr = IK_SOCK_0;
 	if (ctlwizchip(CW_SET_INTRMASK, &imr) == -1) {
-		printf("Cannot set imr...");
+		printf("[dbg] cannot set imr");
 	}
 
 	for (;;)
@@ -130,7 +130,7 @@ void prvUDPServerTask(void *pvParameters)
 					}
 
 					setSn_IR(0, Sn_IR_RECV);
-					ctlwizchip(CW_CLR_INTERRUPT, IK_SOCK_0);
+					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_0);
 					NVIC_EnableIRQ(EXTI9_5_IRQn);
 				}
 

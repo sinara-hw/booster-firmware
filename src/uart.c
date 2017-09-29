@@ -12,7 +12,7 @@
 
 #include "queue.h"
 
-#define RX_QUEUE_SIZE	128
+#define RX_QUEUE_SIZE	512
 xQueueHandle 			_xRxQueue;
 
 int __io_putchar(int ch)

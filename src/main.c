@@ -22,6 +22,7 @@
 #include "network.h"
 #include "dhcp.h"
 #include "server.h"
+#include "cli.h"
 
 void gpio_init(void)
 {
@@ -96,16 +97,13 @@ int main(void)
 	i2c_mux_select(0);
 	i2c_scan_devices();
 
-//	ads7924_init();
 	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
 	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
+	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL );
+	vRegisterCLICommands();
 
-	/* Start the scheduler. */
+	/* Start the scheduler */
 	vTaskStartScheduler();
 
 	return 1;
-
-	for(;;)
-	{
-	}
 }

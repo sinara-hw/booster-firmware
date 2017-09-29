@@ -163,15 +163,15 @@ void display_net_conf(void)
 	ctlwizchip(CW_GET_ID,(void*)tmpstr);
 
 	if(glWIZNETINFO.dhcp == NETINFO_DHCP)
-		printf("\r\n===== %s NET CONF : DHCP =====\r\n",(char*)tmpstr);
+		printf("[log] ===== %s NET CONF : DHCP =====\r\n",(char*)tmpstr);
 	else
-		printf("\r\n===== %s NET CONF : Static =====\r\n",(char*)tmpstr);
+		printf("[log] ===== %s NET CONF : Static =====\r\n",(char*)tmpstr);
 
-	printf(" MAC : %02X:%02X:%02X:%02X:%02X:%02X\r\n", glWIZNETINFO.mac[0], glWIZNETINFO.mac[1], glWIZNETINFO.mac[2], glWIZNETINFO.mac[3], glWIZNETINFO.mac[4], glWIZNETINFO.mac[5]);
-	printf(" IP : %d.%d.%d.%d\r\n", glWIZNETINFO.ip[0], glWIZNETINFO.ip[1], glWIZNETINFO.ip[2], glWIZNETINFO.ip[3]);
-	printf(" GW : %d.%d.%d.%d\r\n", glWIZNETINFO.gw[0], glWIZNETINFO.gw[1], glWIZNETINFO.gw[2], glWIZNETINFO.gw[3]);
-	printf(" SN : %d.%d.%d.%d\r\n", glWIZNETINFO.sn[0], glWIZNETINFO.sn[1], glWIZNETINFO.sn[2], glWIZNETINFO.sn[3]);
-	printf("=======================================\r\n");
+	printf("[log]\tMAC:\t%02X:%02X:%02X:%02X:%02X:%02X\r\n", glWIZNETINFO.mac[0], glWIZNETINFO.mac[1], glWIZNETINFO.mac[2], glWIZNETINFO.mac[3], glWIZNETINFO.mac[4], glWIZNETINFO.mac[5]);
+	printf("[log]\tIP:\t%d.%d.%d.%d\r\n", glWIZNETINFO.ip[0], glWIZNETINFO.ip[1], glWIZNETINFO.ip[2], glWIZNETINFO.ip[3]);
+	printf("[log]\tGW:\t%d.%d.%d.%d\r\n", glWIZNETINFO.gw[0], glWIZNETINFO.gw[1], glWIZNETINFO.gw[2], glWIZNETINFO.gw[3]);
+	printf("[log]\tSN:\t%d.%d.%d.%d\r\n", glWIZNETINFO.sn[0], glWIZNETINFO.sn[1], glWIZNETINFO.sn[2], glWIZNETINFO.sn[3]);
+	printf("[log] =======================================\r\n");
 }
 
 void prvRestartServerTask(void)
