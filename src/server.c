@@ -70,7 +70,7 @@ static void prvSetupUDPServer(void)
 
 	// create sockets
 	socket(0, Sn_MR_UDP, 5000, 0);
-	setSn_IMR(0, 4);
+	setSn_IMR(0, 4); // set RECV interrupt mask
 
 	if(getSn_SR(0) == SOCK_UDP)
 	{
@@ -101,7 +101,7 @@ void prvUDPServerTask(void *pvParameters)
 
 	for (;;)
 	{
-		if (xSemaphoreTake(xUDPMessageAvailable, portMAX_DELAY))
+		if (xSemaphoreTake(xUDPMessageAvailable, configTICK_RATE_HZ))
 		{
 			if (xSemaphoreTake(xEthInterfaceAvailable, portMAX_DELAY))
 			{
@@ -115,7 +115,7 @@ void prvUDPServerTask(void *pvParameters)
 						if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
 						len = recvfrom(0, rx_buffer, len, destip, (uint16_t*)&destport);
 						rx_buffer[len] = '\0';
-						printf("%d | %s\n", (int) len, rx_buffer);
+//						printf("%d | %s\n", (int) len, rx_buffer);
 
 //						if (scpi_context.user_context != NULL) {
 //							user_data_t * u = (user_data_t *) (scpi_context.user_context);
@@ -123,7 +123,7 @@ void prvUDPServerTask(void *pvParameters)
 //							u->ipsrc_port = destport;
 //						}
 //
-//						SCPI_Input(&scpi_context, (char* )rx_buffer, (int) len);
+//						SCPI_Input(&scpi_context, (char* ) rx_buffer, (int) len);
 
 						sendto(0, rx_buffer, len, destip, destport);
 						setSn_IR(0, Sn_IR_RECV);
@@ -137,12 +137,5 @@ void prvUDPServerTask(void *pvParameters)
 				xSemaphoreGive(xEthInterfaceAvailable);
 			}
 		}
-//		else {
-//			if (xSemaphoreTake(xEthInterfaceAvailable, configTICK_RATE_HZ / 2))
-//			{
-////				printf("Status check Sn_SR %d\n", getSn_SR(0));
-//				xSemaphoreGive(xEthInterfaceAvailable);
-//			}
-//		}
 	}
 }

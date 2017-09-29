@@ -70,6 +70,7 @@ static void prvSetupHardware(void)
 	spi_init();
 }
 
+
 void prvLEDTask(void *pvParameters)
 {
 	for (;;)

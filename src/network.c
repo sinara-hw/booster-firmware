@@ -263,7 +263,7 @@ void prvDHCPTask(void *pvParameters)
 						ldhcp_retry_count = 0;
 						printf("[log] Loaded static IP settings\n");
 						display_net_conf();
-//						vTaskDelete(NULL);
+						vTaskDelete(NULL);
 					}
 					break;
 				default:
