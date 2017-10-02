@@ -81,9 +81,6 @@ static void prvSetupUDPServer(void)
 	}
 }
 
-//#include "scpi/scpi.h"
-//extern scpi_t scpi_context;
-
 void prvUDPServerTask(void *pvParameters)
 {
 	uint32_t ir;
@@ -92,7 +89,6 @@ void prvUDPServerTask(void *pvParameters)
 	uint16_t destport;
 	uint8_t rx_buffer[MAX_RX_LENGTH];
 
-	// prvWaitForNetwork();
 	printf("[log] network init done, starting server..\n");
 	udp_int_init();
 	prvSetupUDPServer();
@@ -119,7 +115,7 @@ void prvUDPServerTask(void *pvParameters)
 						len = recvfrom(0, rx_buffer, len, destip, (uint16_t*)&destport);
 						rx_buffer[len] = '\0';
 
-						printf("%d | %s\n", (int) len, rx_buffer);
+//						printf("%d | %s\n", (int) len, rx_buffer);
 
 						if (scpi_context.user_context != NULL) {
 							user_data_t * u = (user_data_t *) (scpi_context.user_context);

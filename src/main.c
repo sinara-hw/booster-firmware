@@ -24,6 +24,7 @@
 #include "server.h"
 #include "cli.h"
 #include "protocol.h"
+#include "channels.h"
 
 void gpio_init(void)
 {
@@ -92,6 +93,8 @@ int main(void)
 	xEthInterfaceAvailable = xSemaphoreCreateMutex();
 	xSemaphoreGive(xEthInterfaceAvailable);
 
+	rf_channels_init();
+
 	uint16_t val = adc_autotest();
 	printf("[adc_test] %s | raw: %d | VrefInt %.2f V\n", val == 0 ? "fail" : "success", val, (float) ((val * 2.5) / 4096));
 
@@ -105,7 +108,7 @@ int main(void)
 	scpi_init();
 
 	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
-//	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
+	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
 	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL );
 	vRegisterCLICommands();
 

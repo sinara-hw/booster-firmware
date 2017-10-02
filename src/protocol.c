@@ -11,8 +11,8 @@
 #include "socket.h"
 
 user_data_t user_data = {
-    .ipsrc = NULL,
-    .ipsrc_port = NULL,
+    .ipsrc = 0,
+    .ipsrc_port = 0,
 };
 
 size_t SCPI_Write(scpi_t * context, const char * data, size_t len)
@@ -37,7 +37,7 @@ scpi_result_t SCPI_Flush(scpi_t * context)
 int SCPI_Error(scpi_t * context, int_fast16_t err) {
     (void) context;
     /* BEEP */
-    printf("**ERROR: %ld, \"%s\"\r\n", (int32_t) err, SCPI_ErrorTranslate(err));
+    printf("[scpi] **ERROR: %ld, \"%s\"\r\n", (int32_t) err, SCPI_ErrorTranslate(err));
     if (err != 0) {
         /* New error */
         /* Beep */
@@ -53,24 +53,25 @@ scpi_result_t SCPI_Control(scpi_t * context, scpi_ctrl_name_t ctrl, scpi_reg_val
     char b[16];
 
     if (SCPI_CTRL_SRQ == ctrl) {
-        printf("**SRQ: 0x%X (%d)\r\n", val, val);
+        printf("[scpi] **SRQ: 0x%X (%d)\r\n", val, val);
     } else {
-        printf("**CTRL %02x: 0x%X (%d)\r\n", ctrl, val, val);
+        printf("[scpi] **CTRL %02x: 0x%X (%d)\r\n", ctrl, val, val);
     }
 
     if (context->user_context != NULL) {
         user_data_t * u = (user_data_t *) (context->user_context);
         if (u->ipsrc) {
             snprintf(b, sizeof (b), "SRQ%d\r\n", val);
-            return sendto(0, b, strlen(b), u->ipsrc, u->ipsrc_port);
+            return sendto(0, (uint8_t *) b, strlen(b), u->ipsrc, u->ipsrc_port);
         }
     }
     return SCPI_RES_OK;
 }
 
+/* Reset function */
 scpi_result_t SCPI_Reset(scpi_t * context) {
     (void) context;
-    printf("**Reset\r\n");
+    NVIC_SystemReset();
     return SCPI_RES_OK;
 }
 
@@ -80,7 +81,7 @@ void scpi_init(void)
 			  scpi_commands,
 			  &scpi_interface,
 			  scpi_units_def,
-			  SCPI_IDN1, SCPI_IDN2, SCPI_IDN3, SCPI_IDN4,
+			  BOARD_MANUFACTURER, BOARD_NAME, BOARD_REV, BOARD_YEAR,
 			  scpi_input_buffer, SCPI_INPUT_BUFFER_LENGTH,
 			  scpi_error_queue_data, SCPI_ERROR_QUEUE_SIZE);
 
