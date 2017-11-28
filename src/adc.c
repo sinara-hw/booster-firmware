@@ -37,7 +37,6 @@ static void adc_gpio_init(void)
 	GPIO_Init(GPIOF, &GPIO_InitStructure);
 }
 
-
 void adc_timer_init(void)
 {
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
@@ -169,10 +168,6 @@ void DMA2_Stream0_IRQHandler(void)
 		/* Clear DMA Stream Half Transfer interrupt pending bit */
 		DMA_ClearITPendingBit(DMA2_Stream0, DMA_IT_HTIF0);
 
-		/* Turn LED3 off: Half Transfer */
-		GPIO_ToggleBits(GPIOC, GPIO_Pin_8);
-		// Add code here to process first half of buffer (ping)
-
 		memcpy(converted_values, adc_samples, BUFFER_SIZE / 2);
 	}
 
@@ -184,7 +179,7 @@ void DMA2_Stream0_IRQHandler(void)
 		DMA_ClearITPendingBit(DMA2_Stream0, DMA_IT_TCIF0);
 
 		/* Turn LED3 on: End of Transfer */
-		GPIO_ToggleBits(GPIOC, GPIO_Pin_9);
+		GPIO_ToggleBits(BOARD_LED3);
 
 		memcpy(converted_values + BUFFER_SIZE / 2, adc_samples + BUFFER_SIZE / 2, BUFFER_SIZE / 2);
 
@@ -220,8 +215,6 @@ void DMA2_Stream0_IRQHandler(void)
 		printf("\n");
 		printf("voltage %.2f %.2f %.2f %.2f", averaged_voltage[0], averaged_voltage[2], averaged_voltage[3], averaged_voltage[5]);
 		printf("\n\n");
-
-		GPIO_ResetBits(GPIOC, GPIO_Pin_10);
 	}
 }
 
@@ -279,9 +272,15 @@ uint16_t adc_autotest(void)
 	}
 
 	ADC_DeInit();
+	ADC_Cmd(ADC1, DISABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, DISABLE);
 	ADC_TempSensorVrefintCmd(DISABLE);
 
 	return (uint16_t) (avaraged / 100);
 }
 
+uint8_t adc_get_data(double * arr)
+{
+	memcpy(arr, averaged_values, sizeof(double) * NCHANNELS);
+	return NCHANNELS;
+}

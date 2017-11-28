@@ -25,6 +25,7 @@
 #include "cli.h"
 #include "protocol.h"
 #include "channels.h"
+#include "max6639.h"
 
 void gpio_init(void)
 {
@@ -32,7 +33,7 @@ void gpio_init(void)
 
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
 
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
@@ -41,13 +42,6 @@ void gpio_init(void)
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
-
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
@@ -55,12 +49,17 @@ void gpio_init(void)
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOD, &GPIO_InitStructure);
 
+	/* PGOOD */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init(GPIOG, &GPIO_InitStructure);
+
 	GPIO_SetBits(GPIOC, GPIO_Pin_8);
 	GPIO_SetBits(GPIOC, GPIO_Pin_9);
 	GPIO_SetBits(GPIOC, GPIO_Pin_10);
-
-	// ADC reset off
-	GPIO_SetBits(GPIOB, GPIO_Pin_9);
 }
 
 static void prvSetupHardware(void)
@@ -90,27 +89,32 @@ int main(void)
 {
 	prvSetupHardware();
 
+//	printf("ret %d\n", spi_receive_byte());
+
 	xEthInterfaceAvailable = xSemaphoreCreateMutex();
 	xSemaphoreGive(xEthInterfaceAvailable);
 
-	rf_channels_init();
+//	rf_channels_init();
 
 	uint16_t val = adc_autotest();
-	printf("[adc_test] %s | raw: %d | VrefInt %.2f V\n", val == 0 ? "fail" : "success", val, (float) ((val * 2.5) / 4096));
+	printf("[test] ADC: %s | raw: %d | VrefInt %.2f V\n", val == 0 ? "ERROR" : "OK", val, (float) ((val * 2.5) / 4096));
+	printf("[test] PGOOD: %s\n", GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4) ? "OK" : "ERROR");
 
-	i2c_mux_select(0);
-	i2c_scan_devices();
+//	for (int i = 0; i < 8; i++) {
+//		printf("[test] scanning channel %d\n", i);
+//		i2c_mux_select(i);
+//		i2c_scan_devices();
+//	}
 
-//	i2c_mux_select(7);
-//	i2c_scan_devices();
+//	max6639_init();
 //	ads7924_init();
-
-	scpi_init();
+//	scpi_init();
+//	adc_init();
 
 	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
 	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
-	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL );
-	vRegisterCLICommands();
+//	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL );
+//	vRegisterCLICommands();
 
 	/* Start the scheduler */
 	vTaskStartScheduler();
