@@ -27,6 +27,23 @@
 #include "channels.h"
 #include "max6639.h"
 
+// usb
+#include "usb.h"
+
+__ALIGN_BEGIN USB_OTG_CORE_HANDLE    USB_OTG_dev __ALIGN_END ;
+USBD_Usr_cb_TypeDef USR_cb =
+{
+  USBD_USR_Init,
+  USBD_USR_DeviceReset,
+  USBD_USR_DeviceConfigured,
+  USBD_USR_DeviceSuspended,
+  USBD_USR_DeviceResumed,
+
+
+  USBD_USR_DeviceConnected,
+  USBD_USR_DeviceDisconnected,
+};
+
 void gpio_init(void)
 {
 	GPIO_InitTypeDef  GPIO_InitStructure;
@@ -70,6 +87,8 @@ static void prvSetupHardware(void)
 	uart_init();
 	i2c_init();
 	spi_init();
+
+//	USBD_Init(&USB_OTG_dev, USB_OTG_FS_CORE_ID, &USR_desc, &USBD_CDC_cb, &USR_cb);
 }
 
 
@@ -112,7 +131,7 @@ int main(void)
 //	adc_init();
 
 	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
-	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
+//	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
 //	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL );
 //	vRegisterCLICommands();
 
