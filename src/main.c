@@ -26,6 +26,7 @@
 #include "protocol.h"
 #include "channels.h"
 #include "max6639.h"
+#include "usb.h"
 
 void gpio_init(void)
 {
@@ -70,6 +71,7 @@ static void prvSetupHardware(void)
 	uart_init();
 	i2c_init();
 	spi_init();
+	usb_init();
 }
 
 
@@ -88,8 +90,6 @@ extern TaskHandle_t	xDHCPTask;
 int main(void)
 {
 	prvSetupHardware();
-
-//	printf("ret %d\n", spi_receive_byte());
 
 	xEthInterfaceAvailable = xSemaphoreCreateMutex();
 	xSemaphoreGive(xEthInterfaceAvailable);

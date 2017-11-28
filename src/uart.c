@@ -78,21 +78,3 @@ void uart_init(void)
 	printf("[log] PCLK1 frequency: %lu\n", RCC_ClockFreq.PCLK1_Frequency);
 	printf("[log] PCLK2 frequency: %lu\n", RCC_ClockFreq.PCLK2_Frequency);
 }
-
-void USART1_IRQHandler(void)
-{
-	static long xHigherPriorityTaskWoken;
-	xHigherPriorityTaskWoken = pdFALSE;
-
-	if (USART_GetFlagStatus(USART1, USART_FLAG_RXNE))
-	{
-		uint16_t ch = USART_ReceiveData(USART1);
-		xQueueSendFromISR(_xRxQueue, &ch, &xHigherPriorityTaskWoken);
-		USART_ClearFlag(USART1, USART_FLAG_RXNE);
-	}
-
-	/* If xHigherPriorityTaskWoken was set to true you
-	we should yield.  The actual macro used here is
-	port specific. */
-	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
-}

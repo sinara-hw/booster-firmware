@@ -89,7 +89,7 @@ static uint16_t VCP_DataRx (uint32_t Len)
 /* send data function */
 void VCP_SendData( USB_OTG_CORE_HANDLE *pdev, uint8_t* pbuf, uint32_t  buf_len)
 {
-	DCD_EP_Tx (pdev, CDC_IN_EP, pbuf , buf_len );
+	DCD_EP_Tx(pdev, CDC_IN_EP, pbuf , buf_len );
 }
 
 /* prepare data to be received */
