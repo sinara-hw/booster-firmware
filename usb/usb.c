@@ -13,6 +13,36 @@
 
 __ALIGN_BEGIN USB_OTG_CORE_HANDLE    USB_OTG_dev __ALIGN_END;
 
+#define RX_QUEUE_SIZE	512
+xQueueHandle			_xRxQueue;
+
+uint8_t bootlog[4096] = { 0 };
+uint8_t log_cnt = 0;
+bool print_enable = false;
+
+int __io_putchar(int ch)
+{
+#ifdef DEBUG
+	taskENTER_CRITICAL();
+	/* Place your implementation of fputc here */
+	/* e.g. write a character to the USART */
+	if (print_enable){
+		VCP_SendData(&USB_OTG_dev, (uint8_t *) &ch, 1);
+	} else {
+		if (log_cnt < 4095) bootlog[log_cnt++] = ch;
+	}
+
+	taskEXIT_CRITICAL();
+
+	return ch;
+#endif
+}
+
+void usb_bootlog(void)
+{
+	puts(bootlog);
+}
+
 USBD_Usr_cb_TypeDef USR_cb =
 {
   USBD_USR_Init,
@@ -28,6 +58,7 @@ USBD_Usr_cb_TypeDef USR_cb =
 
 void usb_init(void)
 {
+	_xRxQueue = xQueueCreate(RX_QUEUE_SIZE, sizeof(uint16_t));
 	USBD_Init(&USB_OTG_dev, USB_OTG_FS_CORE_ID, &USR_desc, &USBD_CDC_cb, &USR_cb);
 }
 
@@ -41,6 +72,7 @@ void USBD_USR_DeviceReset(uint8_t speed )
 
 void USBD_USR_DeviceConfigured (void)
 {
+	print_enable = true;
 }
 
 void USBD_USR_DeviceSuspended(void)

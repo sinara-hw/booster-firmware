@@ -9,6 +9,7 @@
 #define USB_H_
 
 #include "config.h"
+#include "usb_bsp.h"
 
 void USBD_USR_Init(void);
 void USBD_USR_DeviceReset(uint8_t speed );
@@ -18,5 +19,6 @@ void USBD_USR_DeviceResumed(void);
 void USBD_USR_DeviceConnected(void);
 void USBD_USR_DeviceDisconnected(void);
 void usb_init(void);
+void usb_bootlog(void);
 
 #endif /* USB_H_ */

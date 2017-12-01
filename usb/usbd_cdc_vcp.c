@@ -30,6 +30,7 @@
 #endif /* USB_OTG_HS_INTERNAL_DMA_ENABLED */
 
 /* Includes ------------------------------------------------------------------*/
+#include "config.h"
 #include "usbd_cdc_vcp.h"
 #include "stm32f4xx.h"
 #include "stm32f4xx_gpio.h"
@@ -40,6 +41,7 @@
 /* Private variables ---------------------------------------------------------*/
 __IO uint8_t rx_buffer[64] = { 0 };
 extern USB_OTG_CORE_HANDLE USB_OTG_dev;
+extern xQueueHandle _xRxQueue;
 
 /* Private function prototypes -----------------------------------------------*/
 static uint16_t VCP_DataTx   (void);
@@ -81,8 +83,13 @@ static uint16_t VCP_DataTx (void)
 static uint16_t VCP_DataRx (uint32_t Len)
 {
 	VCP_ReceiveData(&USB_OTG_dev, rx_buffer, Len);
-	VCP_SendData(&USB_OTG_dev, rx_buffer, Len);
-//	GPIO_ToggleBits(GPIOD, GPIO_Pin_12);
+
+	for (int i = 0; i < Len; i++)
+	{
+		char ch = (char) rx_buffer[i];
+		xQueueSend(_xRxQueue, &ch, 0);
+	}
+
 	return USBD_OK;
 }
 

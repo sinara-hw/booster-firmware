@@ -11,9 +11,10 @@
 #include "stm32f4xx_dma.h"
 
 #define ADC_CDR_ADDRESS 	0x40012308
-#define NCHANNELS			6
-#define NSAMPLES			100
+#define NCHANNELS			24
+#define NSAMPLES			50
 #define BUFFER_SIZE			NCHANNELS * NSAMPLES
+
 static uint16_t 			adc_samples[BUFFER_SIZE] = { 0 };
 static uint16_t 			converted_values[BUFFER_SIZE] = { 0 };
 static double				averaged_values[NCHANNELS] = { 0 };
@@ -23,15 +24,24 @@ static void adc_gpio_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOF, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
 
+	// ADC IN 0-3
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+	// ADC IN 10-13
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5;
+	// ADC IN 4-9, 14-15
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOF, &GPIO_InitStructure);
@@ -43,8 +53,8 @@ void adc_timer_init(void)
 	TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
 	/* Time base configuration */
 	TIM_TimeBaseStructInit(&TIM_TimeBaseStructure);
-	TIM_TimeBaseStructure.TIM_Prescaler = ((SystemCoreClock) / 100) - 1; // 1 ms
-	TIM_TimeBaseStructure.TIM_Period = 10 - 1;
+	TIM_TimeBaseStructure.TIM_Prescaler = ((SystemCoreClock) / 10) - 1; // 1 ms
+	TIM_TimeBaseStructure.TIM_Period = 1;
 	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
 	TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
@@ -61,11 +71,25 @@ void adc_timer_init(void)
 
 static void adc_channel_init(void)
 {
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_13, 1, ADC_SampleTime_15Cycles); // PC1
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_12, 2, ADC_SampleTime_15Cycles); // PC2
+	// ADC 1
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_3Cycles); // PA0
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_1, 1, ADC_SampleTime_3Cycles); // PA1
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_2, 1, ADC_SampleTime_3Cycles); // PA2
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_3, 1, ADC_SampleTime_3Cycles); // PA3
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_10, 1, ADC_SampleTime_3Cycles); // PC0
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_11, 1, ADC_SampleTime_3Cycles); // PC1
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_12, 1, ADC_SampleTime_3Cycles); // PC2
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_13, 1, ADC_SampleTime_3Cycles); // PC3
 
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_14, 1, ADC_SampleTime_15Cycles); // PF4
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_15, 2, ADC_SampleTime_15Cycles); // PF5
+	// ADC3
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_4, 1, ADC_SampleTime_3Cycles); // PF6
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_5, 1, ADC_SampleTime_3Cycles); // PF7
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_6, 1, ADC_SampleTime_3Cycles); // PF8
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_7, 1, ADC_SampleTime_3Cycles); // PF9
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_8, 1, ADC_SampleTime_3Cycles); // PF10
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_9, 1, ADC_SampleTime_3Cycles); // PF3
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_14, 1, ADC_SampleTime_3Cycles); // PF4
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_15, 1, ADC_SampleTime_3Cycles); // PF5
 }
 
 
@@ -133,7 +157,7 @@ void adc_init(void)
 	ADC_InitStructure.ADC_ExternalTrigConvEdge = ADC_ExternalTrigConvEdge_Rising;
 	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_T2_TRGO;
 	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
-	ADC_InitStructure.ADC_NbrOfConversion = 2;
+	ADC_InitStructure.ADC_NbrOfConversion = 16;
 
 	ADC_Init(ADC1, &ADC_InitStructure);
 	ADC_Init(ADC3, &ADC_InitStructure); /* Mirror on ADC3 */
@@ -167,26 +191,24 @@ void DMA2_Stream0_IRQHandler(void)
 	{
 		/* Clear DMA Stream Half Transfer interrupt pending bit */
 		DMA_ClearITPendingBit(DMA2_Stream0, DMA_IT_HTIF0);
-
 		memcpy(converted_values, adc_samples, BUFFER_SIZE / 2);
 	}
 
 	/* Test on DMA Stream Transfer Complete interrupt */
 	if (DMA_GetITStatus(DMA2_Stream0, DMA_IT_TCIF0))
 	{
-		GPIO_SetBits(GPIOC, GPIO_Pin_10);
 		/* Clear DMA Stream Transfer Complete interrupt pending bit */
 		DMA_ClearITPendingBit(DMA2_Stream0, DMA_IT_TCIF0);
 
 		/* Turn LED3 on: End of Transfer */
-		GPIO_ToggleBits(BOARD_LED3);
+		GPIO_ToggleBits(BOARD_LED2);
 
 		memcpy(converted_values + BUFFER_SIZE / 2, adc_samples + BUFFER_SIZE / 2, BUFFER_SIZE / 2);
-
-		/* ADC1_CH1 ADC2_CH2 ADC3_CH3
-		 * Skipping channel 2 values
-		 */
-
+//
+//		/* ADC1_CH1 ADC2_CH2 ADC3_CH3
+//		 * Skipping channel 2 values
+//		 */
+//
 		uint8_t samples = 0;
 		memset(averaged_values, 0, NCHANNELS);
 		for (int i = 0; i < NSAMPLES; i+= 6, samples++)
@@ -207,14 +229,14 @@ void DMA2_Stream0_IRQHandler(void)
 		averaged_voltage[2] = ((averaged_values[2] * 2.50) / 4096);
 		averaged_voltage[3] = ((averaged_values[3] * 2.50) / 4096);
 		averaged_voltage[5] = ((averaged_values[5] * 2.50) / 4096);
-
-		for (int j = 0; j < NCHANNELS; j++) printf("%d ", converted_values[j]);
-		printf("\n");
-
-		printf("values %.2f %.2f %.2f %.2f", averaged_values[0], averaged_values[2], averaged_values[3], averaged_values[5]);
-		printf("\n");
-		printf("voltage %.2f %.2f %.2f %.2f", averaged_voltage[0], averaged_voltage[2], averaged_voltage[3], averaged_voltage[5]);
-		printf("\n\n");
+//
+//		for (int j = 0; j < NCHANNELS; j++) printf("%d ", converted_values[j]);
+//		printf("\n");
+//
+//		printf("values %.2f %.2f %.2f %.2f", averaged_values[0], averaged_values[2], averaged_values[3], averaged_values[5]);
+//		printf("\n");
+//		printf("voltage %.2f %.2f %.2f %.2f", averaged_voltage[0], averaged_voltage[2], averaged_voltage[3], averaged_voltage[5]);
+//		printf("\n\n");
 	}
 }
 

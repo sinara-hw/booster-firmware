@@ -9,6 +9,7 @@
 */
 
 #include "config.h"
+#include "stm32f4xx_rcc.h"
 
 // platform drivers
 #include "uart.h"
@@ -50,7 +51,7 @@ void gpio_init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_DOWN;
 	GPIO_Init(GPIOD, &GPIO_InitStructure);
 
 	/* PGOOD */
@@ -61,20 +62,27 @@ void gpio_init(void)
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOG, &GPIO_InitStructure);
 
-	GPIO_SetBits(GPIOC, GPIO_Pin_8);
-	GPIO_SetBits(GPIOC, GPIO_Pin_9);
-	GPIO_SetBits(GPIOC, GPIO_Pin_10);
+	GPIO_ResetBits(GPIOC, GPIO_Pin_8);
+	GPIO_ResetBits(GPIOC, GPIO_Pin_9);
+	GPIO_ResetBits(GPIOC, GPIO_Pin_10);
 }
 
 static void prvSetupHardware(void)
 {
 	SystemCoreClockUpdate();
 
+	usb_init();
 	gpio_init();
-	uart_init();
+//	uart_init();
 	i2c_init();
 	spi_init();
-	usb_init();
+
+	RCC_ClocksTypeDef RCC_ClockFreq;
+	RCC_GetClocksFreq(&RCC_ClockFreq);
+	printf("[log] device boot\n");
+	printf("[log] SYSCLK frequency: %lu\n", RCC_ClockFreq.SYSCLK_Frequency);
+	printf("[log] PCLK1 frequency: %lu\n", RCC_ClockFreq.PCLK1_Frequency);
+	printf("[log] PCLK2 frequency: %lu\n", RCC_ClockFreq.PCLK2_Frequency);
 }
 
 
@@ -82,7 +90,7 @@ void prvLEDTask(void *pvParameters)
 {
 	for (;;)
 	{
-		GPIO_ToggleBits(BOARD_LED2);
+		GPIO_ToggleBits(BOARD_LED3);
 		vTaskDelay(500);
 	}
 }
@@ -97,11 +105,10 @@ int main(void)
 	xEthInterfaceAvailable = xSemaphoreCreateMutex();
 	xSemaphoreGive(xEthInterfaceAvailable);
 
-//	rf_channels_init();
-
 	uint16_t val = adc_autotest();
 	printf("[test] ADC: %s | raw: %d | VrefInt %.2f V\n", val == 0 ? "ERROR" : "OK", val, (float) ((val * 2.5) / 4096));
 	printf("[test] PGOOD: %s\n", GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4) ? "OK" : "ERROR");
+	if (GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4)) GPIO_SetBits(BOARD_LED1);
 
 //	for (int i = 0; i < 8; i++) {
 //		printf("[test] scanning channel %d\n", i);
@@ -112,12 +119,13 @@ int main(void)
 //	max6639_init();
 //	ads7924_init();
 //	scpi_init();
-//	adc_init();
+	adc_init();
 
 	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
 //	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
-//	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL );
-//	vRegisterCLICommands();
+	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL );
+	xTaskCreate(prcRFChannelsTask, "RFCH", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL );
+	vRegisterCLICommands();
 
 	/* Start the scheduler */
 	vTaskStartScheduler();

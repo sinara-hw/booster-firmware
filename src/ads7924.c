@@ -89,13 +89,15 @@ void ads7924_get_data(uint16_t * data)
 
 void ads7924_init(void)
 {
-	uint8_t id = i2c_read(I2C1, 0x49, 0x16);
+	uint8_t id = i2c_read(I2C1, ADS7924_ADDRESS, 0x16);
 	printf("ADS7924 ID: %d==25 | %s\n", id, id == 25 ? "PASS" : "FAIL");
 
 	ads7924_reset();
-	for (int i = 0; i < 8400000; i++){}; // wait for power-up sequence to end
+	for (int i = 0; i < 84000; i++) {}; // wait for power-up sequence to end
 
 	ads7924_set_mode(MODE_AUTO_SCAN);
+
+	i2c_write(I2C1, ADS7924_ADDRESS, 0x12, 0b00000010);
 }
 
 void ads7924_stop(void)

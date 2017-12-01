@@ -55,11 +55,28 @@
 #define CH6_SIGON 		GPIOG, GPIO_Pin_14
 #define CH7_SIGON 		GPIOG, GPIO_Pin_15
 
+typedef struct {
+	bool enabled;
+	bool overvoltage;
+	bool alert;
+	bool userio;
+
+	uint16_t adc_ch1;
+	uint16_t adc_ch2;
+
+	uint16_t pwr_ch1;
+	uint16_t pwr_ch2;
+	uint16_t pwr_ch3;
+	uint16_t pwr_ch4;
+} channel_t;
+
 void rf_channels_init(void);
 void rf_channels_control(uint16_t channel_mask, bool enable);
 uint8_t rf_channels_read_alert(void);
 uint8_t rf_channels_read_ovl(void);
 uint8_t rf_channels_read_sigon(void);
 uint8_t rf_available_channels(uint8_t * arr);
+void prcRFChannelsTask(void *pvParameters);
+uint8_t rf_channels_read_enabled(void);
 
 #endif /* CHANNELS_H_ */

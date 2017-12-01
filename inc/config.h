@@ -19,6 +19,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
+#include "queue.h"
 
 #define BOARD_LED1 			GPIOC, GPIO_Pin_9
 #define BOARD_LED2 			GPIOC, GPIO_Pin_8
