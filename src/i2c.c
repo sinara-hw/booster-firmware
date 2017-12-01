@@ -10,7 +10,7 @@
 #include "stm32f4xx_i2c.h"
 #include "i2c.h"
 
-#define I2C_TIMEOUT 		2000
+#define I2C_TIMEOUT 		200
 #define I2C_ACK_ENABLE		1
 #define I2C_ACK_DISABLE		0
 #define I2C_MUX_ADDR		0x70
@@ -37,7 +37,7 @@ void i2c_init(void)
 	GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_I2C1); // SDA
 
 	// configure I2C1
-	I2C_InitStructure.I2C_ClockSpeed = 100000; 			// 100kHz
+	I2C_InitStructure.I2C_ClockSpeed = 1000000; 			// 100kHz
 	I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;			// I2C mode
 	I2C_InitStructure.I2C_DutyCycle = I2C_DutyCycle_2;	// 50% duty cycle --> standard
 	I2C_InitStructure.I2C_OwnAddress1 = 0x00;			// own address, not relevant in master mode
@@ -65,22 +65,22 @@ uint8_t i2c_mux_select(uint8_t channel)
 	return 1;
 }
 
-uint8_t i2c_scan_devices(void)
+uint8_t i2c_scan_devices(bool verbose)
 {
 	uint8_t connected = 0;
 
-	printf("[i2c_scan] start\n");
+	if (verbose) printf("[i2c_scan] start\n");
 
 	for (int addr = 0; addr < 128; addr++)
 	{
 		if (i2c_device_connected(I2C1, addr))
 		{
-			printf("[i2c_scan] Found I2C device at %X\n", addr);
+			if (verbose) printf("[i2c_scan] Found I2C device at %X\n", addr);
 			connected++;
 		}
 	}
 
-	printf("[i2c_scan] end\n");
+	if (verbose) printf("[i2c_scan] end\n");
 
 	return connected;
 }

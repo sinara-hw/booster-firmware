@@ -7,6 +7,8 @@
 #include "config.h"
 #include "cli.h"
 #include "network.h"
+#include "usb.h"
+#include "i2c.h"
 
 #include "FreeRTOS_CLI.h"
 
@@ -36,14 +38,31 @@ static const CLI_Command_Definition_t xRebootDevice =
 };
 
 /* Structure that defines the "task-stats" command line command. */
+static const CLI_Command_Definition_t xBootlog =
+{
+	"bootlog", /* The command string to type. */
+	"bootlog:\r\n Shows logs from device boot\r\n",
+	prvBootlogCommand, /* The function to run. */
+	0 /* No parameters are expected. */
+};
+
+/* Structure that defines the "task-stats" command line command. */
 static const CLI_Command_Definition_t xIPStats =
 {
 	"ifconfig", /* The command string to type. */
 	"ifconfig:\r\n Displays network configuration info\r\n",
 	prvNetworkConfigCommand, /* The function to run. */
-	-1 /* No parameters are expected. */
+	-1 /* Dynamic number of parameters. */
 };
 
+/* Structure that defines the "task-stats" command line command. */
+static const CLI_Command_Definition_t xI2CControl =
+{
+	"i2c", /* The command string to type. */
+	"i2c:\r\n Use i2c interface\r\n",
+	prvI2CCommand, /* The function to run. */
+	-1 /* Dynamic number of parameters. */
+};
 
 BaseType_t prvTaskStatsCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
@@ -75,6 +94,112 @@ BaseType_t prvRebootCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 	configASSERT(pcWriteBuffer);
 
 	NVIC_SystemReset();
+
+	/* There is no more data to return after this single string, so return
+	pdFALSE. */
+	return pdFALSE;
+}
+
+BaseType_t prvI2CCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
+{
+	int8_t *pcParameter;
+	BaseType_t lParameterStringLength, xReturn;
+
+	/* Remove compile time warnings about unused parameters, and check the
+	write buffer is not NULL.  NOTE - for simplicity, this example assumes the
+	write buffer length is adequate, so does not check for buffer overflows. */
+//	( void ) pcCommandString;
+//	( void ) xWriteBufferLen;
+//	configASSERT(pcWriteBuffer);
+
+	static uint8_t i2c_addr, i2c_register, i2c_data;
+	static int i2c_rw;
+
+	/* Note that the use of the static parameter means this function is not reentrant. */
+	static BaseType_t lParameterNumber = 0;
+
+	if( lParameterNumber == 0 )
+	{
+		/* Next time the function is called the first parameter will be echoed
+		back. */
+		lParameterNumber = 1L;
+
+		i2c_addr = 0;
+		i2c_register = 0;
+		i2c_data = 0;
+		i2c_rw = 0;
+
+		/* There is more data to be returned as no parameters have been echoed
+		back yet, so set xReturn to pdPASS so the function will be called again. */
+		xReturn = pdPASS;
+	} else {
+    	/* lParameter is not 0, so holds the number of the parameter that should
+			be returned.  Obtain the complete parameter string. */
+		pcParameter = ( int8_t * ) FreeRTOS_CLIGetParameter
+                                   (
+                                       /* The command string itself. */
+									   pcCommandString,
+									   /* Return the next parameter. */
+									   lParameterNumber,
+									   /* Store the parameter string length. */
+									   &lParameterStringLength
+									);
+		if( pcParameter != NULL )
+		{
+			// avoid buffer overflow
+			if (lParameterStringLength > 15) lParameterStringLength = 15;
+			if (lParameterNumber == 1) i2c_rw = atoi((char*) pcParameter);
+			if (lParameterNumber == 2) i2c_addr = atoi((char*) pcParameter);
+			if (lParameterNumber == 3) i2c_register = atoi((char*) pcParameter);
+			if (lParameterNumber == 4) i2c_data= atoi((char*) pcParameter);
+
+			xReturn = pdTRUE;
+			lParameterNumber++;
+
+			sprintf(pcWriteBuffer, "\r");
+		} else {
+			printf("Execuring i2c command, cmd %d, addr %d, reg %d, data %d\n", i2c_rw, i2c_addr, i2c_register, i2c_data);
+			/* There is no more data to return, so this time set xReturn to
+			   pdFALSE. */
+
+			if (i2c_rw == 1) {
+				i2c_write(I2C1, i2c_addr, i2c_register, i2c_data);
+			} else if (i2c_rw == 0) {
+				uint8_t ret = i2c_read(I2C1, i2c_addr, i2c_register);
+				printf("i2c[%X][%X] = %X\n", i2c_addr, i2c_register, ret);
+				printf("i2c[%d][%d] = %d\n", i2c_addr, i2c_register, ret);
+			} else if (i2c_rw == 2) {
+				i2c_scan_devices(true);
+			} else if (i2c_rw == 3) {
+				i2c_mux_select(i2c_addr);
+			} else if (i2c_rw == 4) {
+				i2c_start(I2C1, i2c_addr, I2C_Direction_Transmitter, 1);
+				i2c_write_byte(I2C1, i2c_register);
+				i2c_write_byte(I2C1, i2c_data);
+				i2c_stop(I2C1);
+			}
+
+            xReturn = pdFALSE;
+			/* Start over the next time this command is executed. */
+			lParameterNumber = 0;
+
+			sprintf(pcWriteBuffer, "\r");
+		}
+    }
+
+	return xReturn;
+}
+
+BaseType_t prvBootlogCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
+{
+	/* Remove compile time warnings about unused parameters, and check the
+	write buffer is not NULL.  NOTE - for simplicity, this example assumes the
+	write buffer length is adequate, so does not check for buffer overflows. */
+	( void ) pcCommandString;
+	( void ) xWriteBufferLen;
+	configASSERT(pcWriteBuffer);
+
+	usb_bootlog();
 
 	/* There is no more data to return after this single string, so return
 	pdFALSE. */
@@ -202,6 +327,8 @@ void vRegisterCLICommands( void )
 	FreeRTOS_CLIRegisterCommand( &xTaskStats );
 	FreeRTOS_CLIRegisterCommand( &xIPStats );
 	FreeRTOS_CLIRegisterCommand( &xRebootDevice );
+	FreeRTOS_CLIRegisterCommand( &xBootlog );
+	FreeRTOS_CLIRegisterCommand( &xI2CControl );
 }
 
 void vCommandConsoleTask( void *pvParameters )
@@ -241,8 +368,9 @@ void vCommandConsoleTask( void *pvParameters )
 
                     /* Write the output generated by the command interpreter to the
                     console. */
-                    // FreeRTOS_write( xConsole, pcOutputString, strlen( pcOutputString ) );
-                    puts((char *) pcOutputString);
+                    // FreeRTOS_write( xConsole, pcOutputString,  );
+                    pcOutputString[strlen( pcOutputString )] = '\0';
+                    printf("%s", (char *) pcOutputString);
 
                 } while( xMoreDataToFollow != pdFALSE );
 
