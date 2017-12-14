@@ -175,27 +175,27 @@ void prcRFChannelsTask(void *pvParameters)
 	uint8_t channel_user = 0;
 
 	for (;;) {
-		GPIO_ToggleBits(BOARD_LED1);
-
-		channel_enabled = rf_channels_read_enabled();
-		channel_ovl = rf_channels_read_ovl();
-		channel_alert = rf_channels_read_alert();
-
-		led_bar_write(channel_enabled, channel_alert, channel_ovl);
-
-		for (int i = 0; i < 8; i++)
-		{
-			channels[i].alert = (channel_alert >> i) & 0x01;
-			channels[i].enabled = (channel_enabled >> i) & 0x01;
-			channels[i].overvoltage = (channel_ovl >> i) & 0x01;
-
-			channels[i].pwr_ch1 = ads7924_get_channel_data(0);
-			channels[i].pwr_ch2 = ads7924_get_channel_data(1);
-			channels[i].pwr_ch3 = ads7924_get_channel_data(2);
-			channels[i].pwr_ch4 = ads7924_get_channel_data(3);
-		}
-
-		channel_user++;
+//		GPIO_ToggleBits(BOARD_LED1);
+//
+//		channel_enabled = rf_channels_read_enabled();
+//		channel_ovl = rf_channels_read_ovl();
+//		channel_alert = rf_channels_read_alert();
+//
+//		led_bar_write(channel_enabled, channel_alert, channel_ovl);
+//
+//		for (int i = 0; i < 8; i++)
+//		{
+//			channels[i].alert = (channel_alert >> i) & 0x01;
+//			channels[i].enabled = (channel_enabled >> i) & 0x01;
+//			channels[i].overvoltage = (channel_ovl >> i) & 0x01;
+//
+//			channels[i].pwr_ch1 = ads7924_get_channel_data(0);
+//			channels[i].pwr_ch2 = ads7924_get_channel_data(1);
+//			channels[i].pwr_ch3 = ads7924_get_channel_data(2);
+//			channels[i].pwr_ch4 = ads7924_get_channel_data(3);
+//		}
+//
+//		channel_user++;
 		vTaskDelay(10);
 	}
 }

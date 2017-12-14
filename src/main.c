@@ -85,14 +85,111 @@ static void prvSetupHardware(void)
 	printf("[log] PCLK2 frequency: %lu\n", RCC_ClockFreq.PCLK2_Frequency);
 }
 
+extern channel_t channels[8];
 
 void prvLEDTask(void *pvParameters)
 {
-	for (;;)
-	{
-		GPIO_ToggleBits(BOARD_LED3);
-		vTaskDelay(500);
-	}
+    for (;;)
+    {
+    	printf("CHANNELS INFO\n");
+        printf("==========================================================================\n");
+
+        printf("\t\t#1\t#2\t#3\t#4\t#5\t#6\t#7\t#8\n");
+
+        printf("ADC1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].adc_ch1,
+               channels[1].adc_ch1,
+               channels[2].adc_ch1,
+               channels[3].adc_ch1,
+               channels[4].adc_ch1,
+               channels[5].adc_ch1,
+               channels[6].adc_ch1,
+               channels[7].adc_ch1);
+
+        printf("ADC2\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].adc_ch2,
+               channels[1].adc_ch2,
+               channels[2].adc_ch2,
+               channels[3].adc_ch2,
+               channels[4].adc_ch2,
+               channels[5].adc_ch2,
+               channels[6].adc_ch2,
+               channels[7].adc_ch2);
+
+        printf("PWR1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].pwr_ch1,
+               channels[1].pwr_ch1,
+               channels[2].pwr_ch1,
+               channels[3].pwr_ch1,
+               channels[4].pwr_ch1,
+               channels[5].pwr_ch1,
+               channels[6].pwr_ch1,
+               channels[7].pwr_ch1);
+
+        printf("PWR2\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].pwr_ch2,
+               channels[1].pwr_ch2,
+               channels[2].pwr_ch2,
+               channels[3].pwr_ch2,
+               channels[4].pwr_ch2,
+               channels[5].pwr_ch2,
+               channels[6].pwr_ch2,
+               channels[7].pwr_ch2);
+
+        printf("PWR3\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].pwr_ch3,
+               channels[1].pwr_ch3,
+               channels[2].pwr_ch3,
+               channels[3].pwr_ch3,
+               channels[4].pwr_ch3,
+               channels[5].pwr_ch3,
+               channels[6].pwr_ch3,
+               channels[7].pwr_ch3);
+
+        printf("PWR4\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].pwr_ch4,
+               channels[1].pwr_ch4,
+               channels[2].pwr_ch4,
+               channels[3].pwr_ch4,
+               channels[4].pwr_ch4,
+               channels[5].pwr_ch4,
+               channels[6].pwr_ch4,
+               channels[7].pwr_ch4);
+
+        printf("ON\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].enabled,
+               channels[1].enabled,
+               channels[2].enabled,
+               channels[3].enabled,
+               channels[4].enabled,
+               channels[5].enabled,
+               channels[6].enabled,
+               channels[7].enabled);
+        printf("OVL\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].overvoltage,
+               channels[1].overvoltage,
+               channels[2].overvoltage,
+               channels[3].overvoltage,
+               channels[4].overvoltage,
+               channels[5].overvoltage,
+               channels[6].overvoltage,
+               channels[7].overvoltage);
+        printf("ALERT\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].alert,
+               channels[1].alert,
+               channels[2].alert,
+               channels[3].alert,
+               channels[4].alert,
+               channels[5].alert,
+               channels[6].alert,
+               channels[7].alert);
+
+        printf("USERIO\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].userio,
+               channels[1].userio,
+               channels[2].userio,
+               channels[3].userio,
+               channels[4].userio,
+               channels[5].userio,
+               channels[6].userio,
+               channels[7].userio);
+
+        printf("==========================================================================\n");
+
+
+        GPIO_ToggleBits(BOARD_LED3);
+        vTaskDelay(5000);
+    }
 }
 
 extern SemaphoreHandle_t xEthInterfaceAvailable;
@@ -110,18 +207,11 @@ int main(void)
 	printf("[test] PGOOD: %s\n", GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4) ? "OK" : "ERROR");
 	if (GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4)) GPIO_SetBits(BOARD_LED1);
 
-//	for (int i = 0; i < 8; i++) {
-//		printf("[test] scanning channel %d\n", i);
-//		i2c_mux_select(i);
-//		i2c_scan_devices();
-//	}
-
-//	max6639_init();
-//	ads7924_init();
-//	scpi_init();
+	max6639_init();
+	scpi_init();
 	adc_init();
 
-	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
+//	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
 //	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
 	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL );
 	xTaskCreate(prcRFChannelsTask, "RFCH", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL );

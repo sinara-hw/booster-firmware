@@ -9,6 +9,7 @@
 #include "network.h"
 #include "usb.h"
 #include "i2c.h"
+#include "channels.h"
 
 #include "FreeRTOS_CLI.h"
 
@@ -26,6 +27,15 @@ static const CLI_Command_Definition_t xTaskStats =
 	"task-stats:\r\n Displays a table showing the state of each FreeRTOS task\r\n",
 	prvTaskStatsCommand, /* The function to run. */
 	0 /* No parameters are expected. */
+};
+
+/* Structure that defines the "task-stats" command line command. */
+static const CLI_Command_Definition_t xChCtrl =
+{
+	"ctrl", /* The command string to type. */
+	"ctrl:\r\n Enables or disables selected channels\r\n",
+	prvCtrlCommand, /* The function to run. */
+	1 /* No parameters are expected. */
 };
 
 /* Structure that defines the "task-stats" command line command. */
@@ -98,6 +108,60 @@ BaseType_t prvRebootCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 	/* There is no more data to return after this single string, so return
 	pdFALSE. */
 	return pdFALSE;
+}
+
+BaseType_t prvCtrlCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
+{
+	int8_t *pcParameter;
+	BaseType_t lParameterStringLength, xReturn;
+
+	static uint8_t channels;
+
+	/* Note that the use of the static parameter means this function is not reentrant. */
+	static BaseType_t lParameterNumber = 0;
+
+	if( lParameterNumber == 0 )
+	{
+		/* Next time the function is called the first parameter will be echoed
+		back. */
+		lParameterNumber = 1L;
+		channels = 0;
+
+		/* There is more data to be returned as no parameters have been echoed
+		back yet, so set xReturn to pdPASS so the function will be called again. */
+		xReturn = pdPASS;
+	} else {
+    	/* lParameter is not 0, so holds the number of the parameter that should
+			be returned.  Obtain the complete parameter string. */
+		pcParameter = ( int8_t * ) FreeRTOS_CLIGetParameter
+                                   (
+                                       /* The command string itself. */
+									   pcCommandString,
+									   /* Return the next parameter. */
+									   lParameterNumber,
+									   /* Store the parameter string length. */
+									   &lParameterStringLength
+									);
+		if( pcParameter != NULL )
+		{
+			// avoid buffer overflow
+			if (lParameterStringLength > 15) lParameterStringLength = 15;
+			if (lParameterNumber == 1) channels = atoi((char*) pcParameter);
+
+			xReturn = pdTRUE;
+			lParameterNumber++;
+		} else {
+
+			rf_channels_control(channels & 0xFF, true);
+			rf_channels_control(~channels & 0xFF, false);
+
+            xReturn = pdFALSE;
+			/* Start over the next time this command is executed. */
+			lParameterNumber = 0;
+		}
+    }
+
+	return xReturn;
 }
 
 BaseType_t prvI2CCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
@@ -329,6 +393,7 @@ void vRegisterCLICommands( void )
 	FreeRTOS_CLIRegisterCommand( &xRebootDevice );
 	FreeRTOS_CLIRegisterCommand( &xBootlog );
 	FreeRTOS_CLIRegisterCommand( &xI2CControl );
+	FreeRTOS_CLIRegisterCommand( &xChCtrl );
 }
 
 void vCommandConsoleTask( void *pvParameters )

@@ -9,6 +9,7 @@
 #include "stm32f4xx_adc.h"
 #include "stm32f4xx_gpio.h"
 #include "stm32f4xx_dma.h"
+#include "channels.h"
 
 #define ADC_CDR_ADDRESS 	0x40012308
 #define NCHANNELS			24
@@ -19,6 +20,8 @@ static uint16_t 			adc_samples[BUFFER_SIZE] = { 0 };
 static uint16_t 			converted_values[BUFFER_SIZE] = { 0 };
 static double				averaged_values[NCHANNELS] = { 0 };
 static double				averaged_voltage[NCHANNELS] = { 0 };
+
+extern channel_t channels[8];
 
 static void adc_gpio_init(void)
 {
@@ -72,24 +75,40 @@ void adc_timer_init(void)
 static void adc_channel_init(void)
 {
 	// ADC 1
+
+	// rf channel 0
 	ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_3Cycles); // PA0
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_1, 1, ADC_SampleTime_3Cycles); // PA1
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_2, 1, ADC_SampleTime_3Cycles); // PA2
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_3, 1, ADC_SampleTime_3Cycles); // PA3
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_10, 1, ADC_SampleTime_3Cycles); // PC0
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_11, 1, ADC_SampleTime_3Cycles); // PC1
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_12, 1, ADC_SampleTime_3Cycles); // PC2
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_13, 1, ADC_SampleTime_3Cycles); // PC3
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_1, 2, ADC_SampleTime_3Cycles); // PA1
+
+	// rf channel 1
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_2, 3, ADC_SampleTime_3Cycles); // PA2
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_3, 4, ADC_SampleTime_3Cycles); // PA3
+
+	// rf channel 5
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_10, 5, ADC_SampleTime_3Cycles); // PC0
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_11, 6, ADC_SampleTime_3Cycles); // PC1
+
+	// rf channel 6
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_12, 7, ADC_SampleTime_3Cycles); // PC2
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_13, 8, ADC_SampleTime_3Cycles); // PC3
 
 	// ADC3
+
+	// rf channel 2
 	ADC_RegularChannelConfig(ADC3, ADC_Channel_4, 1, ADC_SampleTime_3Cycles); // PF6
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_5, 1, ADC_SampleTime_3Cycles); // PF7
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_6, 1, ADC_SampleTime_3Cycles); // PF8
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_7, 1, ADC_SampleTime_3Cycles); // PF9
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_8, 1, ADC_SampleTime_3Cycles); // PF10
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_9, 1, ADC_SampleTime_3Cycles); // PF3
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_14, 1, ADC_SampleTime_3Cycles); // PF4
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_15, 1, ADC_SampleTime_3Cycles); // PF5
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_5, 2, ADC_SampleTime_3Cycles); // PF7
+
+	// rf channel 3
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_6, 3, ADC_SampleTime_3Cycles); // PF8
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_7, 4, ADC_SampleTime_3Cycles); // PF9
+
+	// rf channel 4
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_8, 5, ADC_SampleTime_3Cycles); // PF10
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_9, 6, ADC_SampleTime_3Cycles); // PF3
+
+	// rf channel 7
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_14, 7, ADC_SampleTime_3Cycles); // PF4
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_15, 8, ADC_SampleTime_3Cycles); // PF5
 }
 
 
@@ -211,32 +230,69 @@ void DMA2_Stream0_IRQHandler(void)
 //
 		uint8_t samples = 0;
 		memset(averaged_values, 0, NCHANNELS);
-		for (int i = 0; i < NSAMPLES; i+= 6, samples++)
+		for (int i = 0; i < NSAMPLES; i+= NCHANNELS, samples++)
 		{
+			// rf channel 0
 			averaged_values[0] += converted_values[i];
-			averaged_values[2] += converted_values[i + 2];
-			averaged_values[3] += converted_values[i + 3];
+			averaged_values[1] += converted_values[i + 3];
+
+			// rf channel 1
+			averaged_values[2] += converted_values[i + 6];
+			averaged_values[3] += converted_values[i + 9];
+
+			// rf channel 2
+			averaged_values[4] += converted_values[i + 2];
 			averaged_values[5] += converted_values[i + 5];
+
+			// rf channel 3
+			averaged_values[6] += converted_values[i + 8];
+			averaged_values[7] += converted_values[i + 11];
+
+			// rf channel 4
+			averaged_values[8] += converted_values[i + 14];
+			averaged_values[9] += converted_values[i + 17];
+
+			// rf channel 5
+			averaged_values[10] += converted_values[i + 12];
+			averaged_values[11] += converted_values[i + 15];
+
+			// rf channel 6
+			averaged_values[12] += converted_values[i + 18];
+			averaged_values[13] += converted_values[i + 21];
+
+			// rf channel 7
+			averaged_values[14] += converted_values[i + 20];
+			averaged_values[15] += converted_values[i + 23];
 		}
+
 		samples++;
 
-		averaged_values[0] /= samples;
-		averaged_values[2] /= samples;
-		averaged_values[3] /= samples;
-		averaged_values[5] /= samples;
+		for (int i = 0; i < 16; i++) averaged_values[i] /= samples;
+		for (int i = 0; i < 16; i++) averaged_voltage[i] = ((averaged_values[i] * 2.50) / 4096);
 
-		averaged_voltage[0] = ((averaged_values[0] * 2.50) / 4096);
-		averaged_voltage[2] = ((averaged_values[2] * 2.50) / 4096);
-		averaged_voltage[3] = ((averaged_values[3] * 2.50) / 4096);
-		averaged_voltage[5] = ((averaged_values[5] * 2.50) / 4096);
-//
-//		for (int j = 0; j < NCHANNELS; j++) printf("%d ", converted_values[j]);
-//		printf("\n");
-//
-//		printf("values %.2f %.2f %.2f %.2f", averaged_values[0], averaged_values[2], averaged_values[3], averaged_values[5]);
-//		printf("\n");
-//		printf("voltage %.2f %.2f %.2f %.2f", averaged_voltage[0], averaged_voltage[2], averaged_voltage[3], averaged_voltage[5]);
-//		printf("\n\n");
+		channels[0].adc_ch1 = averaged_values[0];
+		channels[0].adc_ch2 = averaged_values[1];
+
+		channels[1].adc_ch1 = averaged_values[2];
+		channels[1].adc_ch2 = averaged_values[3];
+
+		channels[2].adc_ch1 = averaged_values[4];
+		channels[2].adc_ch2 = averaged_values[5];
+
+		channels[3].adc_ch1 = averaged_values[6];
+		channels[3].adc_ch2 = averaged_values[7];
+
+		channels[4].adc_ch1 = averaged_values[8];
+		channels[4].adc_ch2 = averaged_values[9];
+
+		channels[5].adc_ch1 = averaged_values[10];
+		channels[5].adc_ch2 = averaged_values[11];
+
+		channels[6].adc_ch1 = averaged_values[12];
+		channels[6].adc_ch2 = averaged_values[13];
+
+		channels[7].adc_ch1 = averaged_values[14];
+		channels[7].adc_ch2 = averaged_values[15];
 	}
 }
 
