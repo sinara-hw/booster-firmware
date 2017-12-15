@@ -23,7 +23,7 @@ static void udp_int_init(void)
 	EXTI_InitTypeDef 	EXTI_InitStruct;
 	NVIC_InitTypeDef 	NVIC_InitStruct;
 
-	// interrupt PF15
+	// interrupt PG6
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
 

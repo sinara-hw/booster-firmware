@@ -10,6 +10,7 @@
 #include "i2c.h"
 #include "led_bar.h"
 
+#define CHANNEL_MASK 0b00000010
 #define BYTE_TO_BINARY(byte)  \
   (byte & 0x80 ? '1' : '0'), \
   (byte & 0x40 ? '1' : '0'), \
@@ -155,6 +156,35 @@ uint8_t rf_channels_read_sigon(void)
 	return (GPIO_ReadInputData(GPIOG) & 0xFF00) >> 8;
 }
 
+void rf_channel_enable_procedure(uint8_t channel)
+{
+	i2c_mux_select(channel);
+	i2c_dac_set(0);
+
+	rf_channels_control((2 ^ channel) - 1, true);
+
+	vTaskDelay(300);
+	i2c_dac_set(4095);
+}
+
+void rf_channels_enable(uint8_t mask)
+{
+	for (int i = 0; i < 8; i++)
+	{
+		if ((1 << i) & mask)
+			rf_channel_enable_procedure(i);
+	}
+}
+
+void rf_disable_dac(void)
+{
+	for (int i = 0; i < 8; i++)
+	{
+		i2c_mux_select(i);
+		i2c_dac_set(0);
+	}
+}
+
 void prcRFChannelsTask(void *pvParameters)
 {
 	led_bar_init();
@@ -174,7 +204,28 @@ void prcRFChannelsTask(void *pvParameters)
 	uint8_t channel_alert = 0;
 	uint8_t channel_user = 0;
 
+	uint8_t btnp = 0, btn = 0;
+	uint8_t onstate = 0;
+
 	for (;;) {
+
+		btn = GPIO_ReadInputDataBit(GPIOF, GPIO_Pin_14);
+		if (btnp != btn)
+		{
+			btnp = btn;
+			if (!btn) {
+				onstate = !onstate;
+				if (onstate) {
+					rf_channels_enable(CHANNEL_MASK);
+					led_bar_write(CHANNEL_MASK, 0, 0);
+				} else {
+					rf_disable_dac();
+					rf_channels_control(255, onstate);
+					led_bar_write(0, 0, 0);
+				}
+			}
+		}
+
 //		GPIO_ToggleBits(BOARD_LED1);
 //
 //		channel_enabled = rf_channels_read_enabled();

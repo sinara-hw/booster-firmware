@@ -28,6 +28,7 @@
 #include "channels.h"
 #include "max6639.h"
 #include "usb.h"
+#include "externals.h"
 
 // usb
 #include "usb.h"
@@ -76,6 +77,7 @@ static void prvSetupHardware(void)
 //	uart_init();
 	i2c_init();
 	spi_init();
+	ext_init();
 
 	RCC_ClocksTypeDef RCC_ClockFreq;
 	RCC_GetClocksFreq(&RCC_ClockFreq);

@@ -14,6 +14,7 @@
 #define I2C_ACK_ENABLE		1
 #define I2C_ACK_DISABLE		0
 #define I2C_MUX_ADDR		0x70
+#define I2C_DAC_ADDR		0x4C
 
 void i2c_init(void)
 {
@@ -209,4 +210,15 @@ uint8_t i2c_read_byte_nack(I2C_TypeDef* I2Cx)
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED) && --timeout);
 
 	return I2C_ReceiveData(I2Cx);
+}
+
+void i2c_dac_set(uint16_t value)
+{
+	uint8_t first_byte = (value & 0xFF00) >> 8;
+	uint8_t second_byte = value & 0xFF;
+
+	i2c_start(I2C1, I2C_DAC_ADDR, I2C_Direction_Transmitter, 1);
+	i2c_write_byte(I2C1, first_byte);
+	i2c_write_byte(I2C1, second_byte);
+	i2c_stop(I2C1);
 }

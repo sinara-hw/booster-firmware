@@ -78,5 +78,8 @@ uint8_t rf_channels_read_sigon(void);
 uint8_t rf_available_channels(uint8_t * arr);
 void prcRFChannelsTask(void *pvParameters);
 uint8_t rf_channels_read_enabled(void);
+void rf_channel_enable_procedure(uint8_t channel);
+void rf_channels_enable(uint8_t mask);
+void rf_disable_dac(void);
 
 #endif /* CHANNELS_H_ */
