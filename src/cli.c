@@ -241,6 +241,13 @@ BaseType_t prvI2CCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const cha
 				i2c_write_byte(I2C1, i2c_register);
 				i2c_write_byte(I2C1, i2c_data);
 				i2c_stop(I2C1);
+			} else if (i2c_rw == 5) {
+				i2c_mux_select(1);
+
+				i2c_start(I2C1, i2c_addr, I2C_Direction_Transmitter, 1);
+				i2c_write_byte(I2C1, i2c_register);
+				i2c_write_byte(I2C1, i2c_data);
+				i2c_stop(I2C1);
 			}
 
             xReturn = pdFALSE;

@@ -9,5 +9,6 @@
 #define EXTERNALS_H_
 
 void ext_init(void);
+void prvExtTask(void *pvParameters);
 
 #endif /* EXTERNALS_H_ */

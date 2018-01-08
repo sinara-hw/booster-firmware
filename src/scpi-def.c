@@ -113,12 +113,9 @@ static scpi_result_t CHANNEL_Status(scpi_t * context)
 	uint8_t status[8] = { 0 };
 	uint8_t alerts = rf_channels_read_alert();
 	uint8_t ovl = rf_channels_read_ovl();
-	uint8_t sigon = rf_channels_read_sigon();
 
 	for (int i = 0; i < 8; i++)
 	{
-		if ((sigon & (1 << i)) >> i)
-			status[i] = 1;
 		if ((alerts & (1 << i)) >> i)
 			status[i] = 2;
 		if ((ovl & (1 << i)) >> i)

@@ -34,5 +34,6 @@
 #define BOARD_REV		   "1.0"
 #define BOARD_YEAR		   "10-17"
 
+#define PGOOD				GPIOG, GPIO_Pin_4
 
 #endif /* CONFIG_H_ */

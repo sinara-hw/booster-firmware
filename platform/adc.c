@@ -77,38 +77,38 @@ static void adc_channel_init(void)
 	// ADC 1
 
 	// rf channel 0
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_3Cycles); // PA0
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_1, 2, ADC_SampleTime_3Cycles); // PA1
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_28Cycles); // PA0
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_1, 2, ADC_SampleTime_28Cycles); // PA1
 
 	// rf channel 1
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_2, 3, ADC_SampleTime_3Cycles); // PA2
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_3, 4, ADC_SampleTime_3Cycles); // PA3
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_2, 3, ADC_SampleTime_28Cycles); // PA2
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_3, 4, ADC_SampleTime_28Cycles); // PA3
 
 	// rf channel 5
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_10, 5, ADC_SampleTime_3Cycles); // PC0
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_11, 6, ADC_SampleTime_3Cycles); // PC1
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_10, 5, ADC_SampleTime_28Cycles); // PC0
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_11, 6, ADC_SampleTime_28Cycles); // PC1
 
 	// rf channel 6
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_12, 7, ADC_SampleTime_3Cycles); // PC2
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_13, 8, ADC_SampleTime_3Cycles); // PC3
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_12, 7, ADC_SampleTime_28Cycles); // PC2
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_13, 8, ADC_SampleTime_28Cycles); // PC3
 
 	// ADC3
 
 	// rf channel 2
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_4, 1, ADC_SampleTime_3Cycles); // PF6
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_5, 2, ADC_SampleTime_3Cycles); // PF7
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_4, 1, ADC_SampleTime_28Cycles); // PF6
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_5, 2, ADC_SampleTime_28Cycles); // PF7
 
 	// rf channel 3
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_6, 3, ADC_SampleTime_3Cycles); // PF8
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_7, 4, ADC_SampleTime_3Cycles); // PF9
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_6, 3, ADC_SampleTime_28Cycles); // PF8
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_7, 4, ADC_SampleTime_28Cycles); // PF9
 
 	// rf channel 4
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_8, 5, ADC_SampleTime_3Cycles); // PF10
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_9, 6, ADC_SampleTime_3Cycles); // PF3
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_8, 5, ADC_SampleTime_28Cycles); // PF10
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_9, 6, ADC_SampleTime_28Cycles); // PF3
 
 	// rf channel 7
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_14, 7, ADC_SampleTime_3Cycles); // PF4
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_15, 8, ADC_SampleTime_3Cycles); // PF5
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_14, 7, ADC_SampleTime_28Cycles); // PF4
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_15, 8, ADC_SampleTime_28Cycles); // PF5
 }
 
 

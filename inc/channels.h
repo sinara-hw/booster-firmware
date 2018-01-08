@@ -60,6 +60,7 @@ typedef struct {
 	bool overvoltage;
 	bool alert;
 	bool userio;
+	bool sigon;
 
 	uint16_t adc_ch1;
 	uint16_t adc_ch2;
@@ -74,12 +75,15 @@ void rf_channels_init(void);
 void rf_channels_control(uint16_t channel_mask, bool enable);
 uint8_t rf_channels_read_alert(void);
 uint8_t rf_channels_read_ovl(void);
-uint8_t rf_channels_read_sigon(void);
+void rf_channels_sigon(uint16_t channel_mask, bool enable);
+void rf_sigon_enable(uint8_t mask);
 uint8_t rf_available_channels(uint8_t * arr);
 void prcRFChannelsTask(void *pvParameters);
 uint8_t rf_channels_read_enabled(void);
-void rf_channel_enable_procedure(uint8_t channel);
+uint8_t rf_channels_read_user(void);
+bool rf_channel_enable_procedure(uint8_t channel);
 void rf_channels_enable(uint8_t mask);
 void rf_disable_dac(void);
+uint8_t rf_channels_read_sigon(void);
 
 #endif /* CHANNELS_H_ */

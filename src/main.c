@@ -41,6 +41,7 @@ void gpio_init(void)
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
 
+	/* LEDS */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
@@ -93,6 +94,7 @@ void prvLEDTask(void *pvParameters)
 {
     for (;;)
     {
+    	printf("PGOOD: %d\n", GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4));
     	printf("CHANNELS INFO\n");
         printf("==========================================================================\n");
 
@@ -160,6 +162,16 @@ void prvLEDTask(void *pvParameters)
                channels[5].enabled,
                channels[6].enabled,
                channels[7].enabled);
+
+        printf("SON\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].sigon,
+               channels[1].sigon,
+               channels[2].sigon,
+               channels[3].sigon,
+               channels[4].sigon,
+               channels[5].sigon,
+               channels[6].sigon,
+               channels[7].sigon);
+
         printf("OVL\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].overvoltage,
                channels[1].overvoltage,
                channels[2].overvoltage,
@@ -168,6 +180,7 @@ void prvLEDTask(void *pvParameters)
                channels[5].overvoltage,
                channels[6].overvoltage,
                channels[7].overvoltage);
+
         printf("ALERT\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].alert,
                channels[1].alert,
                channels[2].alert,
@@ -190,7 +203,7 @@ void prvLEDTask(void *pvParameters)
 
 
         GPIO_ToggleBits(BOARD_LED3);
-        vTaskDelay(5000);
+        vTaskDelay(2000);
     }
 }
 
@@ -213,10 +226,11 @@ int main(void)
 	scpi_init();
 	adc_init();
 
-//	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
+	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
 //	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
 	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL );
-	xTaskCreate(prcRFChannelsTask, "RFCH", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL );
+	xTaskCreate(prcRFChannelsTask, "RFCH", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL );
+	xTaskCreate(prvExtTask, "Ext", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL );
 	vRegisterCLICommands();
 
 	/* Start the scheduler */
