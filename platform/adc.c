@@ -5,23 +5,30 @@
  *      Author: wizath
  */
 
+#include "config.h"
 #include "adc.h"
 #include "stm32f4xx_adc.h"
 #include "stm32f4xx_gpio.h"
 #include "stm32f4xx_dma.h"
 #include "channels.h"
 
+#define SAMPLE_TIME			ADC_SampleTime_15Cycles
 #define ADC_CDR_ADDRESS 	0x40012308
+
 #define NCHANNELS			24
-#define NSAMPLES			50
+#define NSAMPLES			500
 #define BUFFER_SIZE			NCHANNELS * NSAMPLES
+
+#define HALF_BUFFER_MEMSIZE (BUFFER_SIZE / 2) * sizeof(uint16_t)
+#define REAL_CHANNELS 		NCHANNELS - (NCHANNELS / 3)
 
 static uint16_t 			adc_samples[BUFFER_SIZE] = { 0 };
 static uint16_t 			converted_values[BUFFER_SIZE] = { 0 };
-static double				averaged_values[NCHANNELS] = { 0 };
-static double				averaged_voltage[NCHANNELS] = { 0 };
+static double				averaged_values[REAL_CHANNELS] = { 0 };
+static double				averaged_voltage[REAL_CHANNELS] = { 0 };
 
-extern channel_t channels[8];
+static SemaphoreHandle_t	xADCSemaphore;
+extern channel_t			channels[8];
 
 static void adc_gpio_init(void)
 {
@@ -50,6 +57,7 @@ static void adc_gpio_init(void)
 	GPIO_Init(GPIOF, &GPIO_InitStructure);
 }
 
+
 void adc_timer_init(void)
 {
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
@@ -74,41 +82,39 @@ void adc_timer_init(void)
 
 static void adc_channel_init(void)
 {
-	// ADC 1
-
-	// rf channel 0
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_28Cycles); // PA0
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_1, 2, ADC_SampleTime_28Cycles); // PA1
-
-	// rf channel 1
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_2, 3, ADC_SampleTime_28Cycles); // PA2
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_3, 4, ADC_SampleTime_28Cycles); // PA3
+	// rf channel 6
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_13, 1, SAMPLE_TIME); // PC1
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_12, 2, SAMPLE_TIME); // PC2
 
 	// rf channel 5
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_10, 5, ADC_SampleTime_28Cycles); // PC0
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_11, 6, ADC_SampleTime_28Cycles); // PC1
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_10, 3, SAMPLE_TIME); // PC0
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_11, 4, SAMPLE_TIME); // PC1
 
-	// rf channel 6
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_12, 7, ADC_SampleTime_28Cycles); // PC2
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_13, 8, ADC_SampleTime_28Cycles); // PC3
+	// rf channel 1
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_2, 5, SAMPLE_TIME); // PA2
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_3, 6, SAMPLE_TIME); // PA3
 
-	// ADC3
+	// rf channel 0
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 7, SAMPLE_TIME); // PA0
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_1, 8, SAMPLE_TIME); // PA1
 
-	// rf channel 2
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_4, 1, ADC_SampleTime_28Cycles); // PF6
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_5, 2, ADC_SampleTime_28Cycles); // PF7
-
-	// rf channel 3
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_6, 3, ADC_SampleTime_28Cycles); // PF8
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_7, 4, ADC_SampleTime_28Cycles); // PF9
-
-	// rf channel 4
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_8, 5, ADC_SampleTime_28Cycles); // PF10
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_9, 6, ADC_SampleTime_28Cycles); // PF3
+	/* ======================================================================= */
 
 	// rf channel 7
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_14, 7, ADC_SampleTime_28Cycles); // PF4
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_15, 8, ADC_SampleTime_28Cycles); // PF5
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_14, 1, SAMPLE_TIME); // PF4
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_15, 2, SAMPLE_TIME); // PF5
+
+	// rf channel 4
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_8, 3, SAMPLE_TIME); // PF10
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_9, 4, SAMPLE_TIME); // PF3
+
+	// rf channel 3
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_6, 5, SAMPLE_TIME); // PF8
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_7, 6, SAMPLE_TIME); // PF9
+
+	// rf channel 2
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_4, 7, SAMPLE_TIME); // PF6
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_5, 8, SAMPLE_TIME); // PF7
 }
 
 
@@ -176,7 +182,7 @@ void adc_init(void)
 	ADC_InitStructure.ADC_ExternalTrigConvEdge = ADC_ExternalTrigConvEdge_Rising;
 	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_T2_TRGO;
 	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
-	ADC_InitStructure.ADC_NbrOfConversion = 16;
+	ADC_InitStructure.ADC_NbrOfConversion = 8;
 
 	ADC_Init(ADC1, &ADC_InitStructure);
 	ADC_Init(ADC3, &ADC_InitStructure); /* Mirror on ADC3 */
@@ -192,25 +198,30 @@ void adc_init(void)
 	/* Enable DMA request after last transfer (Multi-ADC mode)  */
 	ADC_MultiModeDMARequestAfterLastTransferCmd(ENABLE);
 
-	/* Enable ADC1 */
-	ADC_Cmd(ADC1, ENABLE);
+	/* Enable ADC3 */
+	ADC_Cmd(ADC3, ENABLE);
 
 	/* Enable ADC2 */
 	ADC_Cmd(ADC2, ENABLE);
 
-	/* Enable ADC3 */
-	ADC_Cmd(ADC3, ENABLE);
+	/* Enable ADC1 */
+	ADC_Cmd(ADC1, ENABLE);
 }
 
 
 void DMA2_Stream0_IRQHandler(void)
 {
+	static long xHigherPriorityTaskWoken;
+	xHigherPriorityTaskWoken = pdFALSE;
+
 	/* Test on DMA Stream Half Transfer interrupt */
 	if (DMA_GetITStatus(DMA2_Stream0, DMA_IT_HTIF0))
 	{
 		/* Clear DMA Stream Half Transfer interrupt pending bit */
 		DMA_ClearITPendingBit(DMA2_Stream0, DMA_IT_HTIF0);
-		memcpy(converted_values, adc_samples, BUFFER_SIZE / 2);
+
+		// Add code here to process first half of buffer (ping)
+		memcpy(converted_values, adc_samples, HALF_BUFFER_MEMSIZE);
 	}
 
 	/* Test on DMA Stream Transfer Complete interrupt */
@@ -219,80 +230,97 @@ void DMA2_Stream0_IRQHandler(void)
 		/* Clear DMA Stream Transfer Complete interrupt pending bit */
 		DMA_ClearITPendingBit(DMA2_Stream0, DMA_IT_TCIF0);
 
-		/* Turn LED3 on: End of Transfer */
-		GPIO_ToggleBits(BOARD_LED2);
+		/* ADC1_CH1 ADC2_CH2 ADC3_CH3
+		 * Skipping channel 2 values
+		 */
+		memcpy(converted_values + HALF_BUFFER_MEMSIZE / 2, adc_samples + HALF_BUFFER_MEMSIZE / 2, HALF_BUFFER_MEMSIZE);
+		xSemaphoreGiveFromISR(xADCSemaphore, xHigherPriorityTaskWoken);
+	}
 
-		memcpy(converted_values + BUFFER_SIZE / 2, adc_samples + BUFFER_SIZE / 2, BUFFER_SIZE / 2);
-//
-//		/* ADC1_CH1 ADC2_CH2 ADC3_CH3
-//		 * Skipping channel 2 values
-//		 */
-//
-		uint8_t samples = 0;
-		memset(averaged_values, 0, NCHANNELS);
-		for (int i = 0; i < NSAMPLES; i+= NCHANNELS, samples++)
+	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
+void prvADCTask(void *pvParameters)
+{
+	xADCSemaphore = xSemaphoreCreateBinary();
+	adc_init();
+
+	for (;;)
+	{
+		if (xSemaphoreTake(xADCSemaphore, portMAX_DELAY))
 		{
-			// rf channel 0
-			averaged_values[0] += converted_values[i];
-			averaged_values[1] += converted_values[i + 3];
+			GPIO_SetBits(BOARD_LED2);
 
-			// rf channel 1
-			averaged_values[2] += converted_values[i + 6];
-			averaged_values[3] += converted_values[i + 9];
+			uint8_t samples = 0;
+			memset(averaged_values, 0, NCHANNELS);
+			for (int i = 0; i < BUFFER_SIZE; i+= NCHANNELS, samples++)
+			{
+				averaged_values[0] += converted_values[18 + i];
+				averaged_values[1] += converted_values[21 + i];
+				averaged_values[2] += converted_values[12 + i];
+				averaged_values[3] += converted_values[15 + i];
+				averaged_values[4] += converted_values[20 + i];
+				averaged_values[5] += converted_values[23 + i];
+				averaged_values[6] += converted_values[14 + i];
+				averaged_values[7] += converted_values[17 + i];
+				averaged_values[8] += converted_values[8 + i];
+				averaged_values[9] += converted_values[11 + i];
+				averaged_values[10] += converted_values[6 + i];
+				averaged_values[11] += converted_values[9 + i];
+				averaged_values[12] += converted_values[3 + i];
+				averaged_values[13] += converted_values[0 + i];
+				averaged_values[14] += converted_values[2 + i];
+				averaged_values[15] += converted_values[5 + i];
+			}
 
-			// rf channel 2
-			averaged_values[4] += converted_values[i + 2];
-			averaged_values[5] += converted_values[i + 5];
+			samples++;
+			for (int i = 0; i < REAL_CHANNELS; i++) {
+				averaged_values[i] /= samples;
+				averaged_voltage[i] = ((averaged_values[i] * 2.50) / 4096);
+			}
 
-			// rf channel 3
-			averaged_values[6] += converted_values[i + 8];
-			averaged_values[7] += converted_values[i + 11];
+			channels[0].adc_raw_ch1 = (uint16_t) averaged_values[0];
+			channels[0].adc_raw_ch2 = (uint16_t) averaged_values[1];
+			channels[0].adc_ch1 = averaged_voltage[0];
+			channels[0].adc_ch2 = averaged_voltage[1];
 
-			// rf channel 4
-			averaged_values[8] += converted_values[i + 14];
-			averaged_values[9] += converted_values[i + 17];
+			channels[1].adc_raw_ch1 = (uint16_t) averaged_values[2];
+			channels[1].adc_raw_ch2 = (uint16_t) averaged_values[3];
+			channels[1].adc_ch1 = averaged_voltage[2];
+			channels[1].adc_ch2 = averaged_voltage[3];
 
-			// rf channel 5
-			averaged_values[10] += converted_values[i + 12];
-			averaged_values[11] += converted_values[i + 15];
+			channels[2].adc_raw_ch1 = (uint16_t) averaged_values[4];
+			channels[2].adc_raw_ch2 = (uint16_t) averaged_values[5];
+			channels[2].adc_ch1 = averaged_voltage[4];
+			channels[2].adc_ch2 = averaged_voltage[5];
 
-			// rf channel 6
-			averaged_values[12] += converted_values[i + 18];
-			averaged_values[13] += converted_values[i + 21];
+			channels[3].adc_raw_ch1 = (uint16_t) averaged_values[6];
+			channels[3].adc_raw_ch2 = (uint16_t) averaged_values[7];
+			channels[3].adc_ch1 = averaged_voltage[6];
+			channels[3].adc_ch2 = averaged_voltage[7];
 
-			// rf channel 7
-			averaged_values[14] += converted_values[i + 20];
-			averaged_values[15] += converted_values[i + 23];
+			channels[4].adc_raw_ch1 = (uint16_t) averaged_values[8];
+			channels[4].adc_raw_ch2 = (uint16_t) averaged_values[9];
+			channels[4].adc_ch1 = averaged_voltage[8];
+			channels[4].adc_ch2 = averaged_voltage[9];
+
+			channels[5].adc_raw_ch1 = (uint16_t) averaged_values[10];
+			channels[5].adc_raw_ch2 = (uint16_t) averaged_values[11];
+			channels[5].adc_ch1 = averaged_voltage[10];
+			channels[5].adc_ch2 = averaged_voltage[11];
+
+			channels[6].adc_raw_ch1 = (uint16_t) averaged_values[12];
+			channels[6].adc_raw_ch2 = (uint16_t) averaged_values[13];
+			channels[6].adc_ch1 = averaged_voltage[12];
+			channels[6].adc_ch2 = averaged_voltage[13];
+
+			channels[7].adc_raw_ch1 = (uint16_t) averaged_values[14];
+			channels[7].adc_raw_ch2 = (uint16_t) averaged_values[15];
+			channels[7].adc_ch1 = averaged_voltage[14];
+			channels[7].adc_ch2 = averaged_voltage[15];
+
+			GPIO_ResetBits(BOARD_LED2);
 		}
-
-		samples++;
-
-		for (int i = 0; i < 16; i++) averaged_values[i] /= samples;
-		for (int i = 0; i < 16; i++) averaged_voltage[i] = ((averaged_values[i] * 2.50) / 4096);
-
-		channels[0].adc_ch1 = averaged_values[0];
-		channels[0].adc_ch2 = averaged_values[1];
-
-		channels[1].adc_ch1 = averaged_values[2];
-		channels[1].adc_ch2 = averaged_values[3];
-
-		channels[2].adc_ch1 = averaged_values[4];
-		channels[2].adc_ch2 = averaged_values[5];
-
-		channels[3].adc_ch1 = averaged_values[6];
-		channels[3].adc_ch2 = averaged_values[7];
-
-		channels[4].adc_ch1 = averaged_values[8];
-		channels[4].adc_ch2 = averaged_values[9];
-
-		channels[5].adc_ch1 = averaged_values[10];
-		channels[5].adc_ch2 = averaged_values[11];
-
-		channels[6].adc_ch1 = averaged_values[12];
-		channels[6].adc_ch2 = averaged_values[13];
-
-		channels[7].adc_ch1 = averaged_values[14];
-		channels[7].adc_ch2 = averaged_values[15];
 	}
 }
 
@@ -306,6 +334,7 @@ uint16_t adc_autotest(void)
 	/* IMPORTANT: populates structures with reset values */
 	ADC_StructInit(&ADC_InitStructure);
 	ADC_CommonStructInit(&ADC_CommonInitStructure);
+
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
 
 	/* init ADCs in independent mode, div clock by two */
@@ -350,15 +379,8 @@ uint16_t adc_autotest(void)
 	}
 
 	ADC_DeInit();
-	ADC_Cmd(ADC1, DISABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, DISABLE);
 	ADC_TempSensorVrefintCmd(DISABLE);
 
 	return (uint16_t) (avaraged / 100);
-}
-
-uint8_t adc_get_data(double * arr)
-{
-	memcpy(arr, averaged_values, sizeof(double) * NCHANNELS);
-	return NCHANNELS;
 }

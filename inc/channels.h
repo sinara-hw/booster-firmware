@@ -62,8 +62,10 @@ typedef struct {
 	bool userio;
 	bool sigon;
 
-	uint16_t adc_ch1;
-	uint16_t adc_ch2;
+	uint16_t adc_raw_ch1;
+	uint16_t adc_raw_ch2;
+	double   adc_ch1;
+	double   adc_ch2;
 
 	uint16_t pwr_ch1;
 	uint16_t pwr_ch2;

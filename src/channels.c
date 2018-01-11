@@ -43,6 +43,8 @@ void rf_channels_init(void)
 		.sigon = 0,
 		.adc_ch1 = 0,
 		.adc_ch2 = 0,
+		.adc_raw_ch1 = 0,
+		.adc_raw_ch1 = 0,
 		.pwr_ch1 = 0,
 		.pwr_ch2 = 0,
 		.pwr_ch3 = 0,

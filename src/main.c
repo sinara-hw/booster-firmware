@@ -89,6 +89,7 @@ static void prvSetupHardware(void)
 }
 
 extern channel_t channels[8];
+extern uint16_t converted_values[24];
 
 void prvLEDTask(void *pvParameters)
 {
@@ -100,23 +101,23 @@ void prvLEDTask(void *pvParameters)
 
         printf("\t\t#1\t#2\t#3\t#4\t#5\t#6\t#7\t#8\n");
 
-        printf("ADC1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].adc_ch1,
-               channels[1].adc_ch1,
-               channels[2].adc_ch1,
-               channels[3].adc_ch1,
-               channels[4].adc_ch1,
-               channels[5].adc_ch1,
-               channels[6].adc_ch1,
-               channels[7].adc_ch1);
+        printf("ADC1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].adc_raw_ch1,
+               channels[1].adc_raw_ch1,
+               channels[2].adc_raw_ch1,
+               channels[3].adc_raw_ch1,
+               channels[4].adc_raw_ch1,
+               channels[5].adc_raw_ch1,
+               channels[6].adc_raw_ch1,
+               channels[7].adc_raw_ch1);
 
-        printf("ADC2\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].adc_ch2,
-               channels[1].adc_ch2,
-               channels[2].adc_ch2,
-               channels[3].adc_ch2,
-               channels[4].adc_ch2,
-               channels[5].adc_ch2,
-               channels[6].adc_ch2,
-               channels[7].adc_ch2);
+        printf("ADC2\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].adc_raw_ch2,
+               channels[1].adc_raw_ch2,
+               channels[2].adc_raw_ch2,
+               channels[3].adc_raw_ch2,
+               channels[4].adc_raw_ch2,
+               channels[5].adc_raw_ch2,
+               channels[6].adc_raw_ch2,
+               channels[7].adc_raw_ch2);
 
         printf("PWR1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].pwr_ch1,
                channels[1].pwr_ch1,
@@ -201,9 +202,8 @@ void prvLEDTask(void *pvParameters)
 
         printf("==========================================================================\n");
 
-
-        GPIO_ToggleBits(BOARD_LED3);
-        vTaskDelay(2000);
+    	GPIO_ToggleBits(BOARD_LED3);
+        vTaskDelay(1000);
     }
 }
 
@@ -214,8 +214,8 @@ int main(void)
 {
 	prvSetupHardware();
 
-	xEthInterfaceAvailable = xSemaphoreCreateMutex();
-	xSemaphoreGive(xEthInterfaceAvailable);
+//	xEthInterfaceAvailable = xSemaphoreCreateMutex();
+//	xSemaphoreGive(xEthInterfaceAvailable);
 
 	uint16_t val = adc_autotest();
 	printf("[test] ADC: %s | raw: %d | VrefInt %.2f V\n", val == 0 ? "ERROR" : "OK", val, (float) ((val * 2.5) / 4096));
@@ -223,10 +223,11 @@ int main(void)
 	if (GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4)) GPIO_SetBits(BOARD_LED1);
 
 	max6639_init();
-	scpi_init();
-	adc_init();
+//	scpi_init();
+//	adc_init();
 
-	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, NULL);
+	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY, NULL);
+	xTaskCreate(prvADCTask, "ADC", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 3, NULL);
 //	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
 	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL );
 	xTaskCreate(prcRFChannelsTask, "RFCH", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL );
