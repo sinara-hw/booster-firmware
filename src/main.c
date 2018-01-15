@@ -214,8 +214,8 @@ int main(void)
 {
 	prvSetupHardware();
 
-//	xEthInterfaceAvailable = xSemaphoreCreateMutex();
-//	xSemaphoreGive(xEthInterfaceAvailable);
+	xEthInterfaceAvailable = xSemaphoreCreateMutex();
+	xSemaphoreGive(xEthInterfaceAvailable);
 
 	uint16_t val = adc_autotest();
 	printf("[test] ADC: %s | raw: %d | VrefInt %.2f V\n", val == 0 ? "ERROR" : "OK", val, (float) ((val * 2.5) / 4096));
@@ -223,12 +223,11 @@ int main(void)
 	if (GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4)) GPIO_SetBits(BOARD_LED1);
 
 	max6639_init();
-//	scpi_init();
-//	adc_init();
+	scpi_init();
 
-	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY, NULL);
+//	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY, NULL);
 	xTaskCreate(prvADCTask, "ADC", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 3, NULL);
-//	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
+	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
 	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL );
 	xTaskCreate(prcRFChannelsTask, "RFCH", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL );
 	xTaskCreate(prvExtTask, "Ext", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL );

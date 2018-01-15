@@ -44,6 +44,8 @@
 #include "adc.h"
 #include "channels.h"
 
+extern channel_t channels[8];
+
 /**
  * Reimplement IEEE488.2 *TST?
  *
@@ -63,29 +65,23 @@ static scpi_result_t CHANNEL_Control(scpi_t * context, bool enable)
 {
 	int32_t param_array[8] = { 0 };
 	size_t param_count = 0;
+	uint32_t mask;
 
 	fprintf(stderr, enable ? "CHANnel:ENABle\r\n" : "CHANnel:DISABle\r\n"); /* debug command name */
 
-	/* read first parameter if present */
-	if (!SCPI_ParamArrayInt32(context, param_array, 8, &param_count, SCPI_FORMAT_ASCII, true)) {
+//	/* read first parameter if present */
+//	if (!SCPI_ParamArrayInt32(context, param_array, 8, &param_count, SCPI_FORMAT_ASCII, true)) {
+//		return SCPI_RES_ERR;
+//	}
+
+	if (!SCPI_ParamUInt32(context, &mask, true)) {
 		return SCPI_RES_ERR;
 	}
 
 	uint8_t channel_mask = 0;
-	uint8_t channel_count = 0;
-	for (int i = 0; i < param_count; i++)
-	{
-		uint8_t param = param_array[i];
-		if (param > 0 && param < 9)
-		{
-			channel_mask |= (1 << (param - 1));
-			channel_count++;
-		}
-	}
-
 	rf_channels_control(channel_mask, enable);
 
-	SCPI_ResultInt32(context, channel_count);
+	SCPI_ResultBool(context, enable);
 	return SCPI_RES_OK;
 }
 
@@ -97,6 +93,13 @@ static scpi_result_t CHANNEL_Enable(scpi_t * context)
 static scpi_result_t CHANNEL_Disable(scpi_t * context)
 {
 	return CHANNEL_Control(context, false);
+}
+
+static scpi_result_t CHANNEL_Toggle(scpi_t * context)
+{
+	static bool toggle = 0;
+	return CHANNEL_Control(context, toggle);
+	toggle = !toggle;
 }
 
 static scpi_result_t CHANNEL_List(scpi_t * context)
@@ -111,15 +114,13 @@ static scpi_result_t CHANNEL_List(scpi_t * context)
 static scpi_result_t CHANNEL_Status(scpi_t * context)
 {
 	uint8_t status[8] = { 0 };
-	uint8_t alerts = rf_channels_read_alert();
-	uint8_t ovl = rf_channels_read_ovl();
 
 	for (int i = 0; i < 8; i++)
 	{
-		if ((alerts & (1 << i)) >> i)
-			status[i] = 2;
-		if ((ovl & (1 << i)) >> i)
-			status[i] = 3;
+		if (channels[i].enabled) status[i] |= 1;
+		if (channels[i].sigon) status[i] |= 2;
+		if (channels[i].alert) status[i] |= 4;
+		if (channels[i].overvoltage) status[i] |= 8;
 	}
 
 	SCPI_ResultArrayUInt8(context, status, (size_t) 8, SCPI_FORMAT_ASCII);
@@ -130,6 +131,14 @@ static scpi_result_t MEASURE_Voltage(scpi_t * context)
 {
 	/* Returned as float array, 2 measurements per channel */
 	float voltage[16] = { 0 };
+
+	int j = 0;
+	for (int i = 0, j = 0; i < 8; i++, j += 2)
+	{
+		voltage[j] = channels[i].adc_ch1;
+		voltage[j + 1] = channels[i].adc_ch2;
+	}
+
 	SCPI_ResultArrayFloat(context, voltage, (size_t) 16, SCPI_FORMAT_ASCII);
 	return SCPI_RES_OK;
 }
@@ -137,8 +146,16 @@ static scpi_result_t MEASURE_Voltage(scpi_t * context)
 static scpi_result_t MEASURE_Current(scpi_t * context)
 {
 	/* Returned as float array, 2 measurements per channel */
-	float current[24] = { 0 };
-	SCPI_ResultArrayFloat(context, current, (size_t) 24, SCPI_FORMAT_ASCII);
+	uint16_t current[24] = { 0 };
+
+	for (int i = 0, j = 0; i < 8; i++, j += 3)
+	{
+		current[j] = channels[i].pwr_ch1;
+		current[j + 1] = channels[i].pwr_ch2;
+		current[j + 2] = channels[i].pwr_ch3;
+	}
+
+	SCPI_ResultArrayUInt16(context, current, (size_t) 24, SCPI_FORMAT_ASCII);
 	return SCPI_RES_OK;
 }
 
@@ -192,7 +209,6 @@ const scpi_command_t scpi_commands[] = {
     /* {.pattern = "STATus:QUEStionable:CONDition?", .callback = scpi_stub_callback,}, */
     {.pattern = "STATus:QUEStionable:ENABle", .callback = SCPI_StatusQuestionableEnable,},
     {.pattern = "STATus:QUEStionable:ENABle?", .callback = SCPI_StatusQuestionableEnableQ,},
-
     {.pattern = "STATus:PRESet", .callback = SCPI_StatusPreset,},
 
 	/* CHANNEL CONTROL */
@@ -202,27 +218,6 @@ const scpi_command_t scpi_commands[] = {
 	{.pattern = "CHANnel:LIST?", .callback = CHANNEL_List,},
 	{.pattern = "CHANnel:MEASure:VOLTage?", .callback = MEASURE_Voltage,},
 	{.pattern = "CHANnel:MEASure:CURRent?", .callback = MEASURE_Current,},
-
-    /* DMM */
-//    {.pattern = "MEASure:VOLTage:DC?", .callback = MEASURE_Voltage,},
-//    {.pattern = "CONFigure:VOLTage:DC", .callback = DMM_ConfigureVoltageDc,},
-//    {.pattern = "MEASure:VOLTage:DC:RATio?", .callback = SCPI_StubQ,},
-//    {.pattern = "MEASure:VOLTage:AC?", .callback = DMM_MeasureVoltageAcQ,},
-//    {.pattern = "MEASure:CURRent:DC?", .callback = SCPI_StubQ,},
-//    {.pattern = "MEASure:CURRent:AC?", .callback = SCPI_StubQ,},
-//    {.pattern = "MEASure:RESistance?", .callback = SCPI_StubQ,},
-//    {.pattern = "MEASure:FRESistance?", .callback = SCPI_StubQ,},
-//    {.pattern = "MEASure:FREQuency?", .callback = SCPI_StubQ,},
-//    {.pattern = "MEASure:PERiod?", .callback = SCPI_StubQ,},
-
-//    {.pattern = "SYSTem:COMMunication:TCPIP:CONTROL?", .callback = SCPI_SystemCommTcpipControlQ,},
-
-      {.pattern = "TEST:ARRay", .callback = TEST_Array,},
-//    {.pattern = "TEST:CHOice?", .callback = TEST_ChoiceQ,},
-//    {.pattern = "TEST#:NUMbers#", .callback = TEST_Numbers,},
-//    {.pattern = "TEST:TEXT", .callback = TEST_Text,},
-//    {.pattern = "TEST:ARBitrary?", .callback = TEST_ArbQ,},
-//    {.pattern = "TEST:CHANnellist", .callback = TEST_Chanlst,},
 
     SCPI_CMD_LIST_END
 };

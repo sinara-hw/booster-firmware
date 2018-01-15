@@ -10,5 +10,6 @@
 
 void ext_init(void);
 void prvExtTask(void *pvParameters);
+void ext_timer_init(void);
 
 #endif /* EXTERNALS_H_ */

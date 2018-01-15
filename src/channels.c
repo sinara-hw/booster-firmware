@@ -276,10 +276,10 @@ void prcRFChannelsTask(void *pvParameters)
 			channels[i].sigon = (channel_sigon >> i) & 0x01;
 			channels[i].userio = (channel_user >> i) & 0x01;
 
-			if (channels[i].sigon && ( channels[i].userio || channels[i].overvoltage )) {
-				rf_channels_disable(i);
-				led_bar_write(rf_channels_read_sigon(), (channel_ovl | channel_user) & channel_sigon, 0);
-			}
+//			if (channels[i].sigon && ( channels[i].userio || channels[i].overvoltage )) {
+//				rf_channels_disable(i);
+//				led_bar_write(rf_channels_read_sigon(), (channel_ovl | channel_user) & channel_sigon, 0);
+//			}
 
 			i2c_mux_select(i);
 			channels[i].pwr_ch1 = ads7924_get_channel_data(0);
