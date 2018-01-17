@@ -82,13 +82,21 @@ static uint16_t VCP_DataTx (void)
   */
 static uint16_t VCP_DataRx (uint32_t Len)
 {
-	VCP_ReceiveData(&USB_OTG_dev, rx_buffer, Len);
+//	if (vQueue)
+//
+//
+//
+//
+//
+//	VCP_ReceiveData(&USB_OTG_dev, rx_buffer, Len);
+//
+//	for (int i = 0; i < Len; i++)
+//	{
+//		char ch = (char) rx_buffer[i];
+//		xQueueSend(_xRxQueue, &ch, 0);
+//	}
 
-	for (int i = 0; i < Len; i++)
-	{
-		char ch = (char) rx_buffer[i];
-		xQueueSend(_xRxQueue, &ch, 0);
-	}
+	DCD_EP_Flush(&USB_OTG_dev, CDC_OUT_EP);
 
 	return USBD_OK;
 }
