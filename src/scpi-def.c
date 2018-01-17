@@ -43,6 +43,7 @@
 
 #include "adc.h"
 #include "channels.h"
+#include "led_bar.h"
 
 extern channel_t channels[8];
 
@@ -63,23 +64,23 @@ static scpi_result_t My_CoreTstQ(scpi_t * context) {
 
 static scpi_result_t CHANNEL_Control(scpi_t * context, bool enable)
 {
-	int32_t param_array[8] = { 0 };
-	size_t param_count = 0;
-	uint32_t mask;
+	uint32_t channel_mask;
 
 	fprintf(stderr, enable ? "CHANnel:ENABle\r\n" : "CHANnel:DISABle\r\n"); /* debug command name */
 
-//	/* read first parameter if present */
-//	if (!SCPI_ParamArrayInt32(context, param_array, 8, &param_count, SCPI_FORMAT_ASCII, true)) {
-//		return SCPI_RES_ERR;
-//	}
-
-	if (!SCPI_ParamUInt32(context, &mask, true)) {
+	/* read first parameter if present */
+	if (!SCPI_ParamUInt32(context, &channel_mask, true)) {
 		return SCPI_RES_ERR;
 	}
 
-	uint8_t channel_mask = 0;
-	rf_channels_control(channel_mask, enable);
+	if (enable) {
+		rf_channels_enable(channel_mask);
+	} else {
+		rf_disable_dac();
+		rf_channels_control(255, false);
+		rf_channels_sigon(255, false);
+		led_bar_write(0, 0, 0);
+	}
 
 	SCPI_ResultBool(context, enable);
 	return SCPI_RES_OK;
@@ -97,9 +98,43 @@ static scpi_result_t CHANNEL_Disable(scpi_t * context)
 
 static scpi_result_t CHANNEL_Toggle(scpi_t * context)
 {
-	static bool toggle = 0;
-	return CHANNEL_Control(context, toggle);
+	static bool toggle;
 	toggle = !toggle;
+	return CHANNEL_Control(context, toggle);
+}
+
+static scpi_result_t CHANNEL_Start(scpi_t * context)
+{
+	uint32_t channel_mask;
+
+	fprintf(stderr, "CHANnel:START\r\n"); /* debug command name */
+
+	/* read first parameter if present */
+	if (!SCPI_ParamUInt32(context, &channel_mask, true)) {
+		return SCPI_RES_ERR;
+	}
+
+	rf_channels_sigon(channel_mask, true);
+
+	SCPI_ResultBool(context, true);
+	return SCPI_RES_OK;
+}
+
+static scpi_result_t CHANNEL_Stop(scpi_t * context)
+{
+	uint32_t channel_mask;
+
+	fprintf(stderr, "CHANnel:STOP\r\n"); /* debug command name */
+
+	/* read first parameter if present */
+	if (!SCPI_ParamUInt32(context, &channel_mask, true)) {
+		return SCPI_RES_ERR;
+	}
+
+	rf_channels_sigon(channel_mask, false);
+
+	SCPI_ResultBool(context, false);
+	return SCPI_RES_OK;
 }
 
 static scpi_result_t CHANNEL_List(scpi_t * context)
@@ -159,25 +194,6 @@ static scpi_result_t MEASURE_Current(scpi_t * context)
 	return SCPI_RES_OK;
 }
 
-static scpi_result_t TEST_Array(scpi_t * context) {
-    int32_t param_array[8] = { 0 };
-    size_t param_count = 0;
-
-    fprintf(stderr, "TEST:Array\r\n"); /* debug command name */
-
-    /* read first parameter if present */
-    if (!SCPI_ParamArrayInt32(context, param_array, 8, &param_count, SCPI_FORMAT_ASCII, true)) {
-        return SCPI_RES_ERR;
-    }
-
-    for (int i = 0; i < param_count; i++)
-    {
-    	printf("param[%d] = %d\n", i, (int) param_array[i]);
-    }
-
-    return SCPI_RES_OK;
-}
-
 const scpi_command_t scpi_commands[] = {
     /* IEEE Mandated Commands (SCPI std V1999.0 4.1.1) */
     { .pattern = "*CLS", .callback = SCPI_CoreCls,},
@@ -214,8 +230,10 @@ const scpi_command_t scpi_commands[] = {
 	/* CHANNEL CONTROL */
 	{.pattern = "CHANnel:ENABle", .callback = CHANNEL_Enable,},
 	{.pattern = "CHANnel:DISABle", .callback = CHANNEL_Disable,},
+	{.pattern = "CHANnel:TOGGle", .callback = CHANNEL_Toggle,},
+	{.pattern = "CHANnel:START", .callback = CHANNEL_Start,},
+	{.pattern = "CHANnel:STOP", .callback = CHANNEL_Stop,},
 	{.pattern = "CHANnel:STATus?", .callback = CHANNEL_Status,},
-	{.pattern = "CHANnel:LIST?", .callback = CHANNEL_List,},
 	{.pattern = "CHANnel:MEASure:VOLTage?", .callback = MEASURE_Voltage,},
 	{.pattern = "CHANnel:MEASure:CURRent?", .callback = MEASURE_Current,},
 

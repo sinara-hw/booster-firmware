@@ -176,14 +176,16 @@ void display_net_conf(void)
 
 void prvRestartServerTask(void)
 {
-	if (xUDPServerTask == NULL)
+	if (xUDPServerTask == NULL) {
 		// create server task
-		xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 4096, NULL, tskIDLE_PRIORITY + 2, &xUDPServerTask);
-	else {
+		printf("[log] created udp server task\n");
+		xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 2048UL, NULL, tskIDLE_PRIORITY + 2, &xUDPServerTask);
+	} else {
 		// restart server task
+		printf("[log] restarted udp server task\n");
 		vTaskDelete(xUDPServerTask);
 		xUDPServerTask = NULL;
-		xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 4096, NULL, tskIDLE_PRIORITY + 2, &xUDPServerTask);
+		xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 2048UL, NULL, tskIDLE_PRIORITY + 2, &xUDPServerTask);
 	}
 }
 

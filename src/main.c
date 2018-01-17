@@ -89,13 +89,26 @@ static void prvSetupHardware(void)
 }
 
 extern channel_t channels[8];
-extern uint16_t converted_values[24];
 
 void prvLEDTask(void *pvParameters)
 {
+	uint8_t address_list[] = {0x2C, 0x2E, 0x2F};
+
     for (;;)
     {
+//    	puts("\033[2J");
     	printf("PGOOD: %d\n", GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4));
+    	printf("TEMPERATURES\n");
+    	for (int i = 0; i < 3; i ++)
+		{
+    		taskENTER_CRITICAL();
+    		float temp1 = max6639_get_temperature(address_list[i], 0);
+    		float temp2 = max6639_get_temperature(address_list[i], 1);
+    		taskEXIT_CRITICAL();
+
+			printf("[%d] ch1 (ext): %.3f ch2 (int): %.3f\n", i, temp1, temp2);
+		}
+
     	printf("CHANNELS INFO\n");
         printf("==========================================================================\n");
 
@@ -225,7 +238,7 @@ int main(void)
 	max6639_init();
 	scpi_init();
 
-//	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY, NULL);
+	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY, NULL);
 	xTaskCreate(prvADCTask, "ADC", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 3, NULL);
 	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
 	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL );

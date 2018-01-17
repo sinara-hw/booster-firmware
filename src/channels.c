@@ -20,7 +20,7 @@
   (byte & 0x02 ? '1' : '0'), \
   (byte & 0x01 ? '1' : '0')
 
-static uint8_t available_channels[] = {7, 8};
+static uint8_t available_channels[] = {1, 2};
 static uint8_t channel_count = 2;
 
 channel_t channels[8] = { 0 };
@@ -276,16 +276,18 @@ void prcRFChannelsTask(void *pvParameters)
 			channels[i].sigon = (channel_sigon >> i) & 0x01;
 			channels[i].userio = (channel_user >> i) & 0x01;
 
-//			if (channels[i].sigon && ( channels[i].userio || channels[i].overvoltage )) {
-//				rf_channels_disable(i);
-//				led_bar_write(rf_channels_read_sigon(), (channel_ovl | channel_user) & channel_sigon, 0);
-//			}
+			if (channels[i].sigon && ( channels[i].userio || channels[i].overvoltage )) {
+				rf_channels_disable(i);
+				led_bar_write(rf_channels_read_sigon(), (channel_ovl | channel_user) & channel_sigon, 0);
+			}
 
+			taskENTER_CRITICAL();
 			i2c_mux_select(i);
 			channels[i].pwr_ch1 = ads7924_get_channel_data(0);
 			channels[i].pwr_ch2 = ads7924_get_channel_data(1);
 			channels[i].pwr_ch3 = ads7924_get_channel_data(2);
 			channels[i].pwr_ch4 = ads7924_get_channel_data(3);
+			taskEXIT_CRITICAL();
 		}
 
 		vTaskDelay(10);

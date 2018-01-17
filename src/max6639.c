@@ -30,35 +30,51 @@ void max6639_init(void)
 			return;
 		}
 
-		// device reset
-//		i2c_write(MAX6639_I2C, addr, MAX6639_REG_GCONFIG, 0b01000000);
+		// global conf register 0x4
+		i2c_write(MAX6639_I2C, addr, MAX6639_REG_GCONFIG, 0b00110000);
 
-		// enable ALERT, THERM, FANFAIL interrupts
-		i2c_write(MAX6639_I2C, addr, MAX6639_REG_OUTPUT_MASK, 0b11001111);
+		// fan conf 1 0x10
+		// PWM MODE OFF
+		// RATE OF CHANGE 1s
+		// RPM SPEED 4000
+		// channel 2 drives auto
+		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG1(0), 0b00111101);
+		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG1(1), 0b00111101);
 
-		// 50 deg ALERT limit
-		i2c_write(MAX6639_I2C, addr, MAX6639_REG_ALERT_LIMIT(0), 0b00101000);
-		i2c_write(MAX6639_I2C, addr, MAX6639_REG_ALERT_LIMIT(1), 0b00101000);
+
+		// fan conf 2a
+		// minimum speed
+		// rpm step size 0011
+		// temp step size 01
+		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG2a(0), 0b00110100);
+		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG2a(1), 0b00110100);
+
+		// fan conf 2b defaults
+
+		// fan conf 3b
+		// spin up disable
+		// therm to full speed disable
+		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG3(0), 0b10100001);
+		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG3(1), 0b10100001);
+
+		// fan minimum speed
+		i2c_write(MAX6639_I2C, addr, MAX6639_REG_TARGET_CNT(0), 0b01101100);
+		i2c_write(MAX6639_I2C, addr, MAX6639_REG_TARGET_CNT(1), 0b01101100);
+
+		// fan minimum start temp
+		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_START_TEMP(0), 0b00100011);
+		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_START_TEMP(1), 0b00100011);
+
+//		// enable ALERT, THERM, FANFAIL interrupts
+//		i2c_write(MAX6639_I2C, addr, MAX6639_REG_OUTPUT_MASK, 0b11001111);
+
+		// 60 deg ALERT limit
+		i2c_write(MAX6639_I2C, addr, MAX6639_REG_ALERT_LIMIT(0), 0b00110010);
+		i2c_write(MAX6639_I2C, addr, MAX6639_REG_ALERT_LIMIT(1), 0b00110010);
 
 		// 80 deg THERM limit
 		i2c_write(MAX6639_I2C, addr, MAX6639_REG_THERM_LIMIT(0), 0b01010000);
 		i2c_write(MAX6639_I2C, addr, MAX6639_REG_ALERT_LIMIT(1), 0b01010000);
-
-		// FAN CFG 1
-		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG1(0), 0b01110011);
-		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG1(1), 0b01110011);
-
-		// FAN CFG 2A
-		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG2a(0), 0b00111011);
-		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG2a(1), 0b00111011);
-
-		// FAN CFG 3A
-		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG3(0), 0b01000000);
-		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG3(1), 0b01000000);
-
-		// FAN MINIMUM TEMP
-		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_START_TEMP(0), 0b00100011);
-		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_START_TEMP(1), 0b00100011);
 	}
 }
 
