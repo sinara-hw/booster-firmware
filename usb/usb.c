@@ -23,16 +23,16 @@ bool print_enable = false;
 int __io_putchar(int ch)
 {
 #ifdef DEBUG
-//	taskENTER_CRITICAL();
+	taskENTER_CRITICAL();
 	/* Place your implementation of fputc here */
 	/* e.g. write a character to the USART */
 //	if (print_enable){
-	VCP_SendData(&USB_OTG_dev, (uint8_t *) &ch, 1);
+	VCP_put_char(ch);
 //	} else {
 //		if (log_cnt < 4095) bootlog[log_cnt++] = ch;
 //	}
 
-//	taskEXIT_CRITICAL();
+	taskEXIT_CRITICAL();
 
 	return ch;
 #endif
@@ -72,7 +72,6 @@ void USBD_USR_DeviceReset(uint8_t speed )
 
 void USBD_USR_DeviceConfigured (void)
 {
-	print_enable = true;
 }
 
 void USBD_USR_DeviceSuspended(void)
