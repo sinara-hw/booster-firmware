@@ -1,0 +1,6 @@
+.cproject
+.project
+NUCLEO-F303ZE.xml
+
+.settings/
+/Debug/
