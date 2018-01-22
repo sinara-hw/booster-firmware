@@ -27,7 +27,7 @@ int __io_putchar(int ch)
 	/* Place your implementation of fputc here */
 	/* e.g. write a character to the USART */
 //	if (print_enable){
-	VCP_SendData(&USB_OTG_dev, (uint8_t *) &ch, 1);
+	VCP_put_char(ch);
 //	} else {
 //		if (log_cnt < 4095) bootlog[log_cnt++] = ch;
 //	}
