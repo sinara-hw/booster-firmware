@@ -34,7 +34,7 @@
 #define BOARD_REV		   "1.0"
 #define BOARD_YEAR		   "10-17"
 
-#define CHANNEL_MASK 0b00000011
+#define CHANNEL_MASK 		0b11111111
 
 #define PGOOD				GPIOG, GPIO_Pin_4
 

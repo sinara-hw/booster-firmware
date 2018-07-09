@@ -12,5 +12,7 @@
 
 void led_bar_write(uint8_t green, uint8_t yellow, uint8_t red);
 void led_bar_init();
+void led_bar_and(uint8_t green, uint8_t yellow, uint8_t red);
+void led_bar_or(uint8_t green, uint8_t yellow, uint8_t red);
 
 #endif /* LED_BAR_H_ */

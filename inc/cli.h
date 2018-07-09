@@ -18,4 +18,13 @@ BaseType_t prvNetworkConfigCommand( char *pcWriteBuffer, size_t xWriteBufferLen,
 BaseType_t prvBootlogCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
 BaseType_t prvI2CCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
 BaseType_t prvCtrlCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+BaseType_t prvDacCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+BaseType_t prvCHSTATUSCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+BaseType_t prvEEPROMRCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+BaseType_t prvEEPROMWCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+BaseType_t prvStartCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+BaseType_t prvStopCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+BaseType_t prvResetIntCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+BaseType_t prvCalibrateChannelCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+
 #endif /* CLI_H_ */

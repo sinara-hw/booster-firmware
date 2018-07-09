@@ -253,7 +253,7 @@ void prvADCTask(void *pvParameters)
 
 			uint8_t samples = 0;
 			memset(averaged_values, 0, NCHANNELS);
-			for (int i = 0; i < BUFFER_SIZE; i+= NCHANNELS, samples++)
+			for (int i = 0; i < BUFFER_SIZE; i+= NCHANNELS)
 			{
 				averaged_values[0] += converted_values[18 + i];
 				averaged_values[1] += converted_values[21 + i];
@@ -273,10 +273,9 @@ void prvADCTask(void *pvParameters)
 				averaged_values[15] += converted_values[5 + i];
 			}
 
-			samples++;
 			for (int i = 0; i < REAL_CHANNELS; i++) {
-				averaged_values[i] /= samples;
-				averaged_voltage[i] = ((averaged_values[i] * 2.50) / 4096);
+				averaged_values[i] /= (BUFFER_SIZE / NCHANNELS);
+				averaged_voltage[i] = ((averaged_values[i] / 4095) * 2.5f);
 			}
 
 			channels[0].adc_raw_ch1 = (uint16_t) averaged_values[0];

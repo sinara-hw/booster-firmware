@@ -13,6 +13,8 @@
 
 QueueHandle_t ExtQueue;
 
+extern volatile uint8_t channel_mask;
+
 void ext_init(void)
 {
 	GPIO_InitTypeDef 	GPIO_InitStructure;
@@ -113,7 +115,7 @@ void TIM4_IRQHandler()
 			if (count_btn1 >= 4) {
 				state_btn1 = btn1;
 				if (state_btn1 != 0) {
-					evt_id = 1;
+					evt_id = 2;
 					xQueueSendFromISR(ExtQueue, &evt_id, xHigherPriorityTaskWoken);
 				}
 			}
@@ -125,7 +127,7 @@ void TIM4_IRQHandler()
 			if (count_btn2 >= 4) {
 				state_btn2 = btn2;
 				if (state_btn2 != 0) {
-					evt_id = 2;
+					evt_id = 1;
 					xQueueSendFromISR(ExtQueue, &evt_id, xHigherPriorityTaskWoken);
 				}
 			}
@@ -140,6 +142,7 @@ void TIM4_IRQHandler()
 void prvExtTask(void *pvParameters)
 {
 	uint8_t btn_evt = 0;
+	uint8_t ch_msk = 0;
 	bool onstate = 0;
 
 	for (;;)
@@ -153,27 +156,21 @@ void prvExtTask(void *pvParameters)
 					{
 						onstate = !onstate;
 						if (onstate) {
-							rf_channels_enable(CHANNEL_MASK);
+							rf_channels_enable(channel_mask);
 						} else {
-							rf_disable_dac();
-							rf_channels_control(255, false);
-							rf_channels_sigon(255, false);
+							rf_channels_disable(channel_mask);
+//							rf_disable_dac();
+//							rf_channels_control(255, false);
+//							rf_channels_sigon(255, false);
 							led_bar_write(0, 0, 0);
 						}
 					}
+
 					break;
 				case 2:
 					// quick fix: enable SIGON only when there is power
 					// on ch2
-					if (GPIO_ReadOutputDataBit(GPIOD, GPIO_Pin_1) && GPIO_ReadOutputDataBit(GPIOD, GPIO_Pin_0))
-					{
-						led_bar_write(0, 0, 0);
-						rf_channels_sigon(0xFF, false);
-						vTaskDelay(configTICK_RATE_HZ / 10);
-
-						rf_sigon_enable(CHANNEL_MASK);
-						led_bar_write(rf_channels_read_sigon(), 0, 0);
-					}
+					rf_clear_interlock();
 					break;
 			}
 
@@ -191,6 +188,7 @@ void EXTI4_IRQHandler(void)
 	{
 		rf_disable_dac();
 		rf_channels_control(255, false);
+		rf_channels_sigon(0xFF, false);
 		led_bar_write(0, 0, 255);
     	EXTI_ClearITPendingBit(EXTI_Line4);
     }

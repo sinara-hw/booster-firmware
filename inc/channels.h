@@ -61,16 +61,34 @@ typedef struct {
 	bool alert;
 	bool userio;
 	bool sigon;
+	bool detected;
 
 	uint16_t adc_raw_ch1;
 	uint16_t adc_raw_ch2;
+
 	double   adc_ch1;
 	double   adc_ch2;
 
-	uint16_t pwr_ch1;
-	uint16_t pwr_ch2;
-	uint16_t pwr_ch3;
-	uint16_t pwr_ch4;
+	double pwr_ch1;
+	double pwr_ch2;
+	double pwr_ch3;
+	double pwr_ch4;
+
+	double i30;
+	double i60;
+	double in80;
+
+	double local_temp;
+	double remote_temp;
+
+	uint16_t dac1_value;
+	uint16_t dac2_value;
+
+	uint32_t adc1_offset;
+	uint32_t adc2_offset;
+
+	uint16_t adc1_scale;
+	uint16_t adc2_scale;
 } channel_t;
 
 void rf_channels_init(void);
@@ -87,5 +105,12 @@ bool rf_channel_enable_procedure(uint8_t channel);
 void rf_channels_enable(uint8_t mask);
 void rf_disable_dac(void);
 uint8_t rf_channels_read_sigon(void);
+uint8_t rf_channels_detect(void);
+void rf_clear_interlock(void);
+void rf_channel_disable_procedure(uint8_t channel);
+void rf_channels_disable(uint8_t mask);
+void rf_channel_save_dac(uint8_t address, uint16_t value);
+uint16_t rf_channel_read_dac(uint8_t address);
 
 #endif /* CHANNELS_H_ */
+

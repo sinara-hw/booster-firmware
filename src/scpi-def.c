@@ -46,6 +46,8 @@
 #include "led_bar.h"
 
 extern channel_t channels[8];
+extern volatile uint8_t channel_mask;
+extern volatile uint8_t f_speed;
 
 /**
  * Reimplement IEEE488.2 *TST?
@@ -61,6 +63,118 @@ static scpi_result_t My_CoreTstQ(scpi_t * context) {
 
     return SCPI_RES_OK;
 }
+
+static scpi_result_t INTerlock_STATus(scpi_t * context)
+{
+	uint32_t ch_num = 0;
+
+	/* read first parameter if present */
+	if (!SCPI_ParamUInt32(context, &ch_num, false)) {
+		ch_num = 255;
+	}
+
+	if (ch_num == 255) {
+		uint8_t status[8] = { 0 };
+
+		for (int i = 0; i < 8; i++) {
+			if (channels[i].detected) {
+				status[i] = channels[i].overvoltage || channels[i].userio;
+			} else {
+				status[i] = 0;
+			}
+		}
+
+		SCPI_ResultArrayUInt8(context, status, 8, SCPI_FORMAT_ASCII);
+		return SCPI_RES_OK;
+	} else {
+
+		if (ch_num < 8) {
+			uint8_t status = channels[ch_num].overvoltage || channels[ch_num].userio;
+			SCPI_ResultUInt8(context, status);
+			return SCPI_RES_OK;
+		}
+	}
+
+	return SCPI_RES_ERR;
+}
+
+static scpi_result_t INTerlock_OVERload(scpi_t * context)
+{
+	uint32_t ch_num = 0;
+
+	/* read first parameter if present */
+	if (!SCPI_ParamUInt32(context, &ch_num, false)) {
+		ch_num = 255;
+	}
+
+	if (ch_num == 255) {
+		uint8_t status[8] = { 0 };
+
+		for (int i = 0; i < 8; i++) {
+			if (channels[i].detected) {
+				status[i] = channels[i].overvoltage;
+			} else {
+				status[i] = 0;
+			}
+		}
+
+		SCPI_ResultArrayUInt8(context, status, 8, SCPI_FORMAT_ASCII);
+		return SCPI_RES_OK;
+	} else {
+
+		if (ch_num < 8) {
+			uint8_t status = channels[ch_num].overvoltage;
+			SCPI_ResultUInt8(context, status);
+			return SCPI_RES_OK;
+		}
+	}
+
+	return SCPI_RES_ERR;
+}
+
+static scpi_result_t INTerlock_CLEar(scpi_t * context)
+{
+	rf_clear_interlock();
+
+	return SCPI_RES_OK;
+}
+
+static scpi_result_t MEASure_TEMPerature(scpi_t * context)
+{
+	uint32_t ch_num = 0;
+
+	/* read first parameter if present */
+	if (!SCPI_ParamUInt32(context, &ch_num, true)) {
+		return SCPI_RES_ERR;
+	}
+
+	if (ch_num < 8) {
+		float status = channels[ch_num].remote_temp;
+		SCPI_ResultFloat(context, status);
+		return SCPI_RES_OK;
+	}
+
+	return SCPI_RES_ERR;
+}
+
+static scpi_result_t MEASure_CURRent(scpi_t * context)
+{
+	uint32_t ch_num = 0;
+
+	/* read first parameter if present */
+	if (!SCPI_ParamUInt32(context, &ch_num, true)) {
+		return SCPI_RES_ERR;
+	}
+
+	if (ch_num < 8) {
+		float status = (channels[ch_num].pwr_ch1 * 4095) / 2.5f;
+		SCPI_ResultFloat(context, status);
+		return SCPI_RES_OK;
+	}
+
+	return SCPI_RES_ERR;
+}
+
 
 static scpi_result_t CHANNEL_Control(scpi_t * context, bool enable)
 {

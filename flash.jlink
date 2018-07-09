@@ -1,0 +1,5 @@
+device STM32F407VG
+loadbin Debug/eth-scpi.bin 0x00
+r
+g
+exit

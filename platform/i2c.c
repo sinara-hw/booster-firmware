@@ -10,12 +10,6 @@
 #include "stm32f4xx_i2c.h"
 #include "i2c.h"
 
-#define I2C_TIMEOUT 		200
-#define I2C_ACK_ENABLE		1
-#define I2C_ACK_DISABLE		0
-#define I2C_MUX_ADDR		0x70
-#define I2C_DAC_ADDR		0x4C
-
 void i2c_init(void)
 {
 	I2C_InitTypeDef  I2C_InitStructure;
@@ -54,6 +48,10 @@ void i2c_init(void)
 uint8_t i2c_mux_select(uint8_t channel)
 {
 	if (channel > 7) return 2;
+
+	GPIO_ResetBits(GPIOB, GPIO_Pin_14);
+	for (int i = 0; i < 128; i++){};
+	GPIO_SetBits(GPIOB, GPIO_Pin_14);
 
 	if (!i2c_start(I2C1, I2C_MUX_ADDR, I2C_Direction_Transmitter, 0))
 	{
@@ -143,7 +141,7 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 	timeout = I2C_TIMEOUT;
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_MODE_SELECT)) {
 		if (--timeout == 0x00) {
-			return 1;
+			return 2;
 		}
 	}
 
@@ -154,14 +152,14 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 		timeout = I2C_TIMEOUT;
 		while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) {
 			if (--timeout == 0x00) {
-				return 1;
+				return 3;
 			}
 		}
 	} else if (direction == I2C_Direction_Receiver) {
 		timeout = I2C_TIMEOUT;
 		while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) {
 			if (--timeout == 0x00) {
-				return 1;
+				return 4;
 			}
 		}
 	}
@@ -222,3 +220,71 @@ void i2c_dac_set(uint16_t value)
 	i2c_write_byte(I2C1, second_byte);
 	i2c_stop(I2C1);
 }
+
+void i2c_dual_dac_set(int value1, int value2)
+{
+	// enable internal reference
+	i2c_start(I2C1, I2C_DUAL_DAC_ADDR, I2C_Direction_Transmitter, 1);
+	i2c_write_byte(I2C1, 127);
+	i2c_write_byte(I2C1, 0);
+	i2c_write_byte(I2C1, 1);
+	i2c_stop(I2C1);
+
+//	uint8_t first_byte = (value & 0xFF00) >> 8;
+//	uint8_t second_byte = value & 0xFF;
+
+	// first dac
+	i2c_start(I2C1, I2C_DUAL_DAC_ADDR, I2C_Direction_Transmitter, 1);
+	i2c_write_byte(I2C1, 0b01011000);
+
+	i2c_write_byte(I2C1, 2);
+	i2c_write_byte(I2C1, 0);
+
+	i2c_stop(I2C1);
+
+	// second dac
+	i2c_start(I2C1, I2C_DUAL_DAC_ADDR, I2C_Direction_Transmitter, 1);
+	i2c_write_byte(I2C1, 0b01011001); //
+//	i2c_write_byte(I2C1, 162);
+//	i2c_write_byte(I2C1, 144);
+
+	i2c_write_byte(I2C1, 98);
+	i2c_write_byte(I2C1, 128);
+
+	i2c_stop(I2C1);
+}
+
+static uint8_t reverse_bit(uint8_t byte)
+{
+	return ((byte * 0x0802LU & 0x22110LU) | (byte * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
+}
+
+void i2c_dual_dac_set_val(float v1, float v2)
+{
+	uint16_t value1 = (uint16_t) ((float) ((v1 * 4095.0f) / ( 2 * 2.2f )));
+	uint16_t value2 = (uint16_t) ((float) ((v2 * 4095.0f) / ( 2 * 2.2f )));
+
+	i2c_start(I2C1, I2C_DUAL_DAC_ADDR, I2C_Direction_Transmitter, 1);
+	i2c_write_byte(I2C1, 127);
+	i2c_write_byte(I2C1, 0);
+	i2c_write_byte(I2C1, 1);
+	i2c_stop(I2C1);
+
+	printf("val 1 %d val 2 %d\n", value1, value2);
+	printf("vals %d %d\n", (value1 & 0xFF0) >> 4, (value1 & 0x00F) << 4);
+
+	i2c_start(I2C1, I2C_DUAL_DAC_ADDR, I2C_Direction_Transmitter, 1);
+	i2c_write_byte(I2C1, 0b01011000);
+	i2c_write_byte(I2C1, (value1 & 0xFF0) >> 4);
+	i2c_write_byte(I2C1, (value1 & 0x00F) << 4);
+	i2c_stop(I2C1);
+
+	i2c_start(I2C1, I2C_DUAL_DAC_ADDR, I2C_Direction_Transmitter, 1);
+	i2c_write_byte(I2C1, 0b01011001);
+	i2c_write_byte(I2C1, (value2 & 0xFF0) >> 4);
+	i2c_write_byte(I2C1, (value2 & 0x00F) << 4);
+	i2c_stop(I2C1);
+}
+
+
+

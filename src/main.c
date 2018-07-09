@@ -29,6 +29,9 @@
 #include "max6639.h"
 #include "usb.h"
 #include "externals.h"
+#include "locks.h"
+#include "led_bar.h"
+#include "temp_mgt.h"
 
 // usb
 #include "usb.h"
@@ -38,6 +41,7 @@ void gpio_init(void)
 	GPIO_InitTypeDef  GPIO_InitStructure;
 
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
 
@@ -55,6 +59,15 @@ void gpio_init(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_DOWN;
 	GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+	/* I2C switch reset */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_14;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+	GPIO_SetBits(GPIOB, GPIO_Pin_14);
 
 	/* PGOOD */
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
@@ -79,6 +92,7 @@ static void prvSetupHardware(void)
 	i2c_init();
 	spi_init();
 	ext_init();
+	lock_init();
 
 	RCC_ClocksTypeDef RCC_ClockFreq;
 	RCC_GetClocksFreq(&RCC_ClockFreq);
@@ -89,6 +103,9 @@ static void prvSetupHardware(void)
 }
 
 extern channel_t channels[8];
+extern volatile uint8_t channel_mask;
+extern volatile uint8_t f_speed;
+volatile float fTemp, fAvg, chTemp;
 
 void prvLEDTask(void *pvParameters)
 {
@@ -101,65 +118,105 @@ void prvLEDTask(void *pvParameters)
     	printf("TEMPERATURES\n");
     	for (int i = 0; i < 3; i ++)
 		{
-    		taskENTER_CRITICAL();
-    		float temp1 = max6639_get_temperature(address_list[i], 0);
-    		float temp2 = max6639_get_temperature(address_list[i], 1);
-    		taskEXIT_CRITICAL();
+    		if (lock_take(I2C_LOCK, portMAX_DELAY))
+			{
+				float temp1 = max6639_get_temperature(address_list[i], 0);
+				float temp2 = max6639_get_temperature(address_list[i], 1);
 
-			printf("[%d] ch1 (ext): %.3f ch2 (int): %.3f\n", i, temp1, temp2);
+				lock_free(I2C_LOCK);
+
+				printf("[%d] ch1 (ext): %.3f ch2 (int): %.3f\n", i, temp1, temp2);
+			}
 		}
 
+    	printf("FAN SPEED: %d %%\n", f_speed);
+    	printf("AVG TEMP: %0.2f MAX:%0.2f\n", fAvg, chTemp);
     	printf("CHANNELS INFO\n");
-        printf("==========================================================================\n");
+        printf("==============================================================================\n");
+        printf("\t\t#0\t#1\t#2\t#3\t#4\t#5\t#6\t#7\n");
 
-        printf("\t\t#1\t#2\t#3\t#4\t#5\t#6\t#7\t#8\n");
+        printf("DETECTED\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].detected,
+               channels[1].detected,
+               channels[2].detected,
+               channels[3].detected,
+               channels[4].detected,
+               channels[5].detected,
+               channels[6].detected,
+               channels[7].detected);
 
-        printf("ADC1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].adc_raw_ch1,
-               channels[1].adc_raw_ch1,
-               channels[2].adc_raw_ch1,
-               channels[3].adc_raw_ch1,
-               channels[4].adc_raw_ch1,
-               channels[5].adc_raw_ch1,
-               channels[6].adc_raw_ch1,
-               channels[7].adc_raw_ch1);
+        printf("TXPWR [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].adc_ch1,
+               channels[1].adc_ch1,
+               channels[2].adc_ch1,
+               channels[3].adc_ch1,
+               channels[4].adc_ch1,
+               channels[5].adc_ch1,
+               channels[6].adc_ch1,
+               channels[7].adc_ch1);
 
-        printf("ADC2\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].adc_raw_ch2,
-               channels[1].adc_raw_ch2,
-               channels[2].adc_raw_ch2,
-               channels[3].adc_raw_ch2,
-               channels[4].adc_raw_ch2,
-               channels[5].adc_raw_ch2,
-               channels[6].adc_raw_ch2,
-               channels[7].adc_raw_ch2);
+        printf("RFLPWR [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].adc_ch2,
+               channels[1].adc_ch2,
+               channels[2].adc_ch2,
+               channels[3].adc_ch2,
+               channels[4].adc_ch2,
+               channels[5].adc_ch2,
+               channels[6].adc_ch2,
+               channels[7].adc_ch2);
 
-        printf("PWR1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].pwr_ch1,
-               channels[1].pwr_ch1,
-               channels[2].pwr_ch1,
-               channels[3].pwr_ch1,
-               channels[4].pwr_ch1,
-               channels[5].pwr_ch1,
-               channels[6].pwr_ch1,
-               channels[7].pwr_ch1);
+//        printf("I30V [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].pwr_ch1,
+//               channels[1].pwr_ch1,
+//               channels[2].pwr_ch1,
+//               channels[3].pwr_ch1,
+//               channels[4].pwr_ch1,
+//               channels[5].pwr_ch1,
+//               channels[6].pwr_ch1,
+//               channels[7].pwr_ch1);
 
-        printf("PWR2\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].pwr_ch2,
-               channels[1].pwr_ch2,
-               channels[2].pwr_ch2,
-               channels[3].pwr_ch2,
-               channels[4].pwr_ch2,
-               channels[5].pwr_ch2,
-               channels[6].pwr_ch2,
-               channels[7].pwr_ch2);
+        printf("P30V [A]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].i30,
+			   channels[1].i30,
+			   channels[2].i30,
+			   channels[3].i30,
+			   channels[4].i30,
+			   channels[5].i30,
+			   channels[6].i30,
+			   channels[7].i30);
 
-        printf("PWR3\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].pwr_ch3,
-               channels[1].pwr_ch3,
-               channels[2].pwr_ch3,
-               channels[3].pwr_ch3,
-               channels[4].pwr_ch3,
-               channels[5].pwr_ch3,
-               channels[6].pwr_ch3,
-               channels[7].pwr_ch3);
+//        printf("I6V0 [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].pwr_ch2,
+//               channels[1].pwr_ch2,
+//               channels[2].pwr_ch2,
+//               channels[3].pwr_ch2,
+//               channels[4].pwr_ch2,
+//               channels[5].pwr_ch2,
+//               channels[6].pwr_ch2,
+//               channels[7].pwr_ch2);
 
-        printf("PWR4\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].pwr_ch4,
+        printf("P6V0 [A]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].i60,
+			   channels[1].i60,
+			   channels[2].i60,
+			   channels[3].i60,
+			   channels[4].i60,
+			   channels[5].i60,
+			   channels[6].i60,
+			   channels[7].i60);
+
+//        printf("IN8V0 [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].pwr_ch3,
+//               channels[1].pwr_ch3,
+//               channels[2].pwr_ch3,
+//               channels[3].pwr_ch3,
+//               channels[4].pwr_ch3,
+//               channels[5].pwr_ch3,
+//               channels[6].pwr_ch3,
+//               channels[7].pwr_ch3);
+
+        printf("PN8V0 [mA]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].in80 * 1000,
+			   channels[1].in80 * 1000,
+			   channels[2].in80 * 1000,
+			   channels[3].in80 * 1000,
+			   channels[4].in80 * 1000,
+			   channels[5].in80 * 1000,
+			   channels[6].in80 * 1000,
+			   channels[7].in80 * 1000);
+
+        printf("P3V3MP [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].pwr_ch4,
                channels[1].pwr_ch4,
                channels[2].pwr_ch4,
                channels[3].pwr_ch4,
@@ -213,15 +270,62 @@ void prvLEDTask(void *pvParameters)
                channels[6].userio,
                channels[7].userio);
 
-        printf("==========================================================================\n");
+        printf("DAC1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].dac1_value,
+                       channels[1].dac1_value,
+                       channels[2].dac1_value,
+                       channels[3].dac1_value,
+                       channels[4].dac1_value,
+                       channels[5].dac1_value,
+                       channels[6].dac1_value,
+                       channels[7].dac1_value);
+
+        printf("DAC2\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].dac2_value,
+                       channels[1].dac2_value,
+                       channels[2].dac2_value,
+                       channels[3].dac2_value,
+                       channels[4].dac2_value,
+                       channels[5].dac2_value,
+                       channels[6].dac2_value,
+                       channels[7].dac2_value);
+
+        printf("LTEMP\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].local_temp,
+                       channels[1].local_temp,
+                       channels[2].local_temp,
+                       channels[3].local_temp,
+                       channels[4].local_temp,
+                       channels[5].local_temp,
+                       channels[6].local_temp,
+                       channels[7].local_temp);
+
+        printf("RTEMP\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].remote_temp,
+					   channels[1].remote_temp,
+					   channels[2].remote_temp,
+					   channels[3].remote_temp,
+					   channels[4].remote_temp,
+					   channels[5].remote_temp,
+					   channels[6].remote_temp,
+					   channels[7].remote_temp);
+
+        printf("==============================================================================\n");
 
     	GPIO_ToggleBits(BOARD_LED3);
         vTaskDelay(1000);
     }
 }
 
+void prvLEDTask2(void *pvParameters)
+{
+	for (;;)
+	{
+		vTaskDelay(500);
+	}
+}
+
 extern SemaphoreHandle_t xEthInterfaceAvailable;
 extern TaskHandle_t	xDHCPTask;
+
+TaskHandle_t xChannelTask = NULL;
+TaskHandle_t xStatusTask = NULL;
 
 int main(void)
 {
@@ -238,11 +342,12 @@ int main(void)
 	max6639_init();
 	scpi_init();
 
+	xTaskCreate(prvTempMgtTask, "FAN", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY, NULL);
 	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY, NULL);
 	xTaskCreate(prvADCTask, "ADC", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 3, NULL);
 	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
 	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL );
-	xTaskCreate(prcRFChannelsTask, "RFCH", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL );
+	xTaskCreate(prcRFChannelsTask, "RFCH", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, &xChannelTask );
 	xTaskCreate(prvExtTask, "Ext", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL );
 	vRegisterCLICommands();
 

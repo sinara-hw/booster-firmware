@@ -6,28 +6,61 @@
  */
 
 #include "stm32f4xx_spi.h"
+#include "config.h"
+#include "locks.h"
+
+static uint8_t green_mask = 0;
+static uint8_t yellow_mask = 0;
+static uint8_t red_mask = 0;
+
+static uint8_t reverse_bit(uint8_t byte)
+{
+	return ((byte * 0x0802LU & 0x22110LU) | (byte * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
+}
 
 void led_bar_write(uint8_t green, uint8_t yellow, uint8_t red)
 {
 	GPIO_SetBits(GPIOB, GPIO_Pin_12);
 
-	SPI_I2S_SendData(SPI2, green);
+	SPI_I2S_SendData(SPI2, reverse_bit(green));
 	while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_BSY) == SET);
 
 	GPIO_SetBits(GPIOB, GPIO_Pin_12);
 	GPIO_ResetBits(GPIOB, GPIO_Pin_12);
 
-	SPI_I2S_SendData(SPI2, yellow);
+	SPI_I2S_SendData(SPI2, reverse_bit(yellow));
 	while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_BSY) == SET);
 
 	GPIO_SetBits(GPIOB, GPIO_Pin_12);
 	GPIO_ResetBits(GPIOB, GPIO_Pin_12);
 
-	SPI_I2S_SendData(SPI2, red);
+	SPI_I2S_SendData(SPI2, reverse_bit(red));
 	while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_BSY) == SET);
 
 	GPIO_SetBits(GPIOB, GPIO_Pin_12);
 	GPIO_ResetBits(GPIOB, GPIO_Pin_12);
+
+	yellow_mask = yellow;
+	red_mask = red;
+	green_mask = green;
+}
+
+void led_bar_and(uint8_t green, uint8_t yellow, uint8_t red)
+{
+	yellow_mask &= ~yellow;
+	red_mask &= ~red;
+	green_mask &= ~green;
+
+	led_bar_write(green_mask, yellow_mask, red_mask);
+}
+
+void led_bar_or(uint8_t green, uint8_t yellow, uint8_t red)
+{
+	yellow_mask |= yellow;
+	red_mask |= red;
+	green_mask |= green;
+
+	led_bar_write(green_mask, yellow_mask, red_mask);
 }
 
 void led_bar_init()
@@ -76,5 +109,9 @@ void led_bar_init()
 	GPIO_SetBits(GPIOB, GPIO_Pin_8);
 	GPIO_ResetBits(GPIOB, GPIO_Pin_8);
 
-	led_bar_write(0, 0, 0);
+	if (lock_take(SPI_LOCK, portMAX_DELAY))
+	{
+		led_bar_write(0, 0, 0);
+		lock_free(SPI_LOCK);
+	}
 }
