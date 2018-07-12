@@ -232,7 +232,8 @@ bool rf_channel_enable_procedure(uint8_t channel)
 		if (lock_take(I2C_LOCK, portMAX_DELAY))
 		{
 			i2c_mux_select(channel);
-			i2c_dac_set(0);
+//			i2c_dac_set(982);
+			i2c_dac_set_value(2.05f);
 
 			lock_free(I2C_LOCK);
 		}
@@ -327,6 +328,11 @@ void rf_clear_interlock(void)
 		lock_free(SPI_LOCK);
 	}
 
+	for (int i = 0; i < 8; i++) {
+		channels[i].input_interlock = false;
+		channels[i].output_interlock = false;
+	}
+
 	vTaskDelay(10);
 
 	rf_sigon_enable(channel_mask & rf_channels_read_enabled());
@@ -408,7 +414,15 @@ void prcRFChannelsTask(void *pvParameters)
 
 				if (channels[i].sigon && ( channels[i].userio || channels[i].overvoltage )) {
 					rf_channels_sigon(1 << i, false);
-					led_bar_write(rf_channels_read_sigon(), (channel_ovl) & channel_sigon, (channel_user) & channel_sigon);
+
+					led_bar_and((1UL << i), 0xFF, 0xFF);
+					led_bar_or(0x00, (1UL << i), 0x00);
+
+					if (channels[i].userio) {
+						channels[i].output_interlock = true;
+					} else if (channels[i].overvoltage) {
+						channels[i].input_interlock = true;
+					}
 				}
 
 				if (channels[i].remote_temp > 80.0f)

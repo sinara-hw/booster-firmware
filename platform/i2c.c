@@ -221,6 +221,20 @@ void i2c_dac_set(uint16_t value)
 	i2c_stop(I2C1);
 }
 
+void i2c_dac_set_value(float value)
+{
+	float div_value = (((value - 1.22f) * 22000) / 10000) - 1.226f;
+	uint16_t dac_value = (div_value * 4095) / 2.5f;
+
+	uint8_t first_byte = (dac_value & 0xFF00) >> 8;
+	uint8_t second_byte = dac_value & 0xFF;
+
+	i2c_start(I2C1, I2C_DAC_ADDR, I2C_Direction_Transmitter, 1);
+	i2c_write_byte(I2C1, first_byte);
+	i2c_write_byte(I2C1, second_byte);
+	i2c_stop(I2C1);
+}
+
 void i2c_dual_dac_set(int value1, int value2)
 {
 	// enable internal reference

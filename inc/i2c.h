@@ -32,5 +32,6 @@ uint8_t i2c_mux_select(uint8_t channel);
 void i2c_dac_set(uint16_t value);
 void i2c_dual_dac_set(int value1, int value2);
 void i2c_dual_dac_set_val(float v1, float v2);
+void i2c_dac_set_value(float value);
 
 #endif /* I2C_H_ */

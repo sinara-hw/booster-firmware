@@ -63,6 +63,9 @@ typedef struct {
 	bool sigon;
 	bool detected;
 
+	bool input_interlock;
+	bool output_interlock;
+
 	uint16_t adc_raw_ch1;
 	uint16_t adc_raw_ch2;
 

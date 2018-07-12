@@ -38,14 +38,12 @@ void max6639_init(void)
 		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG1(0), 0b10110010);
 		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG1(1), 0b10110010);
 
-
 		// Step size default
 		// Temp step size default
 		// PWM Output 100% = 0 duty cycle
 		// Minimum speed off
 		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG2a(0), 0b00000000);
 		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_CONFIG2a(1), 0b00000000);
-
 
 		// SPIN UP Disable
 		// THERM Limit to full speed
