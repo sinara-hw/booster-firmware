@@ -10,18 +10,16 @@
 #include "channels.h"
 #include "max6639.h"
 #include "locks.h"
-
-#define TEMP_SENS_I2C_ADDR			0x4A
-#define TEMP_SENS_LOCAL_TEMP_L		0x10
-#define TEMP_SENS_LOCAL_TEMP_H		0x00
-#define TEMP_SENS_REMOTE_TEMP_L		0x11
-#define TEMP_SENS_REMOTE_TEMP_H		0x01
+#include "math.h"
 
 #define THRESHOLD 					1.0f
 #define MIN_TEMP 					35
 #define MAX_TEMP 					80
 #define MAX_SPEED 					100
 #define MIN_SPEED 					30
+
+static volatile double fTemp, fAvg, chTemp = 0.0f;
+static volatile uint8_t f_speed = 0;
 
 static float moving_avg(float temp)
 {
@@ -45,8 +43,7 @@ static int fan_speed(float temp)
 	return duty;
 }
 
-extern channel_t channels[8];
-volatile uint8_t f_speed = 0;
+
 
 void set_fan_speed(uint8_t value)
 {
@@ -71,45 +68,15 @@ void set_fan_speed(uint8_t value)
 	}
 }
 
-float channel_get_local_temp(void)
+double get_avg_temp(void)
 {
-	float total = 0.0;
-	uint8_t temp = i2c_read(I2C1, TEMP_SENS_I2C_ADDR, TEMP_SENS_LOCAL_TEMP_H);
-	uint8_t temp_ext = i2c_read(I2C1, TEMP_SENS_I2C_ADDR, TEMP_SENS_LOCAL_TEMP_L);
-
-	total = (float) temp;
-	if (temp_ext & 0x40) total += 0.250;
-	if (temp_ext & 0x80) total += 0.500;
-	if (temp_ext & 0xC0) total += 0.750;
-
-	return total;
+	return fAvg;
 }
 
-float channel_get_remote_temp(void)
+uint8_t get_fan_spped(void)
 {
-	float total = 0.0;
-	uint8_t temp = i2c_read(I2C1, TEMP_SENS_I2C_ADDR, TEMP_SENS_REMOTE_TEMP_H);
-	uint8_t temp_ext = i2c_read(I2C1, TEMP_SENS_I2C_ADDR, TEMP_SENS_REMOTE_TEMP_L);
-
-	total = (float) temp;
-	if (temp_ext & 0x40) total += 0.250;
-	if (temp_ext & 0x80) total += 0.500;
-	if (temp_ext & 0xC0) total += 0.750;
-
-	return total;
-
-//	float min = 30.0f;
-//	float max = 60.0f;
-//	float scale = rand() / (float) RAND_MAX; /* [0, 1.0] */
-//	return min + scale * ( max - min );
+	return f_speed;
 }
-
-void channel_temp_sens_init(void)
-{
-	i2c_write(I2C1, I2C_MODULE_TEMP, 0x09, 128);
-}
-
-volatile float fTemp, fAvg, chTemp = 0.0f;
 
 void prvTempMgtTask(void *pvParameters)
 {
@@ -120,12 +87,19 @@ void prvTempMgtTask(void *pvParameters)
 
 	for (;;)
 	{
-		for (int i = 0; i < 8; i++)
-			if (channels[i].remote_temp > maxTemp) maxTemp = channels[i].remote_temp;
+		for (int i = 0; i < 8; i++) {
+			channel_t * ch = rf_channel_get(i);
+
+			if (ch->measure.remote_temp > maxTemp)
+				maxTemp = ch->measure.remote_temp;
+		}
 
 		chTemp = maxTemp;
 		fAvg = moving_avg(chTemp);
 		th = abs(fTemp - fAvg);
+
+		// guard for NaN values
+		if (isnan(fAvg)) fAvg = 0.0f;
 
 		if (th > THRESHOLD) {
 			fTemp = fAvg;

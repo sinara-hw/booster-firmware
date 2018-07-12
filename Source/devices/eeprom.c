@@ -33,4 +33,21 @@ uint8_t eeprom_read(uint8_t address)
 	return byte;
 }
 
+uint16_t eeprom_read16(uint8_t address)
+{
+	uint8_t hb = eeprom_read(address);
+	uint8_t lb = eeprom_read(address + 1);
+	return (hb << 8) | lb;
+}
+
+void eeprom_write16(uint8_t address, uint16_t value)
+{
+	uint8_t lb = value & 0xFF;
+	uint8_t hb = (value >> 8) & 0xFF;
+
+	eeprom_write(address, hb);
+	vTaskDelay(10);
+	eeprom_write(address + 1, lb);
+}
+
 

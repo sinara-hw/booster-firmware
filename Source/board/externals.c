@@ -170,7 +170,7 @@ void prvExtTask(void *pvParameters)
 				case 2:
 					// quick fix: enable SIGON only when there is power
 					// on ch2
-					rf_clear_interlock();
+//					rf_clear_interlock();
 					break;
 			}
 
@@ -186,7 +186,6 @@ void EXTI4_IRQHandler(void)
 
 	if (EXTI_GetITStatus(EXTI_Line4) != RESET)
 	{
-		rf_disable_dac();
 		rf_channels_control(255, false);
 		rf_channels_sigon(0xFF, false);
 		led_bar_write(0, 0, 255);

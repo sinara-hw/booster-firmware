@@ -15,9 +15,7 @@
 #include "temp_mgt.h"
 #include "eeprom.h"
 
-#define CHANNEL_COUNT	8
-
-channel_t channels[8] = { 0 };
+static channel_t channels[8] = { 0 };
 volatile uint8_t channel_mask = 0;
 
 void rf_channels_init(void)
@@ -75,9 +73,6 @@ void rf_channels_init(void)
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_DOWN;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
 
-//	/* Disable all USER IO by default */
-//	GPIO_ResetBits(GPIOE, 0b0000000011111111);
-
 	/* Channel SIG_ON */
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11 |
@@ -104,21 +99,11 @@ void rf_channels_init(void)
 	GPIO_SetBits(GPIOB, GPIO_Pin_9);
 }
 
-uint16_t rf_channel_read_dac(uint8_t address)
+void rf_channel_load_values(channel_t * ch)
 {
-	uint8_t hb = eeprom_read(address);
-	uint8_t lb = eeprom_read(address + 1);
-	return (hb << 8) | lb;
-}
-
-void rf_channel_save_dac(uint8_t address, uint16_t value)
-{
-	uint8_t lb = value & 0xFF;
-	uint8_t hb = (value >> 8) & 0xFF;
-
-	eeprom_write(address, hb);
-	vTaskDelay(10);
-	eeprom_write(address + 1, lb);
+	// load interlocks value
+	ch->cal_values.input_dac_cal_value = eeprom_read16(DAC1_EEPROM_ADDRESS);
+	ch->cal_values.output_dac_cal_value = eeprom_read16(DAC2_EEPROM_ADDRESS);
 }
 
 uint8_t rf_channels_detect(void)
@@ -144,18 +129,10 @@ uint8_t rf_channels_detect(void)
 				channel_mask |= 1UL << i;
 				channels[i].detected = true;
 
-				channels[i].dac1_value = rf_channel_read_dac(DAC1_EEPROM_ADDRESS);
-				channels[i].dac2_value = rf_channel_read_dac(DAC2_EEPROM_ADDRESS);
-
-				channels[i].adc1_offset = rf_channel_read_dac(ADC1_OFFSET_ADDRESS);
-				channels[i].adc2_offset = rf_channel_read_dac(ADC2_OFFSET_ADDRESS);
-
-				channels[i].adc1_scale = rf_channel_read_dac(ADC1_SCALE_ADDRESS);
-				channels[i].adc2_scale = rf_channel_read_dac(ADC2_SCALE_ADDRESS);
+				rf_channel_load_values(&channels[i]);
 			}
 		}
 
-		printf("Channel mask %d\n", channel_mask);
 		lock_free(I2C_LOCK);
 	}
 
@@ -212,40 +189,38 @@ uint8_t rf_channels_read_enabled(void)
 
 bool rf_channel_enable_procedure(uint8_t channel)
 {
-//	if (!channels[0].enabled) {
+	int bitmask = 1 << channel;
 
-		int bitmask = 1 << channel;
+	if (lock_take(I2C_LOCK, portMAX_DELAY))
+	{
+		i2c_mux_select(channel);
+		i2c_dac_set(4095);
 
-		if (lock_take(I2C_LOCK, portMAX_DELAY))
-		{
-			i2c_mux_select(channel);
-			i2c_dac_set(4095);
-			i2c_dual_dac_set(0, channels[channel].dac1_value);
-			i2c_dual_dac_set(1, channels[channel].dac2_value);
+		// set calibration values
+		// i2c_dual_dac_set(0, channels[channel].dac1_value);
+		// i2c_dual_dac_set(1, channels[channel].dac2_value);
 
-			lock_free(I2C_LOCK);
-		}
+		lock_free(I2C_LOCK);
+	}
 
-		rf_channels_control(bitmask, true);
+	rf_channels_control(bitmask, true);
 
-		vTaskDelay(300);
-		if (lock_take(I2C_LOCK, portMAX_DELAY))
-		{
-			i2c_mux_select(channel);
-//			i2c_dac_set(982);
-			i2c_dac_set_value(2.05f);
+	vTaskDelay(300);
+	if (lock_take(I2C_LOCK, portMAX_DELAY))
+	{
+		i2c_mux_select(channel);
+		i2c_dac_set_value(2.05f);
 
-			lock_free(I2C_LOCK);
-		}
+		lock_free(I2C_LOCK);
+	}
 
-		rf_channels_sigon(bitmask, true);
-		vTaskDelay(100);
-		rf_channels_sigon(bitmask, false);
-		vTaskDelay(100);
-		rf_channels_sigon(bitmask, true);
+	rf_channels_sigon(bitmask, true);
+	vTaskDelay(100);
+	rf_channels_sigon(bitmask, false);
+	vTaskDelay(100);
+	rf_channels_sigon(bitmask, true);
 
-		return false;
-//	}
+	return false;
 }
 
 void rf_channels_enable(uint8_t mask)
@@ -265,11 +240,7 @@ void rf_channels_disable(uint8_t mask)
 	{
 		if ((1 << i) & mask) {
 			rf_channel_disable_procedure(i);
-
-			if (lock_take(SPI_LOCK, 300)) {
-				led_bar_and(1UL << i, 0, 0);
-				lock_free(SPI_LOCK);
-			}
+			led_bar_and(1UL << i, 0, 0);
 		}
 	}
 }
@@ -290,30 +261,43 @@ void rf_channel_disable_procedure(uint8_t channel)
 	}
 }
 
-void rf_sigon_enable(uint8_t mask)
+channel_t * rf_channel_get(uint8_t num)
 {
-	int bitmask = 0;
+	if (num < 8) return &channels[num];
+	return NULL;
+}
 
-	for (int i = 0; i < 8; i++)
+void channel_interlock_task(void *pvParameters)
+{
+	for (;;)
 	{
-		if ((1 << i) & mask) {
-			bitmask = 1 << i;
-			rf_channels_sigon(bitmask, true);
+		for (int i = 0; i < 8; i++) {
+			if ((1 << i) & channel_mask) {
+
+
+
+
+			}
 		}
+
+		vTaskDelay(10);
 	}
 }
 
-void rf_disable_dac(void)
+void channel_measure_task(void *pvParameters)
 {
-	if (lock_take(I2C_LOCK, portMAX_DELAY))
+	for (;;)
 	{
-		for (int i = 0; i < 8; i++)
-		{
-			i2c_mux_select(i);
-			i2c_dac_set(0);
+		for (int i = 0; i < 8; i++) {
+			if ((1 << i) & channel_mask) {
+
+
+
+
+			}
 		}
 
-		lock_free(I2C_LOCK);
+		vTaskDelay(100);
 	}
 }
 
@@ -335,122 +319,10 @@ void rf_clear_interlock(void)
 
 	vTaskDelay(10);
 
-	rf_sigon_enable(channel_mask & rf_channels_read_enabled());
+	rf_channels_sigon(channel_mask & rf_channels_read_enabled(), true);
 
 	if (lock_take(SPI_LOCK, 100)) {
 		led_bar_write(rf_channels_read_sigon(), 0, 0);
 		lock_free(SPI_LOCK);
-	}
-}
-
-static int get_temp(int temp)
-{
-	switch (temp)
-	{
-	case 0:
-		return 0;
-	case 64:
-		return 250;
-	case 128:
-		return 500;
-	case 192:
-		return 750;
-	default:
-		return 0;
-	}
-}
-
-void prcRFChannelsTask(void *pvParameters)
-{
-	led_bar_init();
-
-	if (lock_take(SPI_LOCK, portMAX_DELAY))
-	{
-		led_bar_write(255, 255, 255);
-		lock_free(SPI_LOCK);
-	}
-
-	rf_channels_init();
-	rf_channels_detect();
-
-	if (lock_take(SPI_LOCK, portMAX_DELAY))
-	{
-		led_bar_write(channel_mask, channel_mask, channel_mask);
-		lock_free(SPI_LOCK);
-	}
-
-	vTaskDelay(100);
-
-	if (lock_take(SPI_LOCK, portMAX_DELAY))
-	{
-		led_bar_write(0, 0, 0);
-		lock_free(SPI_LOCK);
-	}
-
-	uint8_t channel_enabled = 0;
-	uint8_t channel_ovl = 0;
-	uint8_t channel_alert = 0;
-	uint8_t channel_user = 0;
-	uint8_t channel_sigon = 0;
-
-	for (;;)
-	{
-		GPIO_ToggleBits(BOARD_LED1);
-
-		channel_enabled = rf_channels_read_enabled();
-		channel_ovl = rf_channels_read_ovl();
-		channel_alert = rf_channels_read_alert();
-		channel_sigon = rf_channels_read_sigon();
-		channel_user = rf_channels_read_user();
-
-		for (int i = 0; i < 8; i++)
-		{
-			if ((1 << i) & channel_mask) {
-				channels[i].alert = (channel_alert >> i) & 0x01;
-				channels[i].enabled = (channel_enabled >> i) & 0x01;
-				channels[i].overvoltage = (channel_ovl >> i) & 0x01;
-				channels[i].sigon = (channel_sigon >> i) & 0x01;
-				channels[i].userio = (channel_user >> i) & 0x01;
-
-				if (channels[i].sigon && ( channels[i].userio || channels[i].overvoltage )) {
-					rf_channels_sigon(1 << i, false);
-
-					led_bar_and((1UL << i), 0xFF, 0xFF);
-					led_bar_or(0x00, (1UL << i), 0x00);
-
-					if (channels[i].userio) {
-						channels[i].output_interlock = true;
-					} else if (channels[i].overvoltage) {
-						channels[i].input_interlock = true;
-					}
-				}
-
-				if (channels[i].remote_temp > 80.0f)
-				{
-					rf_channel_disable_procedure(i);
-					led_bar_or(0, 0, (1UL << i));
-				}
-
-				if (lock_take(I2C_LOCK, portMAX_DELAY))
-				{
-					i2c_mux_select(i);
-					channels[i].pwr_ch1 = ((ads7924_get_channel_data(0) * 2.50) / 4096);
-					channels[i].pwr_ch2 = ((ads7924_get_channel_data(1) * 2.50) / 4096);
-					channels[i].pwr_ch3 = ((ads7924_get_channel_data(2) * 2.50) / 4096);
-					channels[i].pwr_ch4 = ((ads7924_get_channel_data(3) * 2.50) / 4096);
-
-					channels[i].i30 = (channels[i].pwr_ch1 / 50) / 0.02f;
-					channels[i].i60 = (channels[i].pwr_ch2 / 50) / 0.1f;
-					channels[i].in80 = (channels[i].pwr_ch3 / 50) / 4.7f;
-
-					channels[i].remote_temp = channel_get_remote_temp();
-					channels[i].local_temp = channel_get_local_temp();
-
-					lock_free(I2C_LOCK);
-				}
-			}
-		}
-
-		vTaskDelay(100);
 	}
 }

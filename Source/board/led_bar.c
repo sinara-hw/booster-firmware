@@ -20,29 +20,33 @@ static uint8_t reverse_bit(uint8_t byte)
 
 void led_bar_write(uint8_t green, uint8_t yellow, uint8_t red)
 {
-	GPIO_SetBits(GPIOB, GPIO_Pin_12);
+	if (lock_take(SPI_LOCK, portMAX_DELAY)) {
+		GPIO_SetBits(GPIOB, GPIO_Pin_12);
 
-	SPI_I2S_SendData(SPI2, reverse_bit(green));
-	while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_BSY) == SET);
+		SPI_I2S_SendData(SPI2, reverse_bit(green));
+		while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_BSY) == SET);
 
-	GPIO_SetBits(GPIOB, GPIO_Pin_12);
-	GPIO_ResetBits(GPIOB, GPIO_Pin_12);
+		GPIO_SetBits(GPIOB, GPIO_Pin_12);
+		GPIO_ResetBits(GPIOB, GPIO_Pin_12);
 
-	SPI_I2S_SendData(SPI2, reverse_bit(yellow));
-	while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_BSY) == SET);
+		SPI_I2S_SendData(SPI2, reverse_bit(yellow));
+		while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_BSY) == SET);
 
-	GPIO_SetBits(GPIOB, GPIO_Pin_12);
-	GPIO_ResetBits(GPIOB, GPIO_Pin_12);
+		GPIO_SetBits(GPIOB, GPIO_Pin_12);
+		GPIO_ResetBits(GPIOB, GPIO_Pin_12);
 
-	SPI_I2S_SendData(SPI2, reverse_bit(red));
-	while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_BSY) == SET);
+		SPI_I2S_SendData(SPI2, reverse_bit(red));
+		while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_BSY) == SET);
 
-	GPIO_SetBits(GPIOB, GPIO_Pin_12);
-	GPIO_ResetBits(GPIOB, GPIO_Pin_12);
+		GPIO_SetBits(GPIOB, GPIO_Pin_12);
+		GPIO_ResetBits(GPIOB, GPIO_Pin_12);
 
-	yellow_mask = yellow;
-	red_mask = red;
-	green_mask = green;
+		yellow_mask = yellow;
+		red_mask = red;
+		green_mask = green;
+
+		lock_free(SPI_LOCK);
+	}
 }
 
 void led_bar_and(uint8_t green, uint8_t yellow, uint8_t red)
@@ -109,9 +113,5 @@ void led_bar_init()
 	GPIO_SetBits(GPIOB, GPIO_Pin_8);
 	GPIO_ResetBits(GPIOB, GPIO_Pin_8);
 
-	if (lock_take(SPI_LOCK, portMAX_DELAY))
-	{
-		led_bar_write(0, 0, 0);
-		lock_free(SPI_LOCK);
-	}
+	led_bar_write(0, 0, 0);
 }

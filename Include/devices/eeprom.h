@@ -8,7 +8,7 @@
 #ifndef EEPROM_H_
 #define EEPROM_H_
 
-#define EEPROM_ADDR		0b1010000
+#define EEPROM_ADDR				0b1010000
 
 #define DAC1_EEPROM_ADDRESS		16
 #define DAC2_EEPROM_ADDRESS		18
@@ -16,8 +16,11 @@
 #define ADC2_OFFSET_ADDRESS		22
 #define ADC1_SCALE_ADDRESS		24
 #define ADC2_SCALE_ADDRESS		26
+#define BIAS_DAC_VALUE_ADDRESS	28
 
 void eeprom_write(uint8_t address, uint8_t data);
 uint8_t eeprom_read(uint8_t address);
+uint16_t eeprom_read16(uint8_t address);
+void eeprom_write16(uint8_t address, uint16_t value);
 
 #endif /* EEPROM_H_ */

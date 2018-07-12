@@ -28,7 +28,6 @@ static double				averaged_values[REAL_CHANNELS] = { 0 };
 static double				averaged_voltage[REAL_CHANNELS] = { 0 };
 
 static SemaphoreHandle_t	xADCSemaphore;
-extern channel_t			channels[8];
 
 static void adc_gpio_init(void)
 {
@@ -251,7 +250,6 @@ void prvADCTask(void *pvParameters)
 		{
 			GPIO_SetBits(BOARD_LED2);
 
-			uint8_t samples = 0;
 			memset(averaged_values, 0, NCHANNELS);
 			for (int i = 0; i < BUFFER_SIZE; i+= NCHANNELS)
 			{
@@ -278,45 +276,55 @@ void prvADCTask(void *pvParameters)
 				averaged_voltage[i] = ((averaged_values[i] / 4095) * 2.5f);
 			}
 
-			channels[0].adc_raw_ch1 = (uint16_t) averaged_values[0];
-			channels[0].adc_raw_ch2 = (uint16_t) averaged_values[1];
-			channels[0].adc_ch1 = averaged_voltage[0];
-			channels[0].adc_ch2 = averaged_voltage[1];
+			channel_t * ch = NULL;
 
-			channels[1].adc_raw_ch1 = (uint16_t) averaged_values[2];
-			channels[1].adc_raw_ch2 = (uint16_t) averaged_values[3];
-			channels[1].adc_ch1 = averaged_voltage[2];
-			channels[1].adc_ch2 = averaged_voltage[3];
+			ch = rf_channel_get(0);
+			ch->measure.adc_raw_ch1 = (uint16_t) averaged_values[0];
+			ch->measure.adc_raw_ch2 = (uint16_t) averaged_values[1];
+			ch->measure.adc_ch1 = averaged_voltage[0];
+			ch->measure.adc_ch2 = averaged_voltage[1];
 
-			channels[2].adc_raw_ch1 = (uint16_t) averaged_values[4];
-			channels[2].adc_raw_ch2 = (uint16_t) averaged_values[5];
-			channels[2].adc_ch1 = averaged_voltage[4];
-			channels[2].adc_ch2 = averaged_voltage[5];
+			ch = rf_channel_get(1);
+			ch->measure.adc_raw_ch1 = (uint16_t) averaged_values[2];
+			ch->measure.adc_raw_ch2 = (uint16_t) averaged_values[3];
+			ch->measure.adc_ch1 = averaged_voltage[2];
+			ch->measure.adc_ch2 = averaged_voltage[3];
 
-			channels[3].adc_raw_ch1 = (uint16_t) averaged_values[6];
-			channels[3].adc_raw_ch2 = (uint16_t) averaged_values[7];
-			channels[3].adc_ch1 = averaged_voltage[6];
-			channels[3].adc_ch2 = averaged_voltage[7];
+			ch = rf_channel_get(2);
+			ch->measure.adc_raw_ch1 = (uint16_t) averaged_values[4];
+			ch->measure.adc_raw_ch2 = (uint16_t) averaged_values[5];
+			ch->measure.adc_ch1 = averaged_voltage[4];
+			ch->measure.adc_ch2 = averaged_voltage[5];
 
-			channels[4].adc_raw_ch1 = (uint16_t) averaged_values[8];
-			channels[4].adc_raw_ch2 = (uint16_t) averaged_values[9];
-			channels[4].adc_ch1 = averaged_voltage[8];
-			channels[4].adc_ch2 = averaged_voltage[9];
+			ch = rf_channel_get(3);
+			ch->measure.adc_raw_ch1 = (uint16_t) averaged_values[6];
+			ch->measure.adc_raw_ch2 = (uint16_t) averaged_values[7];
+			ch->measure.adc_ch1 = averaged_voltage[6];
+			ch->measure.adc_ch2 = averaged_voltage[7];
 
-			channels[5].adc_raw_ch1 = (uint16_t) averaged_values[10];
-			channels[5].adc_raw_ch2 = (uint16_t) averaged_values[11];
-			channels[5].adc_ch1 = averaged_voltage[10];
-			channels[5].adc_ch2 = averaged_voltage[11];
+			ch = rf_channel_get(4);
+			ch->measure.adc_raw_ch1 = (uint16_t) averaged_values[8];
+			ch->measure.adc_raw_ch2 = (uint16_t) averaged_values[9];
+			ch->measure.adc_ch1 = averaged_voltage[8];
+			ch->measure.adc_ch2 = averaged_voltage[9];
 
-			channels[6].adc_raw_ch1 = (uint16_t) averaged_values[12];
-			channels[6].adc_raw_ch2 = (uint16_t) averaged_values[13];
-			channels[6].adc_ch1 = averaged_voltage[12];
-			channels[6].adc_ch2 = averaged_voltage[13];
+			ch = rf_channel_get(5);
+			ch->measure.adc_raw_ch1 = (uint16_t) averaged_values[10];
+			ch->measure.adc_raw_ch2 = (uint16_t) averaged_values[11];
+			ch->measure.adc_ch1 = averaged_voltage[10];
+			ch->measure.adc_ch2 = averaged_voltage[11];
 
-			channels[7].adc_raw_ch1 = (uint16_t) averaged_values[14];
-			channels[7].adc_raw_ch2 = (uint16_t) averaged_values[15];
-			channels[7].adc_ch1 = averaged_voltage[14];
-			channels[7].adc_ch2 = averaged_voltage[15];
+			ch = rf_channel_get(6);
+			ch->measure.adc_raw_ch1 = (uint16_t) averaged_values[12];
+			ch->measure.adc_raw_ch2 = (uint16_t) averaged_values[13];
+			ch->measure.adc_ch1 = averaged_voltage[12];
+			ch->measure.adc_ch2 = averaged_voltage[13];
+
+			ch = rf_channel_get(7);
+			ch->measure.adc_raw_ch1 = (uint16_t) averaged_values[14];
+			ch->measure.adc_raw_ch2 = (uint16_t) averaged_values[15];
+			ch->measure.adc_ch1 = averaged_voltage[14];
+			ch->measure.adc_ch2 = averaged_voltage[15];
 
 			GPIO_ResetBits(BOARD_LED2);
 		}

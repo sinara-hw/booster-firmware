@@ -253,7 +253,7 @@ BaseType_t prvResetIntCommand( char *pcWriteBuffer, size_t xWriteBufferLen, cons
 	( void ) xWriteBufferLen;
 	configASSERT(pcWriteBuffer);
 
-	rf_clear_interlock();
+//	rf_clear_interlock();
 
 	/* There is no more data to return after this single string, so return
 	pdFALSE. */
@@ -278,6 +278,7 @@ BaseType_t prvCALPWRCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 	static uint8_t channel;
 	static uint8_t pwr_type;
 	static uint8_t pwr_cal;
+	channel_t * ch;
 
 	/* Note that the use of the static parameter means this function is not reentrant. */
 	static BaseType_t lParameterNumber = 0;
@@ -324,22 +325,24 @@ BaseType_t prvCALPWRCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 
 			if (channel < 8) {
 
+				ch = rf_channel_get(channel);
+
 				if (pwr_type == 1) {
-					printf("Value1 for pwr %d = %d\n", pwr_cal, channels[channel].adc_raw_ch1);
+					printf("Value1 for pwr %d = %d\n", pwr_cal, ch->measure.adc_raw_ch1);
 					cal_in_pwr1 = pwr_cal;
-					cal_in_val1 = channels[channel].adc_raw_ch1;
+					cal_in_val1 = ch->measure.adc_raw_ch1;
 				} else if (pwr_type == 2) {
-					printf("Value2 for pwr %d = %d\n", pwr_cal, channels[channel].adc_raw_ch1);
+					printf("Value2 for pwr %d = %d\n", pwr_cal, ch->measure.adc_raw_ch1);
 					cal_in_pwr2 = pwr_cal;
-					cal_in_val2 = channels[channel].adc_raw_ch1;
+					cal_in_val2 = ch->measure.adc_raw_ch1;
 				} else if (pwr_type == 3) {
-					printf("Value1 for pwr %d = %d\n", pwr_cal, channels[channel].adc_raw_ch2);
+					printf("Value1 for pwr %d = %d\n", pwr_cal, ch->measure.adc_raw_ch2);
 					cal_rfl_pwr1 = pwr_cal;
-					cal_rfl_val1 = channels[channel].adc_raw_ch2;
+					cal_rfl_val1 = ch->measure.adc_raw_ch2;
 				} else if (pwr_type == 4) {
-					printf("Value2 for pwr %d = %d\n", pwr_cal, channels[channel].adc_raw_ch2);
+					printf("Value2 for pwr %d = %d\n", pwr_cal, ch->measure.adc_raw_ch2);
 					cal_rfl_pwr2 = pwr_cal;
-					cal_rfl_val2 = channels[channel].adc_raw_ch2;
+					cal_rfl_val2 = ch->measure.adc_raw_ch2;
 				}
 
 				if (cal_in_val1 != 0 && cal_in_val2 != 0)
@@ -387,6 +390,7 @@ BaseType_t prvADCCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const cha
 	BaseType_t lParameterStringLength, xReturn;
 
 	static uint8_t channel;
+	channel_t * ch;
 
 	/* Note that the use of the static parameter means this function is not reentrant. */
 	static BaseType_t lParameterNumber = 0;
@@ -430,7 +434,9 @@ BaseType_t prvADCCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const cha
 			   pdFALSE. */
 
 			if (channel < 8) {
-				printf("ADCs %d %d\n", channels[channel].adc_raw_ch1, channels[channel].adc_raw_ch2);
+
+				ch = rf_channel_get(channel);
+				printf("ADCs %d %d\n", ch->measure.adc_raw_ch1, ch->measure.adc_raw_ch2);
 			}
 
 
@@ -532,6 +538,7 @@ BaseType_t prvCalibrateChannelCommand( char *pcWriteBuffer, size_t xWriteBufferL
 	static uint8_t chan;
 	static int16_t startval;
 	static uint8_t step;
+	channel_t * ch;
 
 	/* Note that the use of the static parameter means this function is not reentrant. */
 	static BaseType_t lParameterNumber = 0;
@@ -587,6 +594,8 @@ BaseType_t prvCalibrateChannelCommand( char *pcWriteBuffer, size_t xWriteBufferL
 
 			if (channel < 8) {
 
+				ch = rf_channel_get(channel);
+
 				vTaskSuspend(xChannelTask);
 				vTaskDelay(100);
 				rf_channel_enable_procedure(channel);
@@ -610,10 +619,7 @@ BaseType_t prvCalibrateChannelCommand( char *pcWriteBuffer, size_t xWriteBufferL
 
 					vTaskDelay(200);
 
-					if (lock_take(SPI_LOCK, portMAX_DELAY)) {
-						led_bar_write(rf_channels_read_sigon(), (rf_channels_read_ovl()) & rf_channels_read_sigon(), (rf_channels_read_user()) & rf_channels_read_sigon());
-						lock_free(SPI_LOCK);
-					}
+					led_bar_write(rf_channels_read_sigon(), (rf_channels_read_ovl()) & rf_channels_read_sigon(), (rf_channels_read_user()) & rf_channels_read_sigon());
 
 					uint8_t val = 0;
 					if (chan == 0)
@@ -629,11 +635,11 @@ BaseType_t prvCalibrateChannelCommand( char *pcWriteBuffer, size_t xWriteBufferL
 							i2c_mux_select(channel);
 
 							if (chan == 0) {
-								rf_channel_save_dac(DAC1_EEPROM_ADDRESS, dacval);
-								channels[channel].dac1_value = dacval;
+								eeprom_write16(DAC1_EEPROM_ADDRESS, dacval);
+								ch->cal_values.input_dac_cal_value = dacval;
 							} else if (chan == 1) {
-								rf_channel_save_dac(DAC2_EEPROM_ADDRESS, dacval);
-								channels[channel].dac2_value = dacval;
+								eeprom_write16(DAC2_EEPROM_ADDRESS, dacval);
+								ch->cal_values.output_dac_cal_value = dacval;
 							}
 
 							lock_free(I2C_LOCK);
@@ -649,10 +655,7 @@ BaseType_t prvCalibrateChannelCommand( char *pcWriteBuffer, size_t xWriteBufferL
 				rf_channel_disable_procedure(channel);
 				vTaskDelay(100);
 
-				if (lock_take(SPI_LOCK, portMAX_DELAY)) {
-					led_bar_write(0, 0, 0);
-					lock_free(SPI_LOCK);
-				}
+				led_bar_write(0, 0, 0);
 
 				vTaskResume(xChannelTask);
 			}
@@ -724,7 +727,6 @@ BaseType_t prvBIASCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const ch
 				{
 					i2c_mux_select(channel);
 					i2c_dac_set(value);
-
 					lock_free(I2C_LOCK);
 				}
 			}
