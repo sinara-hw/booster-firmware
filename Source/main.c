@@ -12,7 +12,6 @@
 #include "stm32f4xx_rcc.h"
 
 // platform drivers
-#include "uart.h"
 #include "i2c.h"
 #include "spi.h"
 #include "adc.h"
