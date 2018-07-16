@@ -29,6 +29,8 @@ BaseType_t prvCalibrateChannelCommand( char *pcWriteBuffer, size_t xWriteBufferL
 BaseType_t prvBIASCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
 BaseType_t prvADCCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
 BaseType_t prvCALPWRCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+BaseType_t prvClearCalibrationCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+BaseType_t prvCalibrateChannelManualCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
 
 
 #endif /* CLI_H_ */

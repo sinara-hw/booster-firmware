@@ -10,4 +10,10 @@
 
 #include "config.h"
 
+extern TaskHandle_t task_rf_measure;
+extern TaskHandle_t task_rf_info;
+extern TaskHandle_t task_rf_interlock;
+extern TaskHandle_t xDHCPTask;
+extern TaskHandle_t xUDPServerTask;
+
 #endif /* TASKS_H_ */

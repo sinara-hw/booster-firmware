@@ -13,6 +13,7 @@
 #include "locks.h"
 #include "eeprom.h"
 #include "led_bar.h"
+#include "tasks.h"
 
 #include "FreeRTOS_CLI.h"
 
@@ -20,7 +21,6 @@
 #define MAX_OUTPUT_LENGTH   100
 
 extern xQueueHandle _xRxQueue;
-extern channel_t channels[8];
 
 static const int8_t * const pcWelcomeMessage = (int8_t *) "[cli] Type Help to view a list of registered commands";
 
@@ -142,7 +142,7 @@ static const CLI_Command_Definition_t xCalibrateChannel =
 	"cal", /* The command string to type. */
 	"cal:\r\n Calibrate channel n\r\n",
 	prvCalibrateChannelCommand, /* The function to run. */
-	4 /* Dynamic number of parameters. */
+	2 /* Dynamic number of parameters. */
 };
 
 static const CLI_Command_Definition_t xBIASChannel =
@@ -169,7 +169,21 @@ static const CLI_Command_Definition_t xCALCPWRCommand =
 	3 /* Dynamic number of parameters. */
 };
 
+static const CLI_Command_Definition_t xCALCCLRCommand =
+{
+	"ccal", /* The command string to type. */
+	"ccal:\r\n Cal PWR Readouts\r\n",
+	prvClearCalibrationCommand, /* The function to run. */
+	2 /* Dynamic number of parameters. */
+};
 
+static const CLI_Command_Definition_t xCalibrateChannelManual =
+{
+	"mcal", /* The command string to type. */
+	"mcal:\r\n Calibrate channel manually n\r\n",
+	prvCalibrateChannelManualCommand, /* The function to run. */
+	3 /* Dynamic number of parameters. */
+};
 
 BaseType_t prvTaskStatsCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
@@ -207,9 +221,6 @@ BaseType_t prvRebootCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 	return pdFALSE;
 }
 
-extern TaskHandle_t xChannelTask;
-extern TaskHandle_t xStatusTask;
-
 BaseType_t prvStopCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	/* Remove compile time warnings about unused parameters, and check the
@@ -219,8 +230,8 @@ BaseType_t prvStopCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const ch
 	( void ) xWriteBufferLen;
 	configASSERT(pcWriteBuffer);
 
-	vTaskSuspend(xChannelTask);
-	vTaskSuspend(xStatusTask);
+	vTaskSuspend(task_rf_interlock);
+	vTaskSuspend(task_rf_info);
 
 	/* There is no more data to return after this single string, so return
 	pdFALSE. */
@@ -236,8 +247,8 @@ BaseType_t prvStartCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const c
 	( void ) xWriteBufferLen;
 	configASSERT(pcWriteBuffer);
 
-	vTaskResume(xChannelTask);
-	vTaskResume(xStatusTask);
+	vTaskResume(task_rf_interlock);
+	vTaskResume(task_rf_info);
 
 	/* There is no more data to return after this single string, so return
 	pdFALSE. */
@@ -290,6 +301,7 @@ BaseType_t prvCALPWRCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 		lParameterNumber = 1L;
 
 		channel = 0;
+		channel_t * ch;
 
 		/* There is more data to be returned as no parameters have been echoed
 		back yet, so set xReturn to pdPASS so the function will be called again. */
@@ -352,6 +364,20 @@ BaseType_t prvCALPWRCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 					uint16_t b = (cal_in_val1 - ((cal_in_val1 - cal_in_val2) / (cal_in_pwr1 - cal_in_pwr2)) * cal_in_pwr1);
 					printf("INPWR A = %d B = %d\n", a, b);
 
+					ch = rf_channel_get(channel);
+					// save values to eeprom
+					ch->cal_values.fwd_pwr_offset = b;
+
+					if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+						i2c_mux_select(channel);
+
+						eeprom_write16(ADC1_OFFSET_ADDRESS, b);
+						vTaskDelay(100);
+						eeprom_write16(ADC1_SCALE_ADDRESS, a);
+						lock_free(I2C_LOCK);
+					}
+
+					ch->cal_values.fwd_pwr_scale = a;
 					cal_in_val1 = 0;
 					cal_in_pwr1 = 0;
 					cal_in_val2 = 0;
@@ -364,6 +390,20 @@ BaseType_t prvCALPWRCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 					uint16_t a = ((cal_rfl_val1 - cal_rfl_val2) / (cal_rfl_pwr1 - cal_rfl_pwr2));
 					uint16_t b = (cal_rfl_val1 - ((cal_rfl_val1 - cal_rfl_val2) / (cal_rfl_pwr1 - cal_rfl_pwr2)) * cal_rfl_pwr1);
 					printf("RFLPWR A = %d B = %d\n", a, b);
+
+					ch = rf_channel_get(channel);
+					// save values to eeprom
+					ch->cal_values.rfl_pwr_offset = a;
+					ch->cal_values.rfl_pwr_scale = b;
+
+					if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+						i2c_mux_select(channel);
+
+						eeprom_write16(ADC2_OFFSET_ADDRESS, b);
+						vTaskDelay(100);
+						eeprom_write16(ADC2_SCALE_ADDRESS, a);
+						lock_free(I2C_LOCK);
+					}
 
 					cal_rfl_val1 = 0;
 					cal_rfl_pwr1 = 0;
@@ -434,11 +474,9 @@ BaseType_t prvADCCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const cha
 			   pdFALSE. */
 
 			if (channel < 8) {
-
 				ch = rf_channel_get(channel);
 				printf("ADCs %d %d\n", ch->measure.adc_raw_ch1, ch->measure.adc_raw_ch2);
 			}
-
 
             xReturn = pdFALSE;
 			/* Start over the next time this command is executed. */
@@ -535,9 +573,7 @@ BaseType_t prvCalibrateChannelCommand( char *pcWriteBuffer, size_t xWriteBufferL
 	BaseType_t lParameterStringLength, xReturn;
 
 	static uint8_t channel;
-	static uint8_t chan;
-	static int16_t startval;
-	static uint8_t step;
+	static uint8_t type;
 	channel_t * ch;
 
 	/* Note that the use of the static parameter means this function is not reentrant. */
@@ -571,9 +607,7 @@ BaseType_t prvCalibrateChannelCommand( char *pcWriteBuffer, size_t xWriteBufferL
 			// avoid buffer overflow
 			if (lParameterStringLength > 15) lParameterStringLength = 15;
 			if (lParameterNumber == 1) channel = atoi((char*) pcParameter);
-			if (lParameterNumber == 2) chan = atoi((char*) pcParameter);
-			if (lParameterNumber == 3) startval = atoi((char*) pcParameter);
-			if (lParameterNumber == 4) step = atoi((char*) pcParameter);
+			if (lParameterNumber == 2) type = atoi((char*) pcParameter);
 
 			xReturn = pdTRUE;
 			lParameterNumber++;
@@ -583,81 +617,262 @@ BaseType_t prvCalibrateChannelCommand( char *pcWriteBuffer, size_t xWriteBufferL
 			printf("Execuring cal command, ch %d\n\r", channel);
 			/* There is no more data to return, so this time set xReturn to
 			   pdFALSE. */
-			int16_t dacval = 0;
+			uint16_t dacval = 1500;
+			uint16_t retval = 0;
 
-			if (startval > 0 && startval < 1700)
-				dacval = startval;
-			else
-				dacval = 1700;
+			if (channel < 8)
+			{
+				if (type == 0) {
+					printf("Calibrating input interlock\n");
+					retval = rf_channel_calibrate_input_interlock(channel, dacval, 100);
+					if (retval == 0) retval = 100;
+					printf("Calibration step = 100 completed = %d\n", retval);
 
-			if (step == 0) step = 1;
+					vTaskDelay(500);
 
-			if (channel < 8) {
+					retval *= 1.3;
+					retval = rf_channel_calibrate_input_interlock(channel, retval, 10);
+					if (retval == 0) retval = 10;
 
-				ch = rf_channel_get(channel);
+					vTaskDelay(500);
 
-				vTaskSuspend(xChannelTask);
-				vTaskDelay(100);
-				rf_channel_enable_procedure(channel);
-				vTaskDelay(100);
-				rf_clear_interlock();
+					printf("Calibration step = 10 completed = %d\n", retval);
+					retval *= 2;
+					retval = rf_channel_calibrate_input_interlock(channel, retval, 1);
+					if (retval != 0) {
+						printf("Calibration step = 1 completed = %d\n", retval);
 
-				while (dacval > 0) {
-
-					printf("Trying channel %d value %d\n", channel, dacval);
-
-					if (lock_take(I2C_LOCK, portMAX_DELAY))
-					{
-						i2c_mux_select(channel);
-						if (chan == 0)
-							i2c_dual_dac_set(0, dacval);
-						else if (chan == 1)
-							i2c_dual_dac_set(1, dacval);
-
-						lock_free(I2C_LOCK);
-					}
-
-					vTaskDelay(200);
-
-					led_bar_write(rf_channels_read_sigon(), (rf_channels_read_ovl()) & rf_channels_read_sigon(), (rf_channels_read_user()) & rf_channels_read_sigon());
-
-					uint8_t val = 0;
-					if (chan == 0)
-						val = rf_channels_read_ovl();
-					else if (chan == 1)
-						val = rf_channels_read_user();
-
-					if ((val >> channel) & 0x01) {
-						printf("Interlock ON at %d\n", dacval);
-
-						if (lock_take(I2C_LOCK, portMAX_DELAY))
-						{
+						ch = rf_channel_get(channel);
+						if (lock_take(I2C_LOCK, portMAX_DELAY)) {
 							i2c_mux_select(channel);
 
-							if (chan == 0) {
-								eeprom_write16(DAC1_EEPROM_ADDRESS, dacval);
-								ch->cal_values.input_dac_cal_value = dacval;
-							} else if (chan == 1) {
-								eeprom_write16(DAC2_EEPROM_ADDRESS, dacval);
-								ch->cal_values.output_dac_cal_value = dacval;
-							}
+							ch->cal_values.input_dac_cal_value = retval;
+							eeprom_write16(DAC1_EEPROM_ADDRESS, retval);
+							lock_free(I2C_LOCK);
+						}
+					} else {
+						printf("Calibration failed\n");
+					}
+				}
 
+				if (type == 1) {
+					printf("Calibrating output interlock\n");
+					retval = rf_channel_calibrate_output_interlock(channel, dacval, 100);
+					if (retval == 0) retval = 100;
+					printf("Calibration step = 100 completed = %d\n", retval);
+
+					vTaskDelay(500);
+
+					retval *= 1.3;
+					retval = rf_channel_calibrate_output_interlock(channel, retval, 10);
+					if (retval == 0) retval = 10;
+
+					vTaskDelay(500);
+
+					printf("Calibration step = 10 completed = %d\n", retval);
+					retval *= 1.1;
+					retval = rf_channel_calibrate_output_interlock(channel, retval, 1);
+					if (retval != 0) {
+						printf("Calibration step = 1 completed = %d\n", retval);
+
+						ch = rf_channel_get(channel);
+						if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+							i2c_mux_select(channel);
+
+							ch->cal_values.output_dac_cal_value = retval;
+							eeprom_write16(DAC2_EEPROM_ADDRESS, retval);
 							lock_free(I2C_LOCK);
 						}
 
-						break;
+					} else {
+						printf("Calibration failed\n");
 					}
+				}
+			}
 
-					vTaskDelay(200);
-					dacval -= step;
+            xReturn = pdFALSE;
+			/* Start over the next time this command is executed. */
+			lParameterNumber = 0;
+
+			sprintf(pcWriteBuffer, "\r");
+		}
+    }
+
+	return xReturn;
+}
+
+BaseType_t prvCalibrateChannelManualCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
+{
+	int8_t *pcParameter;
+	BaseType_t lParameterStringLength, xReturn;
+
+	static uint8_t channel;
+	static uint8_t type;
+	static uint16_t start;
+	channel_t * ch;
+
+	/* Note that the use of the static parameter means this function is not reentrant. */
+	static BaseType_t lParameterNumber = 0;
+
+	if( lParameterNumber == 0 )
+	{
+		/* Next time the function is called the first parameter will be echoed
+		back. */
+		lParameterNumber = 1L;
+
+		channel = 0;
+
+		/* There is more data to be returned as no parameters have been echoed
+		back yet, so set xReturn to pdPASS so the function will be called again. */
+		xReturn = pdPASS;
+	} else {
+    	/* lParameter is not 0, so holds the number of the parameter that should
+			be returned.  Obtain the complete parameter string. */
+		pcParameter = ( int8_t * ) FreeRTOS_CLIGetParameter
+                                   (
+                                       /* The command string itself. */
+									   pcCommandString,
+									   /* Return the next parameter. */
+									   lParameterNumber,
+									   /* Store the parameter string length. */
+									   &lParameterStringLength
+									);
+		if( pcParameter != NULL )
+		{
+			// avoid buffer overflow
+			if (lParameterStringLength > 15) lParameterStringLength = 15;
+			if (lParameterNumber == 1) channel = atoi((char*) pcParameter);
+			if (lParameterNumber == 2) type = atoi((char*) pcParameter);
+			if (lParameterNumber == 3) start = atoi((char*) pcParameter);
+
+			xReturn = pdTRUE;
+			lParameterNumber++;
+
+			sprintf(pcWriteBuffer, "\r");
+		} else {
+			printf("Execuring cal command, ch %d\n\r", channel);
+			/* There is no more data to return, so this time set xReturn to
+			   pdFALSE. */
+			uint16_t retval = 0;
+
+			if (channel < 8)
+			{
+				if (type == 0) {
+					retval = rf_channel_calibrate_input_interlock(channel, start, 1);
+					if (retval != 0) {
+						printf("Calibration step = 1 completed = %d\n", retval);
+
+						ch = rf_channel_get(channel);
+						if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+							i2c_mux_select(channel);
+
+							ch->cal_values.input_dac_cal_value = retval;
+							eeprom_write16(DAC1_EEPROM_ADDRESS, retval);
+							lock_free(I2C_LOCK);
+						}
+
+					} else {
+						printf("Calibration failed\n");
+					}
 				}
 
-				rf_channel_disable_procedure(channel);
-				vTaskDelay(100);
+				if (type == 1) {
+					retval = rf_channel_calibrate_output_interlock(channel, start, 1);
+					if (retval != 0) {
+						printf("Calibration step = 1 completed = %d\n", retval);
 
-				led_bar_write(0, 0, 0);
+						ch = rf_channel_get(channel);
+						if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+							i2c_mux_select(channel);
 
-				vTaskResume(xChannelTask);
+							ch->cal_values.output_dac_cal_value = retval;
+							eeprom_write16(DAC2_EEPROM_ADDRESS, retval);
+							lock_free(I2C_LOCK);
+						}
+
+					} else {
+						printf("Calibration failed\n");
+					}
+				}
+			}
+
+            xReturn = pdFALSE;
+			/* Start over the next time this command is executed. */
+			lParameterNumber = 0;
+
+			sprintf(pcWriteBuffer, "\r");
+		}
+    }
+
+	return xReturn;
+}
+
+BaseType_t prvClearCalibrationCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
+{
+	int8_t *pcParameter;
+	BaseType_t lParameterStringLength, xReturn;
+
+	static uint8_t channel;
+	static uint16_t value;
+	channel_t * ch;
+
+	/* Note that the use of the static parameter means this function is not reentrant. */
+	static BaseType_t lParameterNumber = 0;
+
+	if( lParameterNumber == 0 )
+	{
+		/* Next time the function is called the first parameter will be echoed
+		back. */
+		lParameterNumber = 1L;
+
+		channel = 0;
+
+		/* There is more data to be returned as no parameters have been echoed
+		back yet, so set xReturn to pdPASS so the function will be called again. */
+		xReturn = pdPASS;
+	} else {
+    	/* lParameter is not 0, so holds the number of the parameter that should
+			be returned.  Obtain the complete parameter string. */
+		pcParameter = ( int8_t * ) FreeRTOS_CLIGetParameter
+                                   (
+                                       /* The command string itself. */
+									   pcCommandString,
+									   /* Return the next parameter. */
+									   lParameterNumber,
+									   /* Store the parameter string length. */
+									   &lParameterStringLength
+									);
+		if( pcParameter != NULL )
+		{
+			// avoid buffer overflow
+			if (lParameterStringLength > 15) lParameterStringLength = 15;
+			if (lParameterNumber == 1) channel = atoi((char*) pcParameter);
+			if (lParameterNumber == 2) value = atoi((char*) pcParameter);
+
+			xReturn = pdTRUE;
+			lParameterNumber++;
+
+			sprintf(pcWriteBuffer, "\r");
+		} else {
+			printf("Execuring clear cal command, ch %d\n\r", channel);
+			/* There is no more data to return, so this time set xReturn to
+			   pdFALSE. */
+
+			if (channel < 8)
+			{
+				ch = rf_channel_get(channel);
+
+				ch->cal_values.input_dac_cal_value = value;
+				ch->cal_values.output_dac_cal_value = value;
+
+				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+					i2c_mux_select(channel);
+
+					eeprom_write16(DAC1_EEPROM_ADDRESS, value);
+					vTaskDelay(50);
+					eeprom_write16(DAC2_EEPROM_ADDRESS, value);
+					lock_free(I2C_LOCK);
+				}
 			}
 
             xReturn = pdFALSE;
@@ -965,8 +1180,6 @@ BaseType_t prvCHSTATUSCommand( char *pcWriteBuffer, size_t xWriteBufferLen, cons
 	return xReturn;
 }
 
-extern volatile uint8_t channel_mask;
-
 BaseType_t prvCtrlCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	int8_t *pcParameter;
@@ -977,7 +1190,7 @@ BaseType_t prvCtrlCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const ch
 	/* Note that the use of the static parameter means this function is not reentrant. */
 	static BaseType_t lParameterNumber = 0;
 
-	if( lParameterNumber == 0 )
+	if ( lParameterNumber == 0 )
 	{
 		/* Next time the function is called the first parameter will be echoed
 		back. */
@@ -1264,9 +1477,11 @@ void vRegisterCLICommands( void )
 	FreeRTOS_CLIRegisterCommand( &xStopCControl );
 	FreeRTOS_CLIRegisterCommand( &xRestartCControl );
 	FreeRTOS_CLIRegisterCommand( &xCalibrateChannel );
+	FreeRTOS_CLIRegisterCommand( &xCalibrateChannelManual );
 	FreeRTOS_CLIRegisterCommand( &xBIASChannel );
 	FreeRTOS_CLIRegisterCommand( &xADCReadout );
 	FreeRTOS_CLIRegisterCommand( &xCALCPWRCommand );
+	FreeRTOS_CLIRegisterCommand( &xCALCCLRCommand );
 }
 
 void vCommandConsoleTask( void *pvParameters )

@@ -8,6 +8,7 @@
 #include "wizchip_conf.h"
 #include "socket.h"
 #include "server.h"
+#include "locks.h"
 
 #include "scpi/scpi.h"
 extern scpi_t scpi_context;
@@ -15,7 +16,6 @@ extern scpi_t scpi_context;
 #define MAX_RX_LENGTH 1024
 
 SemaphoreHandle_t xUDPMessageAvailable;
-SemaphoreHandle_t xEthInterfaceAvailable;
 
 static void udp_int_init(void)
 {
@@ -102,8 +102,7 @@ void prvUDPServerTask(void *pvParameters)
 	{
 		if (xSemaphoreTake(xUDPMessageAvailable, configTICK_RATE_HZ))
 		{
-			if (xSemaphoreTake(xEthInterfaceAvailable, portMAX_DELAY))
-			{
+			if (lock_take(ETH_LOCK, portMAX_DELAY)) {
 				ctlwizchip(CW_GET_INTERRUPT, &ir);
 				if (ir & IK_SOCK_0)
 				{
@@ -134,7 +133,7 @@ void prvUDPServerTask(void *pvParameters)
 					NVIC_EnableIRQ(EXTI9_5_IRQn);
 				}
 
-				xSemaphoreGive(xEthInterfaceAvailable);
+				lock_free(ETH_LOCK);
 			}
 		}
 	}

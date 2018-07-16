@@ -8,15 +8,21 @@
 #include "config.h"
 #include "channels.h"
 #include "ads7924.h"
+#include "max6642.h"
 #include "i2c.h"
 #include "led_bar.h"
 #include "math.h"
 #include "locks.h"
 #include "temp_mgt.h"
 #include "eeprom.h"
+#include "tasks.h"
 
 static channel_t channels[8] = { 0 };
 volatile uint8_t channel_mask = 0;
+
+TaskHandle_t task_rf_measure;
+TaskHandle_t task_rf_info;
+TaskHandle_t task_rf_interlock;
 
 void rf_channels_init(void)
 {
@@ -99,11 +105,22 @@ void rf_channels_init(void)
 	GPIO_SetBits(GPIOB, GPIO_Pin_9);
 }
 
+uint8_t rf_channels_get_mask(void)
+{
+	return channel_mask;
+}
+
 void rf_channel_load_values(channel_t * ch)
 {
 	// load interlocks value
 	ch->cal_values.input_dac_cal_value = eeprom_read16(DAC1_EEPROM_ADDRESS);
 	ch->cal_values.output_dac_cal_value = eeprom_read16(DAC2_EEPROM_ADDRESS);
+
+	ch->cal_values.fwd_pwr_offset = eeprom_read16(ADC1_OFFSET_ADDRESS);
+	ch->cal_values.fwd_pwr_scale = eeprom_read16(ADC1_SCALE_ADDRESS);
+
+	ch->cal_values.rfl_pwr_offset = eeprom_read16(ADC2_OFFSET_ADDRESS);
+	ch->cal_values.rfl_pwr_scale = eeprom_read16(ADC2_SCALE_ADDRESS);
 }
 
 uint8_t rf_channels_detect(void)
@@ -117,14 +134,16 @@ uint8_t rf_channels_detect(void)
 			i2c_mux_select(i);
 
 			uint8_t dac_detected = i2c_device_connected(I2C1, I2C_DAC_ADDR);
+			vTaskDelay(10);
 			uint8_t dual_dac_detected = i2c_device_connected(I2C1, I2C_DUAL_DAC_ADDR);
+			vTaskDelay(10);
 			uint8_t temp_sensor_detected = i2c_device_connected(I2C1, I2C_MODULE_TEMP);
 
 			if (dual_dac_detected && dac_detected && temp_sensor_detected)
 			{
 				printf("Channel %d OK\n", i);
 				ads7924_init();
-				channel_temp_sens_init();
+				max6642_init();
 
 				channel_mask |= 1UL << i;
 				channels[i].detected = true;
@@ -197,8 +216,8 @@ bool rf_channel_enable_procedure(uint8_t channel)
 		i2c_dac_set(4095);
 
 		// set calibration values
-		// i2c_dual_dac_set(0, channels[channel].dac1_value);
-		// i2c_dual_dac_set(1, channels[channel].dac2_value);
+		i2c_dual_dac_set(0, channels[channel].cal_values.input_dac_cal_value);
+		i2c_dual_dac_set(1, channels[channel].cal_values.output_dac_cal_value);
 
 		lock_free(I2C_LOCK);
 	}
@@ -215,9 +234,9 @@ bool rf_channel_enable_procedure(uint8_t channel)
 	}
 
 	rf_channels_sigon(bitmask, true);
-	vTaskDelay(100);
+	vTaskDelay(10);
 	rf_channels_sigon(bitmask, false);
-	vTaskDelay(100);
+	vTaskDelay(10);
 	rf_channels_sigon(bitmask, true);
 
 	return false;
@@ -267,15 +286,52 @@ channel_t * rf_channel_get(uint8_t num)
 	return NULL;
 }
 
-void channel_interlock_task(void *pvParameters)
+void rf_channels_interlock_task(void *pvParameters)
 {
+	uint8_t channel_enabled = 0;
+	uint8_t channel_ovl = 0;
+	uint8_t channel_alert = 0;
+	uint8_t channel_user = 0;
+	uint8_t channel_sigon = 0;
+
+	rf_channels_init();
+	rf_channels_detect();
+
+	xTaskCreate(rf_channels_measure_task, "CH MEAS", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 2, &task_rf_measure);
+	xTaskCreate(rf_channels_info_task, "CH INFO", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 1, &task_rf_info);
+
 	for (;;)
 	{
+		GPIO_ToggleBits(BOARD_LED1);
+
+		channel_enabled = rf_channels_read_enabled();
+		channel_ovl = rf_channels_read_ovl();
+		channel_alert = rf_channels_read_alert();
+		channel_sigon = rf_channels_read_sigon();
+		channel_user = rf_channels_read_user();
+
 		for (int i = 0; i < 8; i++) {
+
 			if ((1 << i) & channel_mask) {
 
+				channels[i].overcurrent = (channel_alert >> i) & 0x01;
+				channels[i].enabled = (channel_enabled >> i) & 0x01;
+				channels[i].sigon = (channel_sigon >> i) & 0x01;
 
+				if ((channel_ovl >> i) & 0x01) channels[i].input_interlock = true;
+				if ((channel_user >> i) & 0x01) channels[i].output_interlock = true;
+				if (channels[i].sigon && ( channels[i].output_interlock || channels[i].input_interlock )) {
+					rf_channels_sigon(1 << i, false);
 
+					led_bar_and((1UL << i), 0xFF, 0xFF);
+					led_bar_or(0x00, (1UL << i), 0x00);
+				}
+
+				if (channels[i].measure.remote_temp > 85.0f)
+				{
+					rf_channel_disable_procedure(i);
+					led_bar_or(0, 0, (1UL << i));
+				}
 
 			}
 		}
@@ -284,15 +340,29 @@ void channel_interlock_task(void *pvParameters)
 	}
 }
 
-void channel_measure_task(void *pvParameters)
+void rf_channels_measure_task(void *pvParameters)
 {
 	for (;;)
 	{
 		for (int i = 0; i < 8; i++) {
 			if ((1 << i) & channel_mask) {
 
+				if (lock_take(I2C_LOCK, portMAX_DELAY))
+				{
+					i2c_mux_select(i);
 
+					channels[i].measure.fwd_pwr = (double) (channels[i].measure.adc_raw_ch1 - channels[i].cal_values.fwd_pwr_offset) / (double) channels[i].cal_values.fwd_pwr_scale;
+					channels[i].measure.rfl_pwr = (double) (channels[i].measure.adc_raw_ch1 - channels[i].cal_values.rfl_pwr_offset) / (double) channels[i].cal_values.rfl_pwr_scale;
 
+					channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / 50) / 0.02f;
+					channels[i].measure.i60 = (ads7924_get_channel_voltage(0) / 50) / 0.1f;
+					channels[i].measure.in80 = (ads7924_get_channel_voltage(0) / 50) / 4.7f;
+
+					channels[i].measure.local_temp = max6642_get_local_temp();
+					channels[i].measure.remote_temp = max6642_get_remote_temp();
+
+					lock_free(I2C_LOCK);
+				}
 
 			}
 		}
@@ -303,26 +373,385 @@ void channel_measure_task(void *pvParameters)
 
 void rf_clear_interlock(void)
 {
-	uint8_t ch_msk = (rf_channels_read_user() | rf_channels_read_ovl()) & rf_channels_read_enabled();
-
-	rf_channels_sigon(ch_msk, false);
-
-	if (lock_take(SPI_LOCK, 100)) {
-		led_bar_and(ch_msk, 0xFF, 0xFF);
-		lock_free(SPI_LOCK);
-	}
-
 	for (int i = 0; i < 8; i++) {
 		channels[i].input_interlock = false;
 		channels[i].output_interlock = false;
 	}
 
 	vTaskDelay(10);
-
 	rf_channels_sigon(channel_mask & rf_channels_read_enabled(), true);
+	led_bar_write(rf_channels_read_sigon(), 0, 0);
+}
 
-	if (lock_take(SPI_LOCK, 100)) {
-		led_bar_write(rf_channels_read_sigon(), 0, 0);
-		lock_free(SPI_LOCK);
+void rf_channels_info_task(void *pvParameters)
+{
+	uint8_t address_list[] = {0x2C, 0x2E, 0x2F};
+
+	for (;;)
+	{
+		puts("\033[2J");
+		printf("PGOOD: %d\n", GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4));
+//		printf("TEMPERATURES\n");
+//		for (int i = 0; i < 3; i ++)
+//		{
+//			if (lock_take(I2C_LOCK, portMAX_DELAY))
+//			{
+//				float temp1 = max6639_get_temperature(address_list[i], 0);
+//				float temp2 = max6639_get_temperature(address_list[i], 1);
+//				lock_free(I2C_LOCK);
+//				printf("[%d] ch1 (ext): %.3f ch2 (int): %.3f\n", i, temp1, temp2);
+//			}
+//		}
+
+		printf("FAN SPEED: %d %%\n", temp_mgt_get_fanspeed());
+		printf("AVG TEMP: %0.2f MAX:%0.2f\n", temp_mgt_get_avg_temp(), temp_mgt_get_max_temp());
+		printf("CHANNELS INFO\n");
+		printf("==============================================================================\n");
+		printf("\t\t#0\t#1\t#2\t#3\t#4\t#5\t#6\t#7\n");
+
+		printf("DETECTED\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].detected,
+																channels[1].detected,
+																channels[2].detected,
+																channels[3].detected,
+																channels[4].detected,
+																channels[5].detected,
+																channels[6].detected,
+																channels[7].detected);
+
+		printf("TXPWR [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.adc_ch1,
+																						channels[1].measure.adc_ch1,
+																						channels[2].measure.adc_ch1,
+																						channels[3].measure.adc_ch1,
+																						channels[4].measure.adc_ch1,
+																						channels[5].measure.adc_ch1,
+																						channels[6].measure.adc_ch1,
+																						channels[7].measure.adc_ch1);
+
+		printf("RFLPWR [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.adc_ch2,
+																						channels[1].measure.adc_ch2,
+																						channels[2].measure.adc_ch2,
+																						channels[3].measure.adc_ch2,
+																						channels[4].measure.adc_ch2,
+																						channels[5].measure.adc_ch2,
+																						channels[6].measure.adc_ch2,
+																						channels[7].measure.adc_ch2);
+
+		printf("TXPWR [dB]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.fwd_pwr,
+																						channels[1].measure.fwd_pwr,
+																						channels[2].measure.fwd_pwr,
+																						channels[3].measure.fwd_pwr,
+																						channels[4].measure.fwd_pwr,
+																						channels[5].measure.fwd_pwr,
+																						channels[6].measure.fwd_pwr,
+																						channels[7].measure.fwd_pwr);
+
+		printf("RFLPWR [dB]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.rfl_pwr,
+																						channels[1].measure.rfl_pwr,
+																						channels[2].measure.rfl_pwr,
+																						channels[3].measure.rfl_pwr,
+																						channels[4].measure.rfl_pwr,
+																						channels[5].measure.rfl_pwr,
+																						channels[6].measure.rfl_pwr,
+																						channels[7].measure.rfl_pwr);
+
+		printf("P30V [A]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.i30,
+																						channels[1].measure.i30,
+																						channels[2].measure.i30,
+																						channels[3].measure.i30,
+																						channels[4].measure.i30,
+																						channels[5].measure.i30,
+																						channels[6].measure.i30,
+																						channels[7].measure.i30);
+
+		printf("P6V0 [A]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.i60,
+																						channels[1].measure.i60,
+																						channels[2].measure.i60,
+																						channels[3].measure.i60,
+																						channels[4].measure.i60,
+																						channels[5].measure.i60,
+																						channels[6].measure.i60,
+																						channels[7].measure.i60);
+
+		printf("PN8V0 [mA]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.in80 * 1000,
+																						channels[1].measure.in80 * 1000,
+																						channels[2].measure.in80 * 1000,
+																						channels[3].measure.in80 * 1000,
+																						channels[4].measure.in80 * 1000,
+																						channels[5].measure.in80 * 1000,
+																						channels[6].measure.in80 * 1000,
+																						channels[7].measure.in80 * 1000);
+
+		printf("ON\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].enabled,
+															channels[1].enabled,
+															channels[2].enabled,
+															channels[3].enabled,
+															channels[4].enabled,
+															channels[5].enabled,
+															channels[6].enabled,
+															channels[7].enabled);
+
+		printf("SON\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].sigon,
+															channels[1].sigon,
+															channels[2].sigon,
+															channels[3].sigon,
+															channels[4].sigon,
+															channels[5].sigon,
+															channels[6].sigon,
+															channels[7].sigon);
+
+		printf("IINT\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].input_interlock,
+															channels[1].input_interlock,
+															channels[2].input_interlock,
+															channels[3].input_interlock,
+															channels[4].input_interlock,
+															channels[5].input_interlock,
+															channels[6].input_interlock,
+															channels[7].input_interlock);
+
+		printf("OINT\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].output_interlock,
+															channels[1].output_interlock,
+															channels[2].output_interlock,
+															channels[3].output_interlock,
+															channels[4].output_interlock,
+															channels[5].output_interlock,
+															channels[6].output_interlock,
+															channels[7].output_interlock);
+
+		printf("OVC\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].overcurrent,
+															channels[1].overcurrent,
+															channels[2].overcurrent,
+															channels[3].overcurrent,
+															channels[4].overcurrent,
+															channels[5].overcurrent,
+															channels[6].overcurrent,
+															channels[7].overcurrent);
+
+		printf("ADC1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].measure.adc_raw_ch1,
+																channels[1].measure.adc_raw_ch1,
+																channels[2].measure.adc_raw_ch1,
+																channels[3].measure.adc_raw_ch1,
+																channels[4].measure.adc_raw_ch1,
+																channels[5].measure.adc_raw_ch1,
+																channels[6].measure.adc_raw_ch1,
+																channels[7].measure.adc_raw_ch1);
+
+		printf("ADC2\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].measure.adc_raw_ch2,
+															channels[1].measure.adc_raw_ch2,
+															channels[2].measure.adc_raw_ch2,
+															channels[3].measure.adc_raw_ch2,
+															channels[4].measure.adc_raw_ch2,
+															channels[5].measure.adc_raw_ch2,
+															channels[6].measure.adc_raw_ch2,
+															channels[7].measure.adc_raw_ch2);
+
+		printf("DAC1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].cal_values.input_dac_cal_value,
+																channels[1].cal_values.input_dac_cal_value,
+																channels[2].cal_values.input_dac_cal_value,
+																channels[3].cal_values.input_dac_cal_value,
+																channels[4].cal_values.input_dac_cal_value,
+																channels[5].cal_values.input_dac_cal_value,
+																channels[6].cal_values.input_dac_cal_value,
+																channels[7].cal_values.input_dac_cal_value);
+
+		printf("DAC2\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].cal_values.output_dac_cal_value,
+															channels[1].cal_values.output_dac_cal_value,
+															channels[2].cal_values.output_dac_cal_value,
+															channels[3].cal_values.output_dac_cal_value,
+															channels[4].cal_values.output_dac_cal_value,
+															channels[5].cal_values.output_dac_cal_value,
+															channels[6].cal_values.output_dac_cal_value,
+															channels[7].cal_values.output_dac_cal_value);
+
+		printf("SCALE1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].cal_values.fwd_pwr_scale,
+															channels[1].cal_values.fwd_pwr_scale,
+															channels[2].cal_values.fwd_pwr_scale,
+															channels[3].cal_values.fwd_pwr_scale,
+															channels[4].cal_values.fwd_pwr_scale,
+															channels[5].cal_values.fwd_pwr_scale,
+															channels[6].cal_values.fwd_pwr_scale,
+															channels[7].cal_values.fwd_pwr_scale);
+
+		printf("OFFSET1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].cal_values.fwd_pwr_offset,
+															channels[1].cal_values.fwd_pwr_offset,
+															channels[2].cal_values.fwd_pwr_offset,
+															channels[3].cal_values.fwd_pwr_offset,
+															channels[4].cal_values.fwd_pwr_offset,
+															channels[5].cal_values.fwd_pwr_offset,
+															channels[6].cal_values.fwd_pwr_offset,
+															channels[7].cal_values.fwd_pwr_offset);
+
+		printf("LTEMP\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].measure.local_temp,
+																				channels[1].measure.local_temp,
+																				channels[2].measure.local_temp,
+																				channels[3].measure.local_temp,
+																				channels[4].measure.local_temp,
+																				channels[5].measure.local_temp,
+																				channels[6].measure.local_temp,
+																				channels[7].measure.local_temp);
+
+		printf("RTEMP\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].measure.remote_temp,
+																				channels[1].measure.remote_temp,
+																				channels[2].measure.remote_temp,
+																				channels[3].measure.remote_temp,
+																				channels[4].measure.remote_temp,
+																				channels[5].measure.remote_temp,
+																				channels[6].measure.remote_temp,
+																				channels[7].measure.remote_temp);
+
+		printf("==============================================================================\n");
+
+		GPIO_ToggleBits(BOARD_LED3);
+		vTaskDelay(1000);
 	}
+}
+
+uint16_t rf_channel_calibrate_input_interlock(uint8_t channel, int16_t start_value, uint8_t step)
+{
+	int16_t dacval = 0;
+
+	if (start_value > 0 && start_value < 1700)
+		dacval = start_value;
+	else
+		dacval = 1500;
+
+	if (step == 0) step = 1;
+
+	if (channel < 8)
+	{
+		printf("Calibrating ch %d start_value %d step %d\n", channel, dacval, step);
+
+		if (lock_take(I2C_LOCK, portMAX_DELAY))
+		{
+			i2c_mux_select(channel);
+			i2c_dual_dac_set(0, dacval);
+
+			lock_free(I2C_LOCK);
+		}
+
+		vTaskSuspend(task_rf_interlock);
+		vTaskDelay(100);
+		rf_channel_enable_procedure(channel);
+		vTaskDelay(100);
+		rf_clear_interlock();
+
+		while (dacval > 0) {
+
+			printf("Trying value %d\n", dacval);
+			if (lock_take(I2C_LOCK, portMAX_DELAY))
+			{
+				i2c_mux_select(channel);
+				i2c_dual_dac_set(0, dacval);
+
+				lock_free(I2C_LOCK);
+			}
+
+			if (dacval == 1500 || dacval == start_value) {
+				// clear the issue of interlock popping
+				// straight up after setting first value
+				vTaskDelay(200);
+				rf_clear_interlock();
+			}
+
+			vTaskDelay(200);
+
+			led_bar_write(rf_channels_read_sigon(), (rf_channels_read_ovl()) & rf_channels_read_sigon(), (rf_channels_read_user()) & rf_channels_read_sigon());
+
+			uint8_t val = 0;
+			val = rf_channels_read_ovl();
+
+			if ((val >> channel) & 0x01) {
+				printf("Found interlock value = %d\n", dacval);
+
+				rf_channel_disable_procedure(channel);
+				vTaskDelay(100);
+				led_bar_write(0, 0, 0);
+				vTaskResume(task_rf_interlock);
+
+				return (uint16_t) dacval;
+				break;
+			}
+
+			vTaskDelay(200);
+			dacval -= step;
+		}
+
+		rf_channel_disable_procedure(channel);
+		vTaskDelay(100);
+		led_bar_write(0, 0, 0);
+		vTaskResume(task_rf_interlock);
+	}
+
+	return (uint16_t) dacval;
+}
+
+uint16_t rf_channel_calibrate_output_interlock(uint8_t channel, int16_t start_value, uint8_t step)
+{
+	int16_t dacval = 0;
+
+	if (start_value > 0 && start_value < 1700)
+		dacval = start_value;
+	else
+		dacval = 1500;
+
+	if (step == 0) step = 1;
+
+	if (channel < 8)
+	{
+		channels[channel].cal_values.output_dac_cal_value = dacval;
+
+		printf("Calibrating ch %d start_value %d step %d\n", channel, dacval, step);
+
+		vTaskSuspend(task_rf_interlock);
+		vTaskDelay(100);
+		rf_channel_enable_procedure(channel);
+		vTaskDelay(100);
+		rf_clear_interlock();
+
+		while (dacval > 0) {
+
+			printf("Trying value %d\n", dacval);
+			if (lock_take(I2C_LOCK, portMAX_DELAY))
+			{
+				i2c_mux_select(channel);
+				i2c_dual_dac_set(1, dacval);
+
+				lock_free(I2C_LOCK);
+			}
+
+			if (dacval == 1500 || dacval == start_value) {
+				// clear the issue of interlock popping
+				// straight up after setting first value
+				vTaskDelay(200);
+				rf_clear_interlock();
+			}
+
+			vTaskDelay(200);
+
+			led_bar_write(rf_channels_read_sigon(), (rf_channels_read_ovl()) & rf_channels_read_sigon(), (rf_channels_read_user()) & rf_channels_read_sigon());
+
+			uint8_t val = 0;
+			val = rf_channels_read_user();
+
+			if ((val >> channel) & 0x01) {
+				printf("Found interlock value = %d\n", dacval);
+				rf_channel_disable_procedure(channel);
+				vTaskDelay(100);
+				led_bar_write(0, 0, 0);
+				vTaskResume(task_rf_interlock);
+
+				return (uint16_t) dacval;
+				break;
+			}
+
+			vTaskDelay(200);
+			dacval -= step;
+		}
+
+		rf_channel_disable_procedure(channel);
+		vTaskDelay(100);
+		led_bar_write(0, 0, 0);
+		vTaskResume(task_rf_interlock);
+	}
+
+	return (uint16_t) dacval;
 }

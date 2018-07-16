@@ -43,8 +43,6 @@ static int fan_speed(float temp)
 	return duty;
 }
 
-
-
 void set_fan_speed(uint8_t value)
 {
 	uint8_t address_list[] = {0x2C, 0x2E, 0x2F};
@@ -68,12 +66,17 @@ void set_fan_speed(uint8_t value)
 	}
 }
 
-double get_avg_temp(void)
+double temp_mgt_get_avg_temp(void)
 {
 	return fAvg;
 }
 
-uint8_t get_fan_spped(void)
+double temp_mgt_get_max_temp(void)
+{
+	return chTemp;
+}
+
+uint8_t temp_mgt_get_fanspeed(void)
 {
 	return f_speed;
 }

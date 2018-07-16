@@ -16,6 +16,13 @@ typedef struct {
 	uint16_t input_dac_cal_value;
 	uint16_t output_dac_cal_value;
 	uint16_t bias_dac_cal_value;
+
+	uint16_t fwd_pwr_offset;
+	uint16_t fwd_pwr_scale;
+
+	uint16_t rfl_pwr_offset;
+	uint16_t rfl_pwr_scale;
+
 } channel_cal_t;
 
 typedef struct {
@@ -35,6 +42,9 @@ typedef struct {
 	/* Temperatures */
 	double local_temp;
 	double remote_temp;
+
+	double fwd_pwr;
+	double rfl_pwr;
 } channel_meas_t;
 
 typedef struct {
@@ -76,10 +86,16 @@ void rf_sigon_enable(uint8_t mask);
 /* misc */
 channel_t * rf_channel_get(uint8_t num);
 void rf_clear_interlock(void);
+uint8_t rf_channels_get_mask(void);
 
 /* tasks */
-void channel_interlock_task(void *pvParameters);
-void channel_measure_task(void *pvParameters);
+void rf_channels_interlock_task(void *pvParameters);
+void rf_channels_measure_task(void *pvParameters);
+void rf_channels_info_task(void *pvParameters);
+
+/* calibration tasks */
+uint16_t rf_channel_calibrate_input_interlock(uint8_t channel, int16_t start_value, uint8_t step);
+uint16_t rf_channel_calibrate_output_interlock(uint8_t channel, int16_t start_value, uint8_t step);
 
 #endif /* CHANNELS_H_ */
 

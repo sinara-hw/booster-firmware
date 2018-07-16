@@ -10,10 +10,9 @@
 #include "stm32f4xx_gpio.h"
 #include "led_bar.h"
 #include "channels.h"
+#include "externals.h"
 
 QueueHandle_t ExtQueue;
-
-extern volatile uint8_t channel_mask;
 
 void ext_init(void)
 {
@@ -154,11 +153,12 @@ void prvExtTask(void *pvParameters)
 				case 1:
 					if (GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4))
 					{
+						ch_msk = rf_channels_get_mask();
 						onstate = !onstate;
 						if (onstate) {
-							rf_channels_enable(channel_mask);
+							rf_channels_enable(ch_msk);
 						} else {
-							rf_channels_disable(channel_mask);
+							rf_channels_disable(ch_msk);
 //							rf_disable_dac();
 //							rf_channels_control(255, false);
 //							rf_channels_sigon(255, false);
@@ -170,7 +170,7 @@ void prvExtTask(void *pvParameters)
 				case 2:
 					// quick fix: enable SIGON only when there is power
 					// on ch2
-//					rf_clear_interlock();
+					rf_clear_interlock();
 					break;
 			}
 

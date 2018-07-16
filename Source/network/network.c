@@ -13,6 +13,8 @@
 #include "dhcp.h"
 #include "network.h"
 #include "server.h"
+#include "tasks.h"
+#include "locks.h"
 
 wiz_NetInfo gWIZNETINFO_default = { .mac = {0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef},
 									.ip = {192, 168, 1, 10},
@@ -30,13 +32,10 @@ wiz_NetInfo gWIZNETINFO = { .mac = {0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef},
                             .dhcp = NETINFO_DHCP
 						  };
 
-uint8_t dhcp_buf[1024] 		= { 0 };
+TaskHandle_t xDHCPTask;
+TaskHandle_t xUDPServerTask;
 
-SemaphoreHandle_t xNetworkInitComplete = NULL;
-extern SemaphoreHandle_t xEthInterfaceAvailable;
-
-TaskHandle_t xUDPServerTask = NULL;
-TaskHandle_t xDHCPTask = NULL;
+uint8_t dhcp_buf[1024] = { 0 };
 
 void wizchip_select(void)
 {
@@ -247,13 +246,9 @@ void prvDHCPTask(void *pvParameters)
 	reg_dhcp_cbfunc(ldhcp_ip_assign, ldhcp_ip_assign, ldhcp_ip_conflict);
 	dhcp_timer_init();
 
-	vSemaphoreCreateBinary(xNetworkInitComplete);
-	xSemaphoreTake(xNetworkInitComplete, 0);
-
 	for (;;)
 	{
-		if (xSemaphoreTake(xEthInterfaceAvailable, portMAX_DELAY))
-		{
+		if (lock_take(ETH_LOCK, portMAX_DELAY)) {
 			switch(DHCP_run())
 			{
 				case DHCP_FAILED:
@@ -272,8 +267,8 @@ void prvDHCPTask(void *pvParameters)
 					break;
 			}
 
-			xSemaphoreGive(xEthInterfaceAvailable);
 			vTaskDelay(configTICK_RATE_HZ / 5);
+			lock_free(ETH_LOCK);
 		}
 	}
 }

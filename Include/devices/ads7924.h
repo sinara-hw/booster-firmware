@@ -52,6 +52,7 @@ void ads7924_set_mode(uint8_t mode);
 void ads7924_set_alarm(uint8_t ch);
 uint8_t ads7924_get_alarm(void);
 uint16_t ads7924_get_channel_data(uint8_t ch);
+double ads7924_get_channel_voltage(uint8_t ch);
 void ads7924_get_data(uint16_t * data);
 void ads7924_init(void);
 void ads7924_stop(void);

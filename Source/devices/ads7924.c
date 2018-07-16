@@ -68,6 +68,17 @@ uint16_t ads7924_get_channel_data(uint8_t ch)
 	return ((msb << 8) | lsb) >> 4;
 }
 
+double ads7924_get_channel_voltage(uint8_t ch)
+{
+	if (ch > 3) return 0;
+	uint8_t base_addr = data_channels[ch];
+
+	uint8_t msb = i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr);
+	uint8_t lsb = i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr + 1);
+
+	return (double) (((((msb << 8) | lsb) >> 4) * 2.50) / 4095);
+}
+
 void ads7924_get_data(uint16_t * data)
 {
 	uint8_t lb, ub;
