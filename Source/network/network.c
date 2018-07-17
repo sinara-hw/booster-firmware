@@ -178,7 +178,7 @@ void prvRestartServerTask(void)
 	if (xUDPServerTask == NULL) {
 		// create server task
 		printf("[log] created udp server task\n");
-		xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 2048UL, NULL, tskIDLE_PRIORITY + 2, &xUDPServerTask);
+		printf("task stat %d\n", xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 2048UL, NULL, tskIDLE_PRIORITY + 2, &xUDPServerTask));
 	} else {
 		// restart server task
 		printf("[log] restarted udp server task\n");

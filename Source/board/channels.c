@@ -147,6 +147,8 @@ uint8_t rf_channels_detect(void)
 
 				channel_mask |= 1UL << i;
 				channels[i].detected = true;
+				channels[i].input_interlock = false;
+				channels[i].output_interlock = false;
 
 				rf_channel_load_values(&channels[i]);
 			}
@@ -210,33 +212,35 @@ bool rf_channel_enable_procedure(uint8_t channel)
 {
 	int bitmask = 1 << channel;
 
+	rf_channels_control(bitmask, true);
+	vTaskDelay(50);
+
 	if (lock_take(I2C_LOCK, portMAX_DELAY))
 	{
 		i2c_mux_select(channel);
 		i2c_dac_set(4095);
 
+		vTaskDelay(50);
+
 		// set calibration values
 		i2c_dual_dac_set(0, channels[channel].cal_values.input_dac_cal_value);
+		vTaskDelay(10);
+
 		i2c_dual_dac_set(1, channels[channel].cal_values.output_dac_cal_value);
+		vTaskDelay(10);
 
-		lock_free(I2C_LOCK);
-	}
-
-	rf_channels_control(bitmask, true);
-
-	vTaskDelay(300);
-	if (lock_take(I2C_LOCK, portMAX_DELAY))
-	{
-		i2c_mux_select(channel);
 		i2c_dac_set_value(2.05f);
+		vTaskDelay(10);
 
 		lock_free(I2C_LOCK);
 	}
 
 	rf_channels_sigon(bitmask, true);
-	vTaskDelay(10);
+	vTaskDelay(50);
 	rf_channels_sigon(bitmask, false);
-	vTaskDelay(10);
+	vTaskDelay(50);
+
+
 	rf_channels_sigon(bitmask, true);
 
 	return false;
@@ -318,16 +322,17 @@ void rf_channels_interlock_task(void *pvParameters)
 				channels[i].enabled = (channel_enabled >> i) & 0x01;
 				channels[i].sigon = (channel_sigon >> i) & 0x01;
 
-				if ((channel_ovl >> i) & 0x01) channels[i].input_interlock = true;
-				if ((channel_user >> i) & 0x01) channels[i].output_interlock = true;
-				if (channels[i].sigon && ( channels[i].output_interlock || channels[i].input_interlock )) {
+				if (((channel_ovl >> i) & 0x01) && (channels[i].sigon && channels[i].enabled)) channels[i].input_interlock = true;
+				if (((channel_user >> i) & 0x01) && (channels[i].sigon && channels[i].enabled)) channels[i].output_interlock = true;
+
+				if ((channels[i].sigon && channels[i].enabled) && ( channels[i].output_interlock || channels[i].input_interlock )) {
 					rf_channels_sigon(1 << i, false);
 
 					led_bar_and((1UL << i), 0xFF, 0xFF);
 					led_bar_or(0x00, (1UL << i), 0x00);
 				}
 
-				if (channels[i].measure.remote_temp > 85.0f)
+				if (channels[i].measure.remote_temp > 80.0f)
 				{
 					rf_channel_disable_procedure(i);
 					led_bar_or(0, 0, (1UL << i));

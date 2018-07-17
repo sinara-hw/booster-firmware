@@ -112,8 +112,7 @@ void prvUDPServerTask(void *pvParameters)
 						len = getSn_RX_RSR(0);
 						if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
 						len = recvfrom(0, rx_buffer, len, destip, (uint16_t*)&destport);
-						rx_buffer[len] = '\0';
-
+//						rx_buffer[len] = '\0';
 //						printf("%d | %s\n", (int) len, rx_buffer);
 
 						if (scpi_context.user_context != NULL) {
@@ -122,7 +121,7 @@ void prvUDPServerTask(void *pvParameters)
 							u->ipsrc_port = destport;
 						}
 
-						SCPI_Input(&scpi_context, (char* ) rx_buffer, (int) len);
+						SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
 
 //						sendto(0, rx_buffer, len, destip, destport);
 						setSn_IR(0, Sn_IR_RECV);
