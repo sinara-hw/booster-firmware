@@ -69,8 +69,6 @@ void prvLEDTask2(void *pvParameters)
 	}
 }
 
-extern SemaphoreHandle_t xEthInterfaceAvailable;
-
 int main(void)
 {
 	prvSetupHardware();

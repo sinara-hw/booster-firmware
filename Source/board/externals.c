@@ -142,7 +142,6 @@ void prvExtTask(void *pvParameters)
 {
 	uint8_t btn_evt = 0;
 	uint8_t ch_msk = 0;
-	bool onstate = 0;
 
 	for (;;)
 	{
@@ -154,22 +153,17 @@ void prvExtTask(void *pvParameters)
 					if (GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4))
 					{
 						ch_msk = rf_channels_get_mask();
-						onstate = !onstate;
-						if (onstate) {
+
+						if (!rf_channels_read_enabled()) {
 							rf_channels_enable(ch_msk);
 						} else {
 							rf_channels_disable(ch_msk);
-//							rf_disable_dac();
-//							rf_channels_control(255, false);
-//							rf_channels_sigon(255, false);
 							led_bar_write(0, 0, 0);
 						}
 					}
 
 					break;
 				case 2:
-					// quick fix: enable SIGON only when there is power
-					// on ch2
 					rf_clear_interlock();
 					break;
 			}

@@ -185,6 +185,14 @@ static const CLI_Command_Definition_t xCalibrateChannelManual =
 	3 /* Dynamic number of parameters. */
 };
 
+static const CLI_Command_Definition_t xCalibrateBias =
+{
+	"calbias", /* The command string to type. */
+	"calbias:\r\n Calibrate channel manually n\r\n",
+	prvCalibrateBIASCommand, /* The function to run. */
+	2 /* Dynamic number of parameters. */
+};
+
 BaseType_t prvTaskStatsCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	const char *const pcHeader = "Task\t\tState\tPriority\tStack\t#\r\n**************************************************\r\n";
@@ -700,6 +708,73 @@ BaseType_t prvCalibrateChannelCommand( char *pcWriteBuffer, size_t xWriteBufferL
 
 	return xReturn;
 }
+
+BaseType_t prvCalibrateBIASCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
+{
+	int8_t *pcParameter;
+	BaseType_t lParameterStringLength, xReturn;
+
+	static uint8_t channel;
+	static uint8_t val;
+
+	/* Note that the use of the static parameter means this function is not reentrant. */
+	static BaseType_t lParameterNumber = 0;
+
+	if( lParameterNumber == 0 )
+	{
+		/* Next time the function is called the first parameter will be echoed
+		back. */
+		lParameterNumber = 1L;
+
+		channel = 0;
+
+		/* There is more data to be returned as no parameters have been echoed
+		back yet, so set xReturn to pdPASS so the function will be called again. */
+		xReturn = pdPASS;
+	} else {
+    	/* lParameter is not 0, so holds the number of the parameter that should
+			be returned.  Obtain the complete parameter string. */
+		pcParameter = ( int8_t * ) FreeRTOS_CLIGetParameter
+                                   (
+                                       /* The command string itself. */
+									   pcCommandString,
+									   /* Return the next parameter. */
+									   lParameterNumber,
+									   /* Store the parameter string length. */
+									   &lParameterStringLength
+									);
+		if( pcParameter != NULL )
+		{
+			// avoid buffer overflow
+			if (lParameterStringLength > 15) lParameterStringLength = 15;
+			if (lParameterNumber == 1) channel = atoi((char*) pcParameter);
+			if (lParameterNumber == 2) val = atoi((char*) pcParameter);
+
+			xReturn = pdTRUE;
+			lParameterNumber++;
+
+			sprintf(pcWriteBuffer, "\r");
+		} else {
+			printf("Execuring cal command, ch %d\n\r", channel);
+			/* There is no more data to return, so this time set xReturn to
+			   pdFALSE. */
+
+			if (channel < 8)
+			{
+				rf_channel_calibrate_bias(channel, val);
+			}
+
+            xReturn = pdFALSE;
+			/* Start over the next time this command is executed. */
+			lParameterNumber = 0;
+
+			sprintf(pcWriteBuffer, "\r");
+		}
+    }
+
+	return xReturn;
+}
+
 
 BaseType_t prvCalibrateChannelManualCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
@@ -1482,6 +1557,7 @@ void vRegisterCLICommands( void )
 	FreeRTOS_CLIRegisterCommand( &xADCReadout );
 	FreeRTOS_CLIRegisterCommand( &xCALCPWRCommand );
 	FreeRTOS_CLIRegisterCommand( &xCALCCLRCommand );
+	FreeRTOS_CLIRegisterCommand( &xCalibrateBias );
 }
 
 void vCommandConsoleTask( void *pvParameters )

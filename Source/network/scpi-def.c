@@ -109,6 +109,65 @@ static scpi_result_t CHANNEL_Disable(scpi_t * context)
 	return SCPI_RES_OK;
 }
 
+static scpi_result_t INTERLOCK_Power(scpi_t * context)
+{
+	uint32_t channel;
+	uint32_t interlock;
+	channel_t * ch;
+
+	if (!SCPI_ParamUInt32(context, &channel, true)) {
+		return SCPI_RES_ERR;
+	}
+
+	if (!SCPI_ParamUInt32(context, &interlock, true)) {
+		return SCPI_RES_ERR;
+	}
+
+	if (channel < 8) {
+		ch = rf_channel_get(channel);
+
+		if (interlock < 39) {
+			ch->soft_interlock_value = interlock;
+			ch->soft_interlock_enabled = true;
+		} else {
+			ch->soft_interlock_value = 0;
+			ch->soft_interlock_enabled = false;
+		}
+
+		return SCPI_RES_OK;
+
+	} else {
+		return SCPI_RES_ERR;
+	}
+
+	return SCPI_RES_OK;
+}
+
+static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
+{
+	uint32_t channel;
+	channel_t * ch;
+
+	if (!SCPI_ParamUInt32(context, &channel, true)) {
+		return SCPI_RES_ERR;
+	}
+
+	if (channel < 8) {
+		ch = rf_channel_get(channel);
+		if (ch->soft_interlock_enabled)
+			SCPI_ResultUInt8(context, ch->soft_interlock_value);
+		else
+			SCPI_ResultUInt8(context, 255);
+
+		return SCPI_RES_OK;
+
+	} else {
+		return SCPI_RES_ERR;
+	}
+
+	return SCPI_RES_OK;
+}
+
 static scpi_result_t CHANNEL_EnableQ(scpi_t * context)
 {
 	SCPI_ResultUInt8(context, rf_channels_read_enabled());
@@ -275,10 +334,16 @@ static scpi_result_t Interlock_Clear(scpi_t * context)
 		ch = rf_channel_get(channel);
 		ch->input_interlock = false;
 		ch->output_interlock = false;
+		ch->soft_interlock = false;
 
 		vTaskDelay(10);
-		rf_channels_sigon(rf_channels_get_mask() & rf_channels_read_enabled(), true);
-		led_bar_write(rf_channels_read_sigon(), 0, 0);
+
+		uint8_t chan = rf_channels_read_enabled() & (1 << channel);
+		uint8_t channel_mask = rf_channels_get_mask() & chan;
+
+		rf_channels_sigon(channel_mask, true);
+		led_bar_or(rf_channels_read_sigon(), 0, 0);
+		led_bar_and(0x00, (1 << channel), 0x00);
 		return SCPI_RES_OK;
 	} else {
 		return SCPI_RES_ERR;
@@ -287,7 +352,45 @@ static scpi_result_t Interlock_Clear(scpi_t * context)
 	return SCPI_RES_OK;
 }
 
-static scpi_result_t Interlock_Status(scpi_t * context)
+static scpi_result_t Interlock_StatusQ(scpi_t * context)
+{
+	uint32_t channel;
+	uint8_t ch_mask = rf_channels_get_mask();
+	channel_t * ch;
+	uint8_t mask = 0;
+
+	if (!SCPI_ParamUInt32(context, &channel, false)) {
+		channel = ch_mask;
+	}
+
+	if (channel == ch_mask) {
+		for (int i = 0; i < 8; i++) {
+			ch = rf_channel_get(i);
+			if (ch->input_interlock || ch->output_interlock || ch->soft_interlock) {
+				mask |= 1UL << i;
+			}
+		}
+		SCPI_ResultUInt8(context, mask);
+		return SCPI_RES_OK;
+	}
+
+	if (channel < 8) {
+		ch = rf_channel_get(channel);
+		if (ch->input_interlock || ch->output_interlock) {
+			SCPI_ResultBool(context, true);
+			return SCPI_RES_OK;
+		} else {
+			SCPI_ResultBool(context, false);
+			return SCPI_RES_OK;
+		}
+	} else {
+		return SCPI_RES_ERR;
+	}
+
+	return SCPI_RES_OK;
+}
+
+static scpi_result_t Interlock_OverloadQ(scpi_t * context)
 {
 	uint32_t channel;
 	uint8_t ch_mask = rf_channels_get_mask();
@@ -370,8 +473,11 @@ const scpi_command_t scpi_commands[] = {
 	{.pattern = "MEASure:REVerse?", .callback = CHANNEL_ReversePower,},
 
 	/* Interlocks */
+	{.pattern = "INTerlock:POWer", .callback = INTERLOCK_Power,},
 	{.pattern = "INTerlock:CLEar", .callback = Interlock_Clear,},
-	{.pattern = "INTerlock:STATus?", .callback = Interlock_Status,},
+	{.pattern = "INTerlock:STATus?", .callback = Interlock_StatusQ,},
+	{.pattern = "INTerlock:OVERload?", .callback = Interlock_OverloadQ,},
+	{.pattern = "INTerlock:POWer?", .callback = INTERLOCK_PowerQ,},
 
     SCPI_CMD_LIST_END
 };

@@ -121,6 +121,15 @@ void rf_channel_load_values(channel_t * ch)
 
 	ch->cal_values.rfl_pwr_offset = eeprom_read16(ADC2_OFFSET_ADDRESS);
 	ch->cal_values.rfl_pwr_scale = eeprom_read16(ADC2_SCALE_ADDRESS);
+
+	ch->cal_values.bias_dac_cal_value = eeprom_read16(BIAS_DAC_VALUE_ADDRESS);
+
+	uint8_t interlock = eeprom_read(SOFT_INTERLOCK_ADDRESS);
+	if (interlock >= 0 && interlock <= 38) {
+		ch->soft_interlock_value = interlock;
+		ch->soft_interlock_enabled = true;
+	} else
+		ch->soft_interlock_enabled = false;
 }
 
 uint8_t rf_channels_detect(void)
@@ -229,7 +238,9 @@ bool rf_channel_enable_procedure(uint8_t channel)
 		i2c_dual_dac_set(1, channels[channel].cal_values.output_dac_cal_value);
 		vTaskDelay(10);
 
-		i2c_dac_set_value(2.05f);
+//		i2c_dac_set_value(2.05f);
+		i2c_dac_set(channels[channel].cal_values.bias_dac_cal_value);
+
 		vTaskDelay(10);
 
 		lock_free(I2C_LOCK);
@@ -324,11 +335,20 @@ void rf_channels_interlock_task(void *pvParameters)
 
 				if (((channel_ovl >> i) & 0x01) && (channels[i].sigon && channels[i].enabled)) channels[i].input_interlock = true;
 				if (((channel_user >> i) & 0x01) && (channels[i].sigon && channels[i].enabled)) channels[i].output_interlock = true;
+				if (channels[i].soft_interlock_enabled && (channels[i].measure.fwd_pwr > channels[i].soft_interlock_value)) channels[i].soft_interlock = true;
 
-				if ((channels[i].sigon && channels[i].enabled) && ( channels[i].output_interlock || channels[i].input_interlock )) {
+				if ((channels[i].sigon && channels[i].enabled) && ( channels[i].output_interlock || channels[i].input_interlock || channels[i].soft_interlock )) {
 					rf_channels_sigon(1 << i, false);
 
-					led_bar_and((1UL << i), 0xFF, 0xFF);
+					led_bar_and((1UL << i), 0x00, 0x00);
+					led_bar_or(0x00, (1UL << i), 0x00);
+				}
+
+				if (channels[i].soft_interlock_enabled && (channels[i].measure.fwd_pwr > channels[i].soft_interlock_value))
+				{
+					;rf_channels_sigon(1 << i, false);
+
+					led_bar_and((1UL << i), 0x00, 0x00);
 					led_bar_or(0x00, (1UL << i), 0x00);
 				}
 
@@ -372,7 +392,7 @@ void rf_channels_measure_task(void *pvParameters)
 			}
 		}
 
-		vTaskDelay(100);
+		vTaskDelay(50);
 	}
 }
 
@@ -381,6 +401,7 @@ void rf_clear_interlock(void)
 	for (int i = 0; i < 8; i++) {
 		channels[i].input_interlock = false;
 		channels[i].output_interlock = false;
+		channels[i].soft_interlock = false;
 	}
 
 	vTaskDelay(10);
@@ -459,7 +480,7 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[6].measure.rfl_pwr,
 																						channels[7].measure.rfl_pwr);
 
-		printf("P30V [A]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.i30,
+		printf("P30V [A]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.i30,
 																						channels[1].measure.i30,
 																						channels[2].measure.i30,
 																						channels[3].measure.i30,
@@ -468,7 +489,7 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[6].measure.i30,
 																						channels[7].measure.i30);
 
-		printf("P6V0 [A]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.i60,
+		printf("P6V0 [A]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.i60,
 																						channels[1].measure.i60,
 																						channels[2].measure.i60,
 																						channels[3].measure.i60,
@@ -477,7 +498,7 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[6].measure.i60,
 																						channels[7].measure.i60);
 
-		printf("PN8V0 [mA]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.in80 * 1000,
+		printf("PN8V0 [mA]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.in80 * 1000,
 																						channels[1].measure.in80 * 1000,
 																						channels[2].measure.in80 * 1000,
 																						channels[3].measure.in80 * 1000,
@@ -521,6 +542,35 @@ void rf_channels_info_task(void *pvParameters)
 															channels[5].output_interlock,
 															channels[6].output_interlock,
 															channels[7].output_interlock);
+
+		printf("SINT\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].soft_interlock,
+															channels[1].soft_interlock,
+															channels[2].soft_interlock,
+															channels[3].soft_interlock,
+															channels[4].soft_interlock,
+															channels[5].soft_interlock,
+															channels[6].soft_interlock,
+															channels[7].soft_interlock);
+
+		printf("SINTE\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].soft_interlock_enabled,
+																channels[1].soft_interlock_enabled,
+																channels[2].soft_interlock_enabled,
+																channels[3].soft_interlock_enabled,
+																channels[4].soft_interlock_enabled,
+																channels[5].soft_interlock_enabled,
+																channels[6].soft_interlock_enabled,
+																channels[7].soft_interlock_enabled);
+
+
+		printf("SINTV\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].soft_interlock_value,
+																channels[1].soft_interlock_value,
+																channels[2].soft_interlock_value,
+																channels[3].soft_interlock_value,
+																channels[4].soft_interlock_value,
+																channels[5].soft_interlock_value,
+																channels[6].soft_interlock_value,
+																channels[7].soft_interlock_value);
+
 
 		printf("OVC\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].overcurrent,
 															channels[1].overcurrent,
@@ -584,6 +634,15 @@ void rf_channels_info_task(void *pvParameters)
 															channels[5].cal_values.fwd_pwr_offset,
 															channels[6].cal_values.fwd_pwr_offset,
 															channels[7].cal_values.fwd_pwr_offset);
+
+		printf("BIASCAL\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].cal_values.bias_dac_cal_value,
+																	channels[1].cal_values.bias_dac_cal_value,
+																	channels[2].cal_values.bias_dac_cal_value,
+																	channels[3].cal_values.bias_dac_cal_value,
+																	channels[4].cal_values.bias_dac_cal_value,
+																	channels[5].cal_values.bias_dac_cal_value,
+																	channels[6].cal_values.bias_dac_cal_value,
+																	channels[7].cal_values.bias_dac_cal_value);
 
 		printf("LTEMP\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].measure.local_temp,
 																				channels[1].measure.local_temp,
@@ -759,4 +818,77 @@ uint16_t rf_channel_calibrate_output_interlock(uint8_t channel, int16_t start_va
 	}
 
 	return (uint16_t) dacval;
+}
+
+bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
+{
+	int16_t dacval = 4095;
+
+	if (channel < 8)
+	{
+		vTaskSuspend(task_rf_interlock);
+		vTaskDelay(100);
+		rf_channel_enable_procedure(channel);
+		vTaskDelay(100);
+		rf_clear_interlock();
+
+		while (dacval > 0)
+		{
+			if (lock_take(I2C_LOCK, portMAX_DELAY))
+			{
+				i2c_mux_select(channel);
+				i2c_dac_set(dacval);
+
+				lock_free(I2C_LOCK);
+			}
+
+			vTaskDelay(100);
+
+			uint16_t value;
+			double avg_current = 0.0f;
+
+			if (lock_take(I2C_LOCK, portMAX_DELAY))
+			{
+				i2c_mux_select(channel);
+				for (int i = 0; i < 10; i++)
+				{
+					avg_current += (((ads7924_get_channel_voltage(0) / 50) / 0.02f) * 1000);
+					vTaskDelay(20);
+				}
+				lock_free(I2C_LOCK);
+			}
+
+			value = (uint16_t) (avg_current / 10);
+			printf("DAC %d CURRENT %d\n", dacval, value);
+
+//			if (dacval == 4095 && val > current) {
+//				printf("Wrong value! %d current %d\n", dacval, val);
+//				eeprom_write16(BIAS_DAC_VALUE_ADDRESS, dacval);
+//				channels[channel].cal_values.bias_dac_cal_value = dacval;
+//
+//				rf_channel_disable_procedure(channel);
+//				vTaskResume(task_rf_interlock);
+//
+//				return false;
+//			}
+
+			if (value > current * 0.99 && value < current * 1.01) {
+				printf("Found value %d current %d\n", dacval, value);
+				rf_channel_disable_procedure(channel);
+				vTaskResume(task_rf_interlock);
+
+				eeprom_write16(BIAS_DAC_VALUE_ADDRESS, dacval);
+				channels[channel].cal_values.bias_dac_cal_value = dacval;
+
+				return true;
+			}
+
+			dacval -= 15;
+		}
+	}
+
+	rf_channel_disable_procedure(channel);
+	vTaskResume(task_rf_interlock);
+
+	return false;
 }

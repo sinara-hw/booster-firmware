@@ -21,11 +21,11 @@
 static volatile double fTemp, fAvg, chTemp = 0.0f;
 static volatile uint8_t f_speed = 0;
 
-static float moving_avg(float temp)
+static double moving_avg(float temp)
 {
-    static float fAve = 0.0f;
+    static double fAve = 0.0f;
     static uint16_t fSmp = 0;
-    float weight = 0.0f;
+    double weight = 0.0f;
 
     fSmp++;
     weight = 1.0f / fSmp;
@@ -83,10 +83,10 @@ uint8_t temp_mgt_get_fanspeed(void)
 
 void prvTempMgtTask(void *pvParameters)
 {
-	float th = 0.0f;
+	double th = 0.0f;
 	//float chTemp = 0.0f;
 	uint8_t speed = 0;
-	float maxTemp = 0.0f;
+	double maxTemp = 0.0f;
 
 	for (;;)
 	{

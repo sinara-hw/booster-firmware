@@ -54,9 +54,11 @@ typedef struct {
 
 	bool input_interlock;
 	bool output_interlock;
-	bool soft_input_interlock;
-	bool soft_output_interlock;
+	bool soft_interlock;
 	bool overcurrent;
+
+	uint16_t soft_interlock_value;
+	bool soft_interlock_enabled;
 
 	channel_cal_t cal_values;
 	channel_meas_t measure;
@@ -96,6 +98,8 @@ void rf_channels_info_task(void *pvParameters);
 /* calibration tasks */
 uint16_t rf_channel_calibrate_input_interlock(uint8_t channel, int16_t start_value, uint8_t step);
 uint16_t rf_channel_calibrate_output_interlock(uint8_t channel, int16_t start_value, uint8_t step);
+bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current);
+
 
 #endif /* CHANNELS_H_ */
 
