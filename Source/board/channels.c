@@ -357,7 +357,6 @@ void rf_channels_interlock_task(void *pvParameters)
 					rf_channel_disable_procedure(i);
 					led_bar_or(0, 0, (1UL << i));
 				}
-
 			}
 		}
 

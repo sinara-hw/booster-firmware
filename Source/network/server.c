@@ -89,6 +89,15 @@ void prvUDPServerTask(void *pvParameters)
 	uint16_t destport;
 	uint8_t rx_buffer[MAX_RX_LENGTH];
 
+	/* PHY link status check */
+	uint8_t tmp = 0;
+	do
+	{
+		if(ctlwizchip(CW_GET_PHYLINK, (void*)&tmp) == -1)
+			printf("[dbg] Unknown PHY Link status.\r\n");
+		vTaskDelay(configTICK_RATE_HZ / 10);
+	} while (tmp == PHY_LINK_OFF);
+
 	printf("[log] network init done, starting server..\n");
 	udp_int_init();
 	prvSetupUDPServer();
@@ -100,7 +109,7 @@ void prvUDPServerTask(void *pvParameters)
 
 	for (;;)
 	{
-		if (xSemaphoreTake(xUDPMessageAvailable, configTICK_RATE_HZ))
+		if (xSemaphoreTake(xUDPMessageAvailable, portMAX_DELAY))
 		{
 			if (lock_take(ETH_LOCK, portMAX_DELAY)) {
 				ctlwizchip(CW_GET_INTERRUPT, &ir);

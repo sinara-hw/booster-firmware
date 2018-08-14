@@ -897,6 +897,7 @@ void DHCP_init(uint8_t s, uint8_t * buf)
 {
    uint8_t zeroip[4] = {0,0,0,0};
    getSHAR(DHCP_CHADDR);
+
    if((DHCP_CHADDR[0] | DHCP_CHADDR[1]  | DHCP_CHADDR[2] | DHCP_CHADDR[3] | DHCP_CHADDR[4] | DHCP_CHADDR[5]) == 0x00)
    {
       // assing temporary mac address, you should be set SHAR before call this function. 

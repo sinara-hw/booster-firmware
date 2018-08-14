@@ -17,8 +17,8 @@
 
 #include "FreeRTOS_CLI.h"
 
-#define MAX_INPUT_LENGTH    50
-#define MAX_OUTPUT_LENGTH   100
+#define MAX_INPUT_LENGTH    64
+#define MAX_OUTPUT_LENGTH   128
 
 extern xQueueHandle _xRxQueue;
 
@@ -1494,6 +1494,7 @@ BaseType_t prvNetworkConfigCommand( char *pcWriteBuffer, size_t xWriteBufferLen,
 			}
 
         	if (lParameterNumber == 3) {
+        		printf("param %s\n", pcParameter);
 				memcpy(subnet, pcParameter, lParameterStringLength);
 			}
 
@@ -1510,6 +1511,7 @@ BaseType_t prvNetworkConfigCommand( char *pcWriteBuffer, size_t xWriteBufferLen,
         		uint8_t check = 1;
         		uint8_t ipdata[12];
 
+        		printf("ips %s | %s | %s\n", ipaddr, ipdst, subnet);
         		if (prvCheckValidIPAddress(ipaddr, ipdata) != 4) check = 0;
         		if (prvCheckValidIPAddress(ipdst, ipdata + 4) != 4) check = 0;
         		if (prvCheckValidIPAddress(subnet, ipdata + 8) != 4) check = 0;

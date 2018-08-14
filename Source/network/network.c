@@ -72,6 +72,9 @@ void net_init(void)
 		while(1);
 	}
 
+	// set default network settings
+	ctlnetwork(CN_SET_NETINFO, &gWIZNETINFO);
+
 	/* PHY link status check */
 	do
 	{
@@ -175,17 +178,17 @@ void display_net_conf(void)
 
 void prvRestartServerTask(void)
 {
-	if (xUDPServerTask == NULL) {
-		// create server task
-		printf("[log] created udp server task\n");
-		printf("task stat %d\n", xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 2048UL, NULL, tskIDLE_PRIORITY + 2, &xUDPServerTask));
-	} else {
-		// restart server task
-		printf("[log] restarted udp server task\n");
-		vTaskDelete(xUDPServerTask);
-		xUDPServerTask = NULL;
-		xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 2048UL, NULL, tskIDLE_PRIORITY + 2, &xUDPServerTask);
-	}
+//	if (xUDPServerTask == NULL) {
+//		// create server task
+//		printf("[log] created udp server task\n");
+//		printf("task stat %d\n", xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 2048UL, NULL, tskIDLE_PRIORITY + 2, &xUDPServerTask));
+//	} else {
+//		// restart server task
+//		printf("[log] restarted udp server task\n");
+//		vTaskDelete(xUDPServerTask);
+//		xUDPServerTask = NULL;
+//		xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 2048UL, NULL, tskIDLE_PRIORITY + 2, &xUDPServerTask);
+//	}
 }
 
 void ldhcp_ip_assign(void)
@@ -224,8 +227,7 @@ void prvDHCPTaskStart(void)
 void prvDHCPTaskStop(void)
 {
 	DHCP_stop();
-	if (xDHCPTask != NULL) vTaskDelete(xDHCPTask);
-	xDHCPTask = NULL;
+	vTaskSuspend(xDHCPTask);
 
 	TIM_ITConfig(TIM3, TIM_IT_Update, DISABLE);
 	TIM_Cmd(TIM3, DISABLE);
@@ -233,8 +235,7 @@ void prvDHCPTaskStop(void)
 
 void prvDHCPTaskRestart(void)
 {
-	prvDHCPTaskStop();
-	prvDHCPTaskStart();
+	DHCP_init(DHCP_SOCKET, dhcp_buf);
 }
 
 void prvDHCPTask(void *pvParameters)
