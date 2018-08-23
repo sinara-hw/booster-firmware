@@ -175,6 +175,13 @@ static scpi_result_t CHANNEL_EnableQ(scpi_t * context)
 	return SCPI_RES_OK;
 }
 
+static scpi_result_t MEASURE_FanQ(scpi_t * context)
+{
+	SCPI_ResultUInt8(context, temp_mgt_get_fanspeed());
+
+	return SCPI_RES_OK;
+}
+
 static scpi_result_t CHANNEL_Current(scpi_t * context)
 {
 	uint32_t channel;
@@ -471,6 +478,7 @@ const scpi_command_t scpi_commands[] = {
 	{.pattern = "MEASure:TEMPerature?", .callback = CHANNEL_Temperature,},
 	{.pattern = "MEASure:OUTput?", .callback = CHANNEL_OutputPower,},
 	{.pattern = "MEASure:REVerse?", .callback = CHANNEL_ReversePower,},
+	{.pattern = "MEASure:FAN?", .callback = MEASURE_FanQ,},
 
 	/* Interlocks */
 	{.pattern = "INTerlock:POWer", .callback = INTERLOCK_Power,},

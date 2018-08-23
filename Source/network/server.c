@@ -72,13 +72,14 @@ static void prvSetupUDPServer(void)
 	xSemaphoreTake(xUDPMessageAvailable, 0);
 
 	// create sockets
-	socket(0, Sn_MR_UDP, 5000, 0);
-	setSn_IMR(0, 4); // set RECV interrupt mask
+	// socket(0, Sn_MR_UDP, 5000, 0);
+	socket(0, Sn_MR_TCP, 5000, 0x00);
+	setSn_IMR(0, 15); // set RECV interrupt mask
 
-	if(getSn_SR(0) == SOCK_UDP)
-	{
-		printf("[log] UDP Server initialization complete\n");
-	}
+//	if(getSn_SR(0) == SOCK_UDP)
+//	{
+	printf("[log] TCP Server initialization complete\n");
+//	}
 }
 
 void prvUDPServerTask(void *pvParameters)
@@ -88,6 +89,8 @@ void prvUDPServerTask(void *pvParameters)
 	uint8_t  destip[4];
 	uint16_t destport;
 	uint8_t rx_buffer[MAX_RX_LENGTH];
+
+	uint8_t sn = 0;
 
 	/* PHY link status check */
 	uint8_t tmp = 0;
@@ -107,6 +110,8 @@ void prvUDPServerTask(void *pvParameters)
 		printf("[dbg] cannot set imr");
 	}
 
+	listen(0);
+
 	for (;;)
 	{
 		if (xSemaphoreTake(xUDPMessageAvailable, portMAX_DELAY))
@@ -115,28 +120,39 @@ void prvUDPServerTask(void *pvParameters)
 				ctlwizchip(CW_GET_INTERRUPT, &ir);
 				if (ir & IK_SOCK_0)
 				{
-					uint8_t sir = getSn_IR(0);
-					if ((sir & Sn_IR_RECV) > 0)
+					switch (getSn_SR(0))
 					{
-						len = getSn_RX_RSR(0);
-						if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
-						len = recvfrom(0, rx_buffer, len, destip, (uint16_t*)&destport);
-//						rx_buffer[len] = '\0';
-//						printf("%d | %s\n", (int) len, rx_buffer);
+						case SOCK_ESTABLISHED:
+							if(getSn_IR(sn) & Sn_IR_CON)
+							{
+								getSn_DIPR(sn, destip);
+								destport = getSn_DPORT(sn);
+								setSn_IR(sn, Sn_IR_CON);
+							}
 
-						if (scpi_context.user_context != NULL) {
-							user_data_t * u = (user_data_t *) (scpi_context.user_context);
-							memcpy(u->ipsrc, destip, 4);
-							u->ipsrc_port = destport;
-						}
+							len = getSn_RX_RSR(0);
+							if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
+							recv(sn, rx_buffer, len);
+							rx_buffer[len] = '\0';
 
-						SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
+							if (scpi_context.user_context != NULL) {
+								user_data_t * u = (user_data_t *) (scpi_context.user_context);
+								memcpy(u->ipsrc, destip, 4);
+								u->ipsrc_port = destport;
+							}
 
-//						sendto(0, rx_buffer, len, destip, destport);
-						setSn_IR(0, Sn_IR_RECV);
+							SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
+
+
+							break;
+						case SOCK_CLOSE_WAIT:
+							disconnect(sn);
+							socket(0, Sn_MR_TCP, 5000, 0x00);
+							listen(0);
+							break;
 					}
 
-					setSn_IR(0, Sn_IR_RECV);
+					setSn_IR(0, 15);
 					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_0);
 					NVIC_EnableIRQ(EXTI9_5_IRQn);
 				}

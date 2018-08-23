@@ -19,7 +19,7 @@ size_t SCPI_Write(scpi_t * context, const char * data, size_t len)
 {
 	if (context->user_context != NULL) {
 		user_data_t * u = (user_data_t *) (context->user_context);
-		if (u->ipsrc) return sendto(0, (uint8_t *) data, len, u->ipsrc, u->ipsrc_port);
+		if (u->ipsrc) return send(0, (uint8_t *) data, len);
 	}
 	return 0;
 }
@@ -37,8 +37,12 @@ scpi_result_t SCPI_Flush(scpi_t * context)
 int SCPI_Error(scpi_t * context, int_fast16_t err) {
     (void) context;
     /* BEEP */
-    printf("[scpi] **ERROR: %ld, \"%s\"\r\n", (int32_t) err, SCPI_ErrorTranslate(err));
+    uint8_t errmsg[64] = { 0 };
+    uint8_t len = sprintf((char*) errmsg, "[scpi] **ERROR: %ld, \"%s\"\r\n", (int32_t) err, SCPI_ErrorTranslate(err));
+
     if (err != 0) {
+    	user_data_t * u = (user_data_t *) (context->user_context);
+    	if (u->ipsrc) return send(0, (uint8_t *) errmsg, len);
         /* New error */
         /* Beep */
         /* Error LED ON */
@@ -46,6 +50,7 @@ int SCPI_Error(scpi_t * context, int_fast16_t err) {
         /* No more errors in the queue */
         /* Error LED OFF */
     }
+
     return 0;
 }
 

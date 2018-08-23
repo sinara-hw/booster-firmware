@@ -479,7 +479,7 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[6].measure.rfl_pwr,
 																						channels[7].measure.rfl_pwr);
 
-		printf("P30V [A]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.i30,
+		printf("I30V [A]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.i30,
 																						channels[1].measure.i30,
 																						channels[2].measure.i30,
 																						channels[3].measure.i30,
@@ -488,7 +488,7 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[6].measure.i30,
 																						channels[7].measure.i30);
 
-		printf("P6V0 [A]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.i60,
+		printf("I6V0 [A]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.i60,
 																						channels[1].measure.i60,
 																						channels[2].measure.i60,
 																						channels[3].measure.i60,
@@ -497,7 +497,7 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[6].measure.i60,
 																						channels[7].measure.i60);
 
-		printf("PN8V0 [mA]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.in80 * 1000,
+		printf("IN8V0 [mA]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.in80 * 1000,
 																						channels[1].measure.in80 * 1000,
 																						channels[2].measure.in80 * 1000,
 																						channels[3].measure.in80 * 1000,
