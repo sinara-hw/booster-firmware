@@ -102,7 +102,7 @@ void prvTempMgtTask(void *pvParameters)
 		th = abs(fTemp - fAvg);
 
 		// guard for NaN values
-		if (isnan(fAvg)) fAvg = 0.0f;
+		if (isnan(fAvg)) fAvg = maxTemp;
 
 		if (th > THRESHOLD) {
 			fTemp = fAvg;
@@ -116,7 +116,7 @@ void prvTempMgtTask(void *pvParameters)
 			}
 		}
 
-		maxTemp = 0.0;
+		maxTemp = 0.0f;
 		vTaskDelay(100);
 	}
 }

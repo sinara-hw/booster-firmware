@@ -124,9 +124,9 @@ void rf_channel_load_values(channel_t * ch)
 
 	ch->cal_values.bias_dac_cal_value = eeprom_read16(BIAS_DAC_VALUE_ADDRESS);
 
-	uint8_t interlock = eeprom_read(SOFT_INTERLOCK_ADDRESS);
-	if (interlock >= 0 && interlock <= 38) {
-		ch->soft_interlock_value = interlock;
+	uint16_t interlock = eeprom_read16(SOFT_INTERLOCK_ADDRESS);
+	if (interlock >= 0 && interlock <= 380) {
+		ch->soft_interlock_value = ((double) interlock / 10.0f);
 		ch->soft_interlock_enabled = true;
 	} else
 		ch->soft_interlock_enabled = false;
@@ -295,6 +295,37 @@ void rf_channel_disable_procedure(uint8_t channel)
 	}
 }
 
+void rf_channels_soft_interlock_set(uint8_t channel, double value)
+{
+	channel_t * ch;
+
+	if (channel < 8) {
+		if ((1 << channel) & channel_mask) {
+			ch = rf_channel_get(channel);
+
+			if (value < 39.0f && value >= 0) {
+				ch->soft_interlock_value = value;
+				ch->soft_interlock_enabled = true;
+
+				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+					i2c_mux_select(channel);
+					eeprom_write16(SOFT_INTERLOCK_ADDRESS, (uint16_t) ((float) (value * 10.0f)));
+					lock_free(I2C_LOCK);
+				}
+			} else {
+				ch->soft_interlock_value = 0;
+				ch->soft_interlock_enabled = false;
+
+				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+					i2c_mux_select(channel);
+					eeprom_write16(SOFT_INTERLOCK_ADDRESS, 0xffff);
+					lock_free(I2C_LOCK);
+				}
+			}
+		}
+	}
+}
+
 channel_t * rf_channel_get(uint8_t num)
 {
 	if (num < 8) return &channels[num];
@@ -339,14 +370,6 @@ void rf_channels_interlock_task(void *pvParameters)
 
 				if ((channels[i].sigon && channels[i].enabled) && ( channels[i].output_interlock || channels[i].input_interlock || channels[i].soft_interlock )) {
 					rf_channels_sigon(1 << i, false);
-
-					led_bar_and((1UL << i), 0x00, 0x00);
-					led_bar_or(0x00, (1UL << i), 0x00);
-				}
-
-				if (channels[i].soft_interlock_enabled && (channels[i].measure.fwd_pwr > channels[i].soft_interlock_value))
-				{
-					;rf_channels_sigon(1 << i, false);
 
 					led_bar_and((1UL << i), 0x00, 0x00);
 					led_bar_or(0x00, (1UL << i), 0x00);
@@ -561,7 +584,7 @@ void rf_channels_info_task(void *pvParameters)
 																channels[7].soft_interlock_enabled);
 
 
-		printf("SINTV\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].soft_interlock_value,
+		printf("SINTV\t\t%0.1f\t%0.1f\t%0.1f\t%0.1f\t%0.1f\t%0.1f\t%0.1f\t%0.1f\t\n", channels[0].soft_interlock_value,
 																channels[1].soft_interlock_value,
 																channels[2].soft_interlock_value,
 																channels[3].soft_interlock_value,

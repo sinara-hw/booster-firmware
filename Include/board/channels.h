@@ -57,7 +57,7 @@ typedef struct {
 	bool soft_interlock;
 	bool overcurrent;
 
-	uint16_t soft_interlock_value;
+	double soft_interlock_value;
 	bool soft_interlock_enabled;
 
 	channel_cal_t cal_values;
@@ -89,6 +89,7 @@ void rf_sigon_enable(uint8_t mask);
 channel_t * rf_channel_get(uint8_t num);
 void rf_clear_interlock(void);
 uint8_t rf_channels_get_mask(void);
+void rf_channels_soft_interlock_set(uint8_t channel, double value);
 
 /* tasks */
 void rf_channels_interlock_task(void *pvParameters);

@@ -112,30 +112,20 @@ static scpi_result_t CHANNEL_Disable(scpi_t * context)
 static scpi_result_t INTERLOCK_Power(scpi_t * context)
 {
 	uint32_t channel;
-	uint32_t interlock;
+	double interlock;
 	channel_t * ch;
 
 	if (!SCPI_ParamUInt32(context, &channel, true)) {
 		return SCPI_RES_ERR;
 	}
 
-	if (!SCPI_ParamUInt32(context, &interlock, true)) {
+	if (!SCPI_ParamDouble(context, &interlock, true)) {
 		return SCPI_RES_ERR;
 	}
 
 	if (channel < 8) {
-		ch = rf_channel_get(channel);
-
-		if (interlock < 39) {
-			ch->soft_interlock_value = interlock;
-			ch->soft_interlock_enabled = true;
-		} else {
-			ch->soft_interlock_value = 0;
-			ch->soft_interlock_enabled = false;
-		}
-
+		rf_channels_soft_interlock_set(channel, interlock);
 		return SCPI_RES_OK;
-
 	} else {
 		return SCPI_RES_ERR;
 	}
@@ -155,9 +145,9 @@ static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 	if (channel < 8) {
 		ch = rf_channel_get(channel);
 		if (ch->soft_interlock_enabled)
-			SCPI_ResultUInt8(context, ch->soft_interlock_value);
+			SCPI_ResultDouble(context, ch->soft_interlock_value);
 		else
-			SCPI_ResultUInt8(context, 255);
+			SCPI_ResultDouble(context, 255.0);
 
 		return SCPI_RES_OK;
 
