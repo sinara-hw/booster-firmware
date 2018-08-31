@@ -251,8 +251,15 @@ bool rf_channel_enable_procedure(uint8_t channel)
 	rf_channels_sigon(bitmask, false);
 	vTaskDelay(50);
 
-
 	rf_channels_sigon(bitmask, true);
+
+	if (lock_take(I2C_LOCK, portMAX_DELAY))
+	{
+		i2c_mux_select(channel);
+		ads7924_enable_alert();
+		ads7924_clear_alert();
+		lock_free(I2C_LOCK);
+	}
 
 	return false;
 }
@@ -290,6 +297,8 @@ void rf_channel_disable_procedure(uint8_t channel)
 		i2c_mux_select(channel);
 		i2c_dac_set(0);
 		i2c_dual_dac_set_val(0.0f, 0.0f);
+
+		ads7924_disable_alert();
 
 		lock_free(I2C_LOCK);
 	}
@@ -345,6 +354,7 @@ void rf_channels_interlock_task(void *pvParameters)
 
 	xTaskCreate(rf_channels_measure_task, "CH MEAS", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 2, &task_rf_measure);
 	xTaskCreate(rf_channels_info_task, "CH INFO", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 1, &task_rf_info);
+	vTaskSuspend(task_rf_info);
 
 	for (;;)
 	{

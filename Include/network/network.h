@@ -24,6 +24,7 @@ void net_init(void);
 void net_conf(wiz_NetInfo * netinfo);
 void set_net_conf(uint8_t * ipsrc, uint8_t * ipdst, uint8_t * subnet);
 void display_net_conf(void);
+void set_mac_address(uint8_t * macaddress);
 
 // server task restart
 void prvRestartServerTask(void);

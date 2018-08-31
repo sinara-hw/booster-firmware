@@ -32,5 +32,7 @@ BaseType_t prvCALPWRCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 BaseType_t prvClearCalibrationCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
 BaseType_t prvCalibrateChannelManualCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
 BaseType_t prvCalibrateBIASCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+BaseType_t prvClearAlert( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+BaseType_t prvNetworkMACChange( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
 
 #endif /* CLI_H_ */

@@ -126,27 +126,47 @@ void TIM3_IRQHandler()
 
 void set_net_conf(uint8_t * ipsrc, uint8_t * ipdst, uint8_t * subnet)
 {
-	gWIZNETINFO.ip[0] = ipsrc[0];
-	gWIZNETINFO.ip[1] = ipsrc[1];
-	gWIZNETINFO.ip[2] = ipsrc[2];
-	gWIZNETINFO.ip[3] = ipsrc[3];
+	wiz_NetInfo glWIZNETINFO;
+	ctlnetwork(CN_GET_NETINFO, (void*) &glWIZNETINFO);
 
-	gWIZNETINFO.gw[0] = ipdst[0];
-	gWIZNETINFO.gw[1] = ipdst[1];
-	gWIZNETINFO.gw[2] = ipdst[2];
-	gWIZNETINFO.gw[3] = ipdst[3];
+	glWIZNETINFO.ip[0] = ipsrc[0];
+	glWIZNETINFO.ip[1] = ipsrc[1];
+	glWIZNETINFO.ip[2] = ipsrc[2];
+	glWIZNETINFO.ip[3] = ipsrc[3];
 
-	gWIZNETINFO.sn[0] = subnet[0];
-	gWIZNETINFO.sn[1] = subnet[1];
-	gWIZNETINFO.sn[2] = subnet[2];
-	gWIZNETINFO.sn[3] = subnet[3];
+	glWIZNETINFO.gw[0] = ipdst[0];
+	glWIZNETINFO.gw[1] = ipdst[1];
+	glWIZNETINFO.gw[2] = ipdst[2];
+	glWIZNETINFO.gw[3] = ipdst[3];
 
-	gWIZNETINFO.dhcp = NETINFO_STATIC;
+	glWIZNETINFO.sn[0] = subnet[0];
+	glWIZNETINFO.sn[1] = subnet[1];
+	glWIZNETINFO.sn[2] = subnet[2];
+	glWIZNETINFO.sn[3] = subnet[3];
+
+	glWIZNETINFO.dhcp = NETINFO_STATIC;
 	prvDHCPTaskStop();
 
-	net_conf(&gWIZNETINFO);
+	net_conf(&glWIZNETINFO);
 	display_net_conf();
-	prvRestartServerTask();
+}
+
+void set_mac_address(uint8_t * macaddress)
+{
+	wiz_NetInfo glWIZNETINFO;
+	ctlnetwork(CN_GET_NETINFO, (void*) &glWIZNETINFO);
+	glWIZNETINFO.mac[0] = macaddress[0];
+	glWIZNETINFO.mac[1] = macaddress[1];
+	glWIZNETINFO.mac[2] = macaddress[2];
+	glWIZNETINFO.mac[3] = macaddress[3];
+	glWIZNETINFO.mac[4] = macaddress[4];
+	glWIZNETINFO.mac[5] = macaddress[5];
+
+	net_conf(&glWIZNETINFO);
+
+	if (glWIZNETINFO.dhcp == NETINFO_DHCP) {
+		prvDHCPTaskRestart();
+	}
 }
 
 void net_conf(wiz_NetInfo * netinfo)
@@ -193,18 +213,21 @@ void prvRestartServerTask(void)
 
 void ldhcp_ip_assign(void)
 {
-   getIPfromDHCP(gWIZNETINFO.ip);
-   getGWfromDHCP(gWIZNETINFO.gw);
-   getSNfromDHCP(gWIZNETINFO.sn);
-   getDNSfromDHCP(gWIZNETINFO.dns);
-   gWIZNETINFO.dhcp = NETINFO_DHCP;
+	wiz_NetInfo glWIZNETINFO;
+	ctlnetwork(CN_GET_NETINFO, (void*) &glWIZNETINFO);
 
-   /* Network initialization */
-   net_conf(&gWIZNETINFO);
-   display_net_conf();
-   printf("[log] DHCP lease time: %ld s\n", getDHCPLeasetime());
+	getIPfromDHCP(glWIZNETINFO.ip);
+	getGWfromDHCP(glWIZNETINFO.gw);
+	getSNfromDHCP(glWIZNETINFO.sn);
+	getDNSfromDHCP(glWIZNETINFO.dns);
+	glWIZNETINFO.dhcp = NETINFO_DHCP;
 
-   prvRestartServerTask();
+	/* Network initialization */
+	net_conf(&glWIZNETINFO);
+	display_net_conf();
+	printf("[log] DHCP lease time: %ld s\n", getDHCPLeasetime());
+
+	prvRestartServerTask();
 }
 
 void ldhcp_ip_conflict(void)
@@ -215,13 +238,6 @@ void ldhcp_ip_conflict(void)
 	net_init();
 	DHCP_init(DHCP_SOCKET, dhcp_buf);
 	reg_dhcp_cbfunc(ldhcp_ip_assign, ldhcp_ip_assign, ldhcp_ip_conflict);
-}
-
-void prvDHCPTaskStart(void)
-{
-	printf("Re/Starting DHCP client");
-	if (xDHCPTask != NULL) vTaskDelete(xDHCPTask);
-	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
 }
 
 void prvDHCPTaskStop(void)
@@ -236,6 +252,10 @@ void prvDHCPTaskStop(void)
 void prvDHCPTaskRestart(void)
 {
 	DHCP_init(DHCP_SOCKET, dhcp_buf);
+	reg_dhcp_cbfunc(ldhcp_ip_assign, ldhcp_ip_assign, ldhcp_ip_conflict);
+	dhcp_timer_init();
+
+	vTaskResume(xDHCPTask);
 }
 
 void prvDHCPTask(void *pvParameters)
@@ -256,12 +276,11 @@ void prvDHCPTask(void *pvParameters)
 					if (++ldhcp_retry_count > DHCP_MAX_RETRIES)
 					{
 						printf("[log] DHCP failed after %d retries\n", ldhcp_retry_count);
-						DHCP_stop();
 						net_conf(&gWIZNETINFO_default);
 						ldhcp_retry_count = 0;
 						printf("[log] Loaded static IP settings\n");
 						display_net_conf();
-						vTaskDelete(NULL);
+						prvDHCPTaskStop();
 					}
 					break;
 				default:

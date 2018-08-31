@@ -14,6 +14,7 @@
 #include "eeprom.h"
 #include "led_bar.h"
 #include "tasks.h"
+#include "ads7924.h"
 
 #include "FreeRTOS_CLI.h"
 
@@ -67,6 +68,14 @@ static const CLI_Command_Definition_t xIPStats =
 	"ifconfig:\r\n Displays network configuration info\r\n",
 	prvNetworkConfigCommand, /* The function to run. */
 	-1 /* Dynamic number of parameters. */
+};
+
+static const CLI_Command_Definition_t xMACChange =
+{
+	"macaddress", /* The command string to type. */
+	"macaddress:\r\n Change mac address\r\n",
+	prvNetworkMACChange, /* The function to run. */
+	1 /* Dynamic number of parameters. */
 };
 
 /* Structure that defines the "task-stats" command line command. */
@@ -193,6 +202,14 @@ static const CLI_Command_Definition_t xCalibrateBias =
 	2 /* Dynamic number of parameters. */
 };
 
+static const CLI_Command_Definition_t xClearAlertCMD =
+{
+	"clearal", /* The command string to type. */
+	"clearal:\r\n clear current alert n\r\n",
+	prvClearAlert, /* The function to run. */
+	1 /* Dynamic number of parameters. */
+};
+
 BaseType_t prvTaskStatsCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	const char *const pcHeader = "Task\t\tState\tPriority\tStack\t#\r\n**************************************************\r\n";
@@ -227,6 +244,75 @@ BaseType_t prvRebootCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 	/* There is no more data to return after this single string, so return
 	pdFALSE. */
 	return pdFALSE;
+}
+
+BaseType_t prvClearAlert( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
+{
+	int8_t *pcParameter;
+	BaseType_t lParameterStringLength, xReturn;
+
+	static uint8_t channel;
+
+	/* Note that the use of the static parameter means this function is not reentrant. */
+	static BaseType_t lParameterNumber = 0;
+
+	if( lParameterNumber == 0 )
+	{
+		/* Next time the function is called the first parameter will be echoed
+		back. */
+		lParameterNumber = 1L;
+
+		channel = 0;
+
+		/* There is more data to be returned as no parameters have been echoed
+		back yet, so set xReturn to pdPASS so the function will be called again. */
+		xReturn = pdPASS;
+	} else {
+    	/* lParameter is not 0, so holds the number of the parameter that should
+			be returned.  Obtain the complete parameter string. */
+		pcParameter = ( int8_t * ) FreeRTOS_CLIGetParameter
+                                   (
+                                       /* The command string itself. */
+									   pcCommandString,
+									   /* Return the next parameter. */
+									   lParameterNumber,
+									   /* Store the parameter string length. */
+									   &lParameterStringLength
+									);
+		if( pcParameter != NULL )
+		{
+			// avoid buffer overflow
+			if (lParameterStringLength > 15) lParameterStringLength = 15;
+			if (lParameterNumber == 1) channel = atoi((char*) pcParameter);
+
+			xReturn = pdTRUE;
+			lParameterNumber++;
+
+			sprintf(pcWriteBuffer, "\r");
+		} else {
+			printf("Execuring clear alert command, ch %d\n\r", channel);
+			/* There is no more data to return, so this time set xReturn to
+			   pdFALSE. */
+
+			if (channel < 8) {
+				if (lock_take(I2C_LOCK, portMAX_DELAY))
+				{
+					i2c_mux_select(channel);
+					ads7924_clear_alert();
+					lock_free(I2C_LOCK);
+				}
+			}
+
+
+            xReturn = pdFALSE;
+			/* Start over the next time this command is executed. */
+			lParameterNumber = 0;
+
+			sprintf(pcWriteBuffer, "\r");
+		}
+    }
+
+	return xReturn;
 }
 
 BaseType_t prvStopCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
@@ -1439,6 +1525,104 @@ uint8_t prvCheckValidIPAddress(uint8_t * ipstr, uint8_t * result)
 	return lParameterCount;
 }
 
+uint8_t prvCheckValidMACAddress(uint8_t * ipstr, uint8_t * result)
+{
+	uint8_t lParameterCount = 0;
+	char * ch;
+	uint8_t num;
+
+	ch = strtok((char*)ipstr, ":");
+	while (ch != NULL) {
+		num = strtol(ch, NULL, 16);
+		if (num >= 0 && num <= 255 && lParameterCount < 6) {
+			result[lParameterCount++] = num;
+			printf("MAC [%d] = %d\n", lParameterCount, num);
+		}
+		ch = strtok(NULL, ":");
+	}
+
+	return lParameterCount;
+}
+
+BaseType_t prvNetworkMACChange( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
+{
+	int8_t *pcParameter;
+	BaseType_t lParameterStringLength, xReturn;
+
+	static uint8_t macaddr[17];
+
+	/* Note that the use of the static parameter means this function is not reentrant. */
+	static BaseType_t lParameterNumber = 0;
+
+    if( lParameterNumber == 0 )
+    {
+        /* Next time the function is called the first parameter will be echoed
+        back. */
+        lParameterNumber = 1L;
+
+    	memset(pcWriteBuffer, 0x00, xWriteBufferLen);
+		memset(macaddr, 0x00, 17);
+
+        /* There is more data to be returned as no parameters have been echoed
+        back yet, so set xReturn to pdPASS so the function will be called again. */
+        xReturn = pdPASS;
+    }
+    else
+    {
+        /* lParameter is not 0, so holds the number of the parameter that should
+        be returned.  Obtain the complete parameter string. */
+        pcParameter = ( int8_t * ) FreeRTOS_CLIGetParameter
+                                    (
+                                        /* The command string itself. */
+                                        pcCommandString,
+                                        /* Return the next parameter. */
+                                        lParameterNumber,
+                                        /* Store the parameter string length. */
+                                        &lParameterStringLength
+                                    );
+
+        if( pcParameter != NULL )
+        {
+        	// avoid buffer overflow
+        	if (lParameterStringLength > 17) lParameterStringLength = 17;
+
+        	if (lParameterNumber == 1) {
+				memcpy(macaddr, pcParameter, lParameterStringLength);
+        	}
+
+            xReturn = pdTRUE;
+            lParameterNumber++;
+        }
+        else
+        {
+        	if (lParameterNumber == 2) {
+        		uint8_t check = 1;
+        		uint8_t macdata[6];
+
+        		printf("macaddr %s\n", macaddr);
+        		if (prvCheckValidMACAddress(macaddr, macdata) != 6) check = 0;
+
+        		if (check) {
+        			sprintf( pcWriteBuffer, "Success\n" );
+        			set_mac_address(macdata);
+        		} else
+        			sprintf( pcWriteBuffer, "Invalid parameters\n" );
+			} else
+				sprintf( pcWriteBuffer, "Wrong number of parameters\r\n" );
+
+
+            /* There is no more data to return, so this time set xReturn to
+            pdFALSE. */
+            xReturn = pdFALSE;
+
+            /* Start over the next time this command is executed. */
+            lParameterNumber = 0;
+        }
+    }
+
+    return xReturn;
+}
+
 BaseType_t prvNetworkConfigCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	int8_t *pcParameter;
@@ -1560,6 +1744,8 @@ void vRegisterCLICommands( void )
 	FreeRTOS_CLIRegisterCommand( &xCALCPWRCommand );
 	FreeRTOS_CLIRegisterCommand( &xCALCCLRCommand );
 	FreeRTOS_CLIRegisterCommand( &xCalibrateBias );
+	FreeRTOS_CLIRegisterCommand( &xClearAlertCMD );
+	FreeRTOS_CLIRegisterCommand( &xMACChange );
 }
 
 void vCommandConsoleTask( void *pvParameters )
