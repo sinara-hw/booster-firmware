@@ -18,8 +18,10 @@ user_data_t user_data = {
 size_t SCPI_Write(scpi_t * context, const char * data, size_t len)
 {
 	if (context->user_context != NULL) {
+
 		user_data_t * u = (user_data_t *) (context->user_context);
 		if (u->ipsrc) return send(0, (uint8_t *) data, len);
+
 	}
 	return 0;
 }
@@ -42,7 +44,7 @@ int SCPI_Error(scpi_t * context, int_fast16_t err) {
 
     if (err != 0) {
     	user_data_t * u = (user_data_t *) (context->user_context);
-    	if (u->ipsrc) return send(0, (uint8_t *) errmsg, len);
+    	if (u->ipsrc) send(0, (uint8_t *) errmsg, len);
         /* New error */
         /* Beep */
         /* Error LED ON */
@@ -51,8 +53,11 @@ int SCPI_Error(scpi_t * context, int_fast16_t err) {
         /* Error LED OFF */
     }
 
+    /* Clear remaining errors */
+    SCPI_ErrorClear(context);
     return 0;
 }
+
 
 scpi_result_t SCPI_Control(scpi_t * context, scpi_ctrl_name_t ctrl, scpi_reg_val_t val) {
     char b[16];
@@ -63,13 +68,13 @@ scpi_result_t SCPI_Control(scpi_t * context, scpi_ctrl_name_t ctrl, scpi_reg_val
         printf("[scpi] **CTRL %02x: 0x%X (%d)\r\n", ctrl, val, val);
     }
 
-    if (context->user_context != NULL) {
-        user_data_t * u = (user_data_t *) (context->user_context);
-        if (u->ipsrc) {
-            snprintf(b, sizeof (b), "SRQ%d\r\n", val);
-            return sendto(0, (uint8_t *) b, strlen(b), u->ipsrc, u->ipsrc_port);
-        }
-    }
+//    if (context->user_context != NULL) {
+//        user_data_t * u = (user_data_t *) (context->user_context);
+//        if (u->ipsrc) {
+//            snprintf(b, sizeof (b), "SRQ%d\r\n", val);
+//            return sendto(0, (uint8_t *) b, strlen(b), u->ipsrc, u->ipsrc_port);
+//        }
+//    }
     return SCPI_RES_OK;
 }
 

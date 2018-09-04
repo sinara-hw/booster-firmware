@@ -60,6 +60,6 @@ void ads7924_stop(void);
 /* threshold alerts for ch0 */
 void ads7924_enable_alert(void);
 void ads7924_disable_alert(void);
-void ads7924_clear_alert(void);
+uint8_t ads7924_clear_alert(void);
 
 #endif /* ADS7924_H_ */

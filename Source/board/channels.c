@@ -221,6 +221,11 @@ bool rf_channel_enable_procedure(uint8_t channel)
 {
 	int bitmask = 1 << channel;
 
+	if (channels[channel].error) {
+		led_bar_or(0, 0, (1UL << channel));
+		return false;
+	}
+
 	rf_channels_control(bitmask, true);
 	vTaskDelay(50);
 
@@ -261,7 +266,7 @@ bool rf_channel_enable_procedure(uint8_t channel)
 		lock_free(I2C_LOCK);
 	}
 
-	return false;
+	return true;
 }
 
 void rf_channels_enable(uint8_t mask)
@@ -269,8 +274,9 @@ void rf_channels_enable(uint8_t mask)
 	for (int i = 0; i < 8; i++)
 	{
 		if ((1 << i) & mask) {
-			rf_channel_enable_procedure(i);
-			led_bar_or(1UL << i, 0, 0);
+			if (rf_channel_enable_procedure(i)) {
+				led_bar_or(1UL << i, 0, 0);
+			}
 		}
 	}
 }
@@ -385,10 +391,20 @@ void rf_channels_interlock_task(void *pvParameters)
 					led_bar_or(0x00, (1UL << i), 0x00);
 				}
 
-				if (channels[i].measure.remote_temp > 80.0f)
+				if (channels[i].measure.remote_temp > 80.0f && channels[i].measure.remote_temp < 5.0f)
 				{
 					rf_channel_disable_procedure(i);
+					led_bar_and((1UL << i), 0x00, 0x00);
 					led_bar_or(0, 0, (1UL << i));
+					channels[i].error = 1;
+				}
+
+				if (channels[i].enabled && channels[i].overcurrent)
+				{
+					rf_channel_disable_procedure(i);
+					led_bar_and((1UL << i), 0x00, 0x00);
+					led_bar_or(0, 0, (1UL << i));
+					channels[i].error = 1;
 				}
 			}
 		}

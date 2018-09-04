@@ -22,7 +22,6 @@ typedef struct {
 
 	uint16_t rfl_pwr_offset;
 	uint16_t rfl_pwr_scale;
-
 } channel_cal_t;
 
 typedef struct {
@@ -51,6 +50,7 @@ typedef struct {
 	bool detected; // channel detected
 	bool enabled;  // channel enabled
 	bool sigon;	   // rf switch enabled
+	bool error;
 
 	bool input_interlock;
 	bool output_interlock;

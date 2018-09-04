@@ -203,6 +203,7 @@ scpi_bool_t SCPI_Parse(scpi_t * context, char * data, int len) {
         if (state->programHeader.type == SCPI_TOKEN_INVALID) {
             SCPI_ErrorPush(context, SCPI_ERROR_INVALID_CHARACTER);
             result = FALSE;
+            return result; /* Fix to return one error */
         } else if (state->programHeader.len > 0) {
 
             composeCompoundCommand(&cmd_prev, &state->programHeader);

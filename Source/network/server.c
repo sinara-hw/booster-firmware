@@ -142,13 +142,15 @@ void prvUDPServerTask(void *pvParameters)
 							}
 
 							SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
-
-
 							break;
 						case SOCK_CLOSE_WAIT:
+						case SOCK_CLOSED:
 							disconnect(sn);
 							socket(0, Sn_MR_TCP, 5000, 0x00);
 							listen(0);
+							break;
+						default:
+							printf("GOT SOCK EVENT %d\n", getSn_SR(0));
 							break;
 					}
 

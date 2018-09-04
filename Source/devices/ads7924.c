@@ -108,22 +108,23 @@ void ads7924_init(void)
 
 	ads7924_set_mode(MODE_AUTO_SCAN);
 	i2c_write(I2C1, ADS7924_ADDRESS, 0x12, 0b11100010);
-	ads7924_set_threshholds(0, 124, 30);
+
+	ads7924_set_threshholds(0, 26, 0);
 }
 
 void ads7924_enable_alert(void)
 {
-//	i2c_write(I2C1, ADS7924_ADDRESS, 0x01, 0b00000001);
+	i2c_write(I2C1, ADS7924_ADDRESS, 0x01, 0b00000001);
 }
 
 void ads7924_disable_alert(void)
 {
-//	i2c_write(I2C1, ADS7924_ADDRESS, 0x01, 0b00000000);
+	i2c_write(I2C1, ADS7924_ADDRESS, 0x01, 0b00000000);
 }
 
-void ads7924_clear_alert(void)
+uint8_t ads7924_clear_alert(void)
 {
-	i2c_read(I2C1, ADS7924_ADDRESS, 0x01);
+	return i2c_read(I2C1, ADS7924_ADDRESS, 0x01);
 }
 
 void ads7924_stop(void)

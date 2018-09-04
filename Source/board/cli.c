@@ -298,7 +298,7 @@ BaseType_t prvClearAlert( char *pcWriteBuffer, size_t xWriteBufferLen, const cha
 				if (lock_take(I2C_LOCK, portMAX_DELAY))
 				{
 					i2c_mux_select(channel);
-					ads7924_clear_alert();
+					printf("Status %d\n", ads7924_clear_alert());
 					lock_free(I2C_LOCK);
 				}
 			}
@@ -1406,7 +1406,7 @@ BaseType_t prvI2CCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const cha
 //	configASSERT(pcWriteBuffer);
 
 	static uint8_t i2c_addr, i2c_register, i2c_data;
-	static int i2c_rw;
+	static int i2c_rw, i2c_ch;
 
 	/* Note that the use of the static parameter means this function is not reentrant. */
 	static BaseType_t lParameterNumber = 0;
@@ -1421,6 +1421,7 @@ BaseType_t prvI2CCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const cha
 		i2c_register = 0;
 		i2c_data = 0;
 		i2c_rw = 0;
+		i2c_ch = 0;
 
 		/* There is more data to be returned as no parameters have been echoed
 		back yet, so set xReturn to pdPASS so the function will be called again. */
@@ -1441,10 +1442,11 @@ BaseType_t prvI2CCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const cha
 		{
 			// avoid buffer overflow
 			if (lParameterStringLength > 15) lParameterStringLength = 15;
-			if (lParameterNumber == 1) i2c_rw = atoi((char*) pcParameter);
-			if (lParameterNumber == 2) i2c_addr = atoi((char*) pcParameter);
-			if (lParameterNumber == 3) i2c_register = atoi((char*) pcParameter);
-			if (lParameterNumber == 4) i2c_data= atoi((char*) pcParameter);
+			if (lParameterNumber == 1) i2c_ch = atoi((char*) pcParameter);
+			if (lParameterNumber == 2) i2c_rw = atoi((char*) pcParameter);
+			if (lParameterNumber == 3) i2c_addr = atoi((char*) pcParameter);
+			if (lParameterNumber == 4) i2c_register = atoi((char*) pcParameter);
+			if (lParameterNumber == 5) i2c_data= atoi((char*) pcParameter);
 
 			xReturn = pdTRUE;
 			lParameterNumber++;
@@ -1456,27 +1458,24 @@ BaseType_t prvI2CCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const cha
 			   pdFALSE. */
 
 			if (i2c_rw == 1) {
-				i2c_write(I2C1, i2c_addr, i2c_register, i2c_data);
+				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+					i2c_mux_select(i2c_ch);
+					i2c_write(I2C1, i2c_addr, i2c_register, i2c_data);
+					lock_free(I2C_LOCK);
+				}
 			} else if (i2c_rw == 0) {
-				uint8_t ret = i2c_read(I2C1, i2c_addr, i2c_register);
-				printf("i2c[%X][%X] = %X\n", i2c_addr, i2c_register, ret);
-				printf("i2c[%d][%d] = %d\n", i2c_addr, i2c_register, ret);
+				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+					i2c_mux_select(i2c_ch);
+					uint8_t ret = i2c_read(I2C1, i2c_addr, i2c_register);
+					printf("i2c[%X][%X] = %X\n", i2c_addr, i2c_register, ret);
+					printf("i2c[%d][%d] = %d\n", i2c_addr, i2c_register, ret);
+					lock_free(I2C_LOCK);
+				}
 			} else if (i2c_rw == 2) {
-				i2c_scan_devices(true);
-			} else if (i2c_rw == 3) {
-				i2c_mux_select(i2c_addr);
-			} else if (i2c_rw == 4) {
-				i2c_start(I2C1, i2c_addr, I2C_Direction_Transmitter, 1);
-				i2c_write_byte(I2C1, i2c_register);
-				i2c_write_byte(I2C1, i2c_data);
-				i2c_stop(I2C1);
-			} else if (i2c_rw == 5) {
-				i2c_mux_select(1);
-				i2c_start(I2C1, 0x0E, I2C_Direction_Transmitter, 1);
-				i2c_write_byte(I2C1, i2c_addr);
-				i2c_write_byte(I2C1, i2c_register);
-				i2c_write_byte(I2C1, i2c_data);
-				i2c_stop(I2C1);
+				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+					i2c_scan_devices(true);
+					lock_free(I2C_LOCK);
+				}
 			}
 
             xReturn = pdFALSE;
