@@ -153,6 +153,7 @@ void prvUDPServerTask(void *pvParameters)
 							listen(0);
 							break;
 						default:
+							printf("Unhandled socket event %d\n", getSn_SR(0));
 							break;
 					}
 

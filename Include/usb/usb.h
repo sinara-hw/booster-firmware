@@ -20,5 +20,6 @@ void USBD_USR_DeviceConnected(void);
 void USBD_USR_DeviceDisconnected(void);
 void usb_init(void);
 void usb_bootlog(void);
+void usb_enter_bootloader(void);
 
 #endif /* USB_H_ */

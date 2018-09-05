@@ -10,6 +10,7 @@
 #include "usbd_desc.h"
 #include "usbd_cdc_vcp.h"
 #include "usb_dcd_int.h"
+#include "led_bar.h"
 
 __ALIGN_BEGIN USB_OTG_CORE_HANDLE    USB_OTG_dev __ALIGN_END;
 
@@ -36,6 +37,33 @@ int __io_putchar(int ch)
 
 	return ch;
 #endif
+}
+
+void usb_enter_bootloader(void)
+{
+	led_bar_write(225, 131, 231);
+
+	USB_OTG_dev.regs.GREGS->GCCFG = 0;
+	vTaskDelay(500);
+
+	void (*SysMemBootJump)(void);
+	volatile register uint32_t addr = 0x1FFF0000;
+	RCC_DeInit();
+
+	SysTick->CTRL = 0;
+	SysTick->LOAD = 0;
+	SysTick->VAL = 0;
+
+	// can't disable IRQs since USB BL needs them
+//	__disable_irq();
+
+	SYSCFG->MEMRMP = 0x01;
+	SysMemBootJump = (void (*)(void)) (*((uint32_t *)(addr + 4)));
+	__asm volatile ("mov r3, %0\nldr r3, [r3, #0]\nMSR msp, r3\n" : : "r" (addr) : "r3", "sp");
+
+	SysMemBootJump();
+
+	while(1);
 }
 
 void usb_bootlog(void)
