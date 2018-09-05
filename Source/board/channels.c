@@ -258,13 +258,13 @@ bool rf_channel_enable_procedure(uint8_t channel)
 
 	rf_channels_sigon(bitmask, true);
 
-	if (lock_take(I2C_LOCK, portMAX_DELAY))
-	{
-		i2c_mux_select(channel);
-		ads7924_enable_alert();
-		ads7924_clear_alert();
-		lock_free(I2C_LOCK);
-	}
+//	if (lock_take(I2C_LOCK, portMAX_DELAY))
+//	{
+//		i2c_mux_select(channel);
+//		ads7924_enable_alert();
+//		ads7924_clear_alert();
+//		lock_free(I2C_LOCK);
+//	}
 
 	return true;
 }
@@ -441,6 +441,19 @@ void rf_channels_measure_task(void *pvParameters)
 		}
 
 		vTaskDelay(50);
+	}
+}
+
+void rf_channels_hwint_override(uint8_t channel, double int_value)
+{
+	if (channel < 8)
+	{
+		if (int_value >= -10.0f && int_value < 39.0f)
+		{
+			double value = (double) ((int_value * channels[channel].cal_values.fwd_pwr_scale) + channels[channel].cal_values.fwd_pwr_offset);
+			uint16_t dac_value = (uint16_t) value;
+			printf("DAC VALUE %0.2f %d\n", value, dac_value);
+		}
 	}
 }
 

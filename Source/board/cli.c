@@ -53,6 +53,15 @@ static const CLI_Command_Definition_t xRebootDevice =
 };
 
 /* Structure that defines the "task-stats" command line command. */
+static const CLI_Command_Definition_t xBootloaderEnter =
+{
+	"bootloader", /* The command string to type. */
+	"bootloader:\r\n Enters device bootloader\r\n",
+	prvBootloaderCommand, /* The function to run. */
+	0 /* No parameters are expected. */
+};
+
+/* Structure that defines the "task-stats" command line command. */
 static const CLI_Command_Definition_t xBootlog =
 {
 	"bootlog", /* The command string to type. */
@@ -241,6 +250,23 @@ BaseType_t prvRebootCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 
 	NVIC_SystemReset();
 
+	/* There is no more data to return after this single string, so return
+	pdFALSE. */
+	return pdFALSE;
+}
+
+void (*SysMemBootJump) (void);
+
+BaseType_t prvBootloaderCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
+{
+	/* Remove compile time warnings about unused parameters, and check the
+	write buffer is not NULL.  NOTE - for simplicity, this example assumes the
+	write buffer length is adequate, so does not check for buffer overflows. */
+	( void ) pcCommandString;
+	( void ) xWriteBufferLen;
+	configASSERT(pcWriteBuffer);
+
+	usb_enter_bootloader();
 	/* There is no more data to return after this single string, so return
 	pdFALSE. */
 	return pdFALSE;
@@ -1745,6 +1771,7 @@ void vRegisterCLICommands( void )
 	FreeRTOS_CLIRegisterCommand( &xCalibrateBias );
 	FreeRTOS_CLIRegisterCommand( &xClearAlertCMD );
 	FreeRTOS_CLIRegisterCommand( &xMACChange );
+	FreeRTOS_CLIRegisterCommand( &xBootloaderEnter );
 }
 
 void vCommandConsoleTask( void *pvParameters )

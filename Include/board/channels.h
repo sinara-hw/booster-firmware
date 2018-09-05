@@ -90,6 +90,7 @@ channel_t * rf_channel_get(uint8_t num);
 void rf_clear_interlock(void);
 uint8_t rf_channels_get_mask(void);
 void rf_channels_soft_interlock_set(uint8_t channel, double value);
+void rf_channels_hwint_override(uint8_t channel, double int_value);
 
 /* tasks */
 void rf_channels_interlock_task(void *pvParameters);
