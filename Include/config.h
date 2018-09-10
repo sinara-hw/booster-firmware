@@ -29,10 +29,12 @@
 #define BOARD_WIZNET_RST	GPIOG, GPIO_Pin_5
 #define BOARD_WIZNET_INT	GPIOG, GPIO_Pin_6
 
-#define BOARD_MANUFACTURER "ISEPW"
-#define BOARD_NAME		   "RFPA"
-#define BOARD_REV		   "1.0"
-#define BOARD_YEAR		   "10-17"
+#define SPACER " "
+
+#define BOARD_MANUFACTURER "WUT"
+#define BOARD_NAME		   "RFPA Booster"
+#define BOARD_REV		   "1.1"
+#define BOARD_YEAR		   __DATE__ SPACER __TIME__
 
 #define CHANNEL_MASK 		0b11111111
 

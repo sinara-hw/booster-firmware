@@ -491,7 +491,7 @@ void rf_channels_info_task(void *pvParameters)
 //		}
 
 		printf("FAN SPEED: %d %%\n", temp_mgt_get_fanspeed());
-		printf("AVG TEMP: %0.2f MAX:%0.2f\n", temp_mgt_get_avg_temp(), temp_mgt_get_max_temp());
+		printf("AVG TEMP: %0.2f CURRENT: %0.2f\n", temp_mgt_get_avg_temp(), temp_mgt_get_max_temp());
 		printf("CHANNELS INFO\n");
 		printf("==============================================================================\n");
 		printf("\t\t#0\t#1\t#2\t#3\t#4\t#5\t#6\t#7\n");

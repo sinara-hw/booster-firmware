@@ -227,6 +227,14 @@ static const CLI_Command_Definition_t xClearAlertCMD =
 	1 /* Dynamic number of parameters. */
 };
 
+static const CLI_Command_Definition_t xSWINFOCMD =
+{
+	"version", /* The command string to type. */
+	"version:\r\n Displays SW version info n\r\n",
+	prvSWInfoCommand, /* The function to run. */
+	0 /* Dynamic number of parameters. */
+};
+
 BaseType_t prvTaskStatsCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
 {
 	const char *const pcHeader = "Task\t\tState\tPriority\tStack\t#\r\n**************************************************\r\n";
@@ -257,6 +265,22 @@ BaseType_t prvRebootCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 	configASSERT(pcWriteBuffer);
 
 	NVIC_SystemReset();
+
+	/* There is no more data to return after this single string, so return
+	pdFALSE. */
+	return pdFALSE;
+}
+
+BaseType_t prvSWInfoCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
+{
+	/* Remove compile time warnings about unused parameters, and check the
+	write buffer is not NULL.  NOTE - for simplicity, this example assumes the
+	write buffer length is adequate, so does not check for buffer overflows. */
+	( void ) pcCommandString;
+	( void ) xWriteBufferLen;
+	configASSERT(pcWriteBuffer);
+
+	printf("Software information:\r\nBuilt %s %s\r\nFor hardware revision: v%0.2f\r\n", __DATE__, __TIME__, 1.1f);
 
 	/* There is no more data to return after this single string, so return
 	pdFALSE. */
@@ -1859,6 +1883,7 @@ void vRegisterCLICommands( void )
 	FreeRTOS_CLIRegisterCommand( &xMACChange );
 	FreeRTOS_CLIRegisterCommand( &xBootloaderEnter );
 	FreeRTOS_CLIRegisterCommand( &xIntChannel );
+	FreeRTOS_CLIRegisterCommand( &xSWINFOCMD );
 }
 
 void vCommandConsoleTask( void *pvParameters )
