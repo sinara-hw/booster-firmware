@@ -171,6 +171,14 @@ static const CLI_Command_Definition_t xBIASChannel =
 	2 /* Dynamic number of parameters. */
 };
 
+static const CLI_Command_Definition_t xIntChannel =
+{
+	"int", /* The command string to type. */
+	"int:\r\n Set channel output interlock\r\n",
+	prvIntCommand, /* The function to run. */
+	2 /* Dynamic number of parameters. */
+};
+
 static const CLI_Command_Definition_t xADCReadout =
 {
 	"adc", /* The command string to type. */
@@ -316,7 +324,7 @@ BaseType_t prvClearAlert( char *pcWriteBuffer, size_t xWriteBufferLen, const cha
 
 			sprintf(pcWriteBuffer, "\r");
 		} else {
-			printf("Execuring clear alert command, ch %d\n\r", channel);
+			printf("Executing clear alert command, ch %d\n\r", channel);
 			/* There is no more data to return, so this time set xReturn to
 			   pdFALSE. */
 
@@ -451,7 +459,7 @@ BaseType_t prvCALPWRCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 
 			sprintf(pcWriteBuffer, "\r");
 		} else {
-			printf("Execuring cal command, ch %d pwrt %d pwr %d\n\r", channel, pwr_type, pwr_cal);
+			printf("Executing cal pwr command, ch %d pwrt %d pwr %d\n\r", channel, pwr_type, pwr_cal);
 			/* There is no more data to return, so this time set xReturn to
 			   pdFALSE. */
 
@@ -589,7 +597,7 @@ BaseType_t prvADCCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const cha
 
 			sprintf(pcWriteBuffer, "\r");
 		} else {
-			printf("Execuring adc command, ch %d\n\r", channel);
+			printf("Executing adc command, ch %d\n\r", channel);
 			/* There is no more data to return, so this time set xReturn to
 			   pdFALSE. */
 
@@ -659,7 +667,7 @@ BaseType_t prvDacCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const cha
 
 			sprintf(pcWriteBuffer, "\r");
 		} else {
-			printf("Execuring dac command, ch %d dac %d value %d\n\r", channel, dac_ch, value);
+			printf("Executing dac command, ch %d dac %d value %d\n\r", channel, dac_ch, value);
 			/* There is no more data to return, so this time set xReturn to
 			   pdFALSE. */
 
@@ -734,7 +742,7 @@ BaseType_t prvCalibrateChannelCommand( char *pcWriteBuffer, size_t xWriteBufferL
 
 			sprintf(pcWriteBuffer, "\r");
 		} else {
-			printf("Execuring cal command, ch %d\n\r", channel);
+			printf("Executing cal channel command, ch %d\n\r", channel);
 			/* There is no more data to return, so this time set xReturn to
 			   pdFALSE. */
 			uint16_t dacval = 1500;
@@ -867,7 +875,7 @@ BaseType_t prvCalibrateBIASCommand( char *pcWriteBuffer, size_t xWriteBufferLen,
 
 			sprintf(pcWriteBuffer, "\r");
 		} else {
-			printf("Execuring cal command, ch %d\n\r", channel);
+			printf("Executing bias command, ch %d\n\r", channel);
 			/* There is no more data to return, so this time set xReturn to
 			   pdFALSE. */
 
@@ -937,7 +945,7 @@ BaseType_t prvCalibrateChannelManualCommand( char *pcWriteBuffer, size_t xWriteB
 
 			sprintf(pcWriteBuffer, "\r");
 		} else {
-			printf("Execuring cal command, ch %d\n\r", channel);
+			printf("Executing cal chan command, ch %d\n\r", channel);
 			/* There is no more data to return, so this time set xReturn to
 			   pdFALSE. */
 			uint16_t retval = 0;
@@ -1041,7 +1049,7 @@ BaseType_t prvClearCalibrationCommand( char *pcWriteBuffer, size_t xWriteBufferL
 
 			sprintf(pcWriteBuffer, "\r");
 		} else {
-			printf("Execuring clear cal command, ch %d\n\r", channel);
+			printf("Executing clear cal command, ch %d\n\r", channel);
 			/* There is no more data to return, so this time set xReturn to
 			   pdFALSE. */
 
@@ -1120,7 +1128,7 @@ BaseType_t prvBIASCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const ch
 
 			sprintf(pcWriteBuffer, "\r");
 		} else {
-			printf("Execuring bias command, ch %d value %d\n\r", channel, value);
+			printf("Executing bias command, ch %d value %d\n\r", channel, value);
 			/* There is no more data to return, so this time set xReturn to
 			   pdFALSE. */
 
@@ -1130,6 +1138,84 @@ BaseType_t prvBIASCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const ch
 					i2c_mux_select(channel);
 					i2c_dac_set(value);
 					lock_free(I2C_LOCK);
+				}
+			}
+
+            xReturn = pdFALSE;
+			/* Start over the next time this command is executed. */
+			lParameterNumber = 0;
+
+			sprintf(pcWriteBuffer, "\r");
+		}
+    }
+
+	return xReturn;
+}
+
+BaseType_t prvIntCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
+{
+	int8_t *pcParameter;
+	BaseType_t lParameterStringLength, xReturn;
+
+	static uint8_t channel;
+	static uint16_t value;
+	channel_t * ch;
+
+	/* Note that the use of the static parameter means this function is not reentrant. */
+	static BaseType_t lParameterNumber = 0;
+
+	if( lParameterNumber == 0 )
+	{
+		/* Next time the function is called the first parameter will be echoed
+		back. */
+		lParameterNumber = 1L;
+
+		channel = 0;
+		value = 0;
+
+		/* There is more data to be returned as no parameters have been echoed
+		back yet, so set xReturn to pdPASS so the function will be called again. */
+		xReturn = pdPASS;
+	} else {
+    	/* lParameter is not 0, so holds the number of the parameter that should
+			be returned.  Obtain the complete parameter string. */
+		pcParameter = ( int8_t * ) FreeRTOS_CLIGetParameter
+                                   (
+                                       /* The command string itself. */
+									   pcCommandString,
+									   /* Return the next parameter. */
+									   lParameterNumber,
+									   /* Store the parameter string length. */
+									   &lParameterStringLength
+									);
+		if( pcParameter != NULL )
+		{
+			// avoid buffer overflow
+			if (lParameterStringLength > 15) lParameterStringLength = 15;
+			if (lParameterNumber == 1) channel = atoi((char*) pcParameter);
+			if (lParameterNumber == 2) value = atoi((char*) pcParameter);
+
+			xReturn = pdTRUE;
+			lParameterNumber++;
+
+			sprintf(pcWriteBuffer, "\r");
+		} else {
+			printf("Executing interlock command, ch %d value %d\n\r", channel, value);
+			/* There is no more data to return, so this time set xReturn to
+			   pdFALSE. */
+
+			if (channel < 8) {
+
+				ch = rf_channel_get(channel);
+				ch->cal_values.output_dac_cal_value = value;
+
+				if (ch->enabled) {
+					if (lock_take(I2C_LOCK, portMAX_DELAY))
+					{
+						i2c_mux_select(channel);
+						i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
+						lock_free(I2C_LOCK);
+					}
 				}
 			}
 
@@ -1194,7 +1280,7 @@ BaseType_t prvEEPROMWCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const
 
 			sprintf(pcWriteBuffer, "\r");
 		} else {
-			printf("Execuring eepromw command, ch %d dac %d value %d\n\r", channel, address, value);
+			printf("Executing eepromw command, ch %d dac %d value %d\n\r", channel, address, value);
 			/* There is no more data to return, so this time set xReturn to
 			   pdFALSE. */
 
@@ -1268,7 +1354,7 @@ BaseType_t prvEEPROMRCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const
 
 			sprintf(pcWriteBuffer, "\r");
 		} else {
-			printf("Execuring eepromR command, ch %d dac %d\n\r", channel, address);
+			printf("Executing eepromr command, ch %d dac %d\n\r", channel, address);
 			/* There is no more data to return, so this time set xReturn to
 			   pdFALSE. */
 
@@ -1342,7 +1428,7 @@ BaseType_t prvCHSTATUSCommand( char *pcWriteBuffer, size_t xWriteBufferLen, cons
 
 			sprintf(pcWriteBuffer, "\r");
 		} else {
-			printf("Execuring status command, ch %d dac %d value %d\n\r", channel, address);
+			printf("Executing status command, ch %d dac %d value %d\n\r", channel, address);
 			/* There is no more data to return, so this time set xReturn to
 			   pdFALSE. */
 
@@ -1479,7 +1565,7 @@ BaseType_t prvI2CCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const cha
 
 			sprintf(pcWriteBuffer, "\r");
 		} else {
-			printf("Execuring i2c command, cmd %d, addr %d, reg %d, data %d\n", i2c_rw, i2c_addr, i2c_register, i2c_data);
+			printf("Executing i2c command, cmd %d, addr %d, reg %d, data %d\n", i2c_rw, i2c_addr, i2c_register, i2c_data);
 			/* There is no more data to return, so this time set xReturn to
 			   pdFALSE. */
 
@@ -1772,6 +1858,7 @@ void vRegisterCLICommands( void )
 	FreeRTOS_CLIRegisterCommand( &xClearAlertCMD );
 	FreeRTOS_CLIRegisterCommand( &xMACChange );
 	FreeRTOS_CLIRegisterCommand( &xBootloaderEnter );
+	FreeRTOS_CLIRegisterCommand( &xIntChannel );
 }
 
 void vCommandConsoleTask( void *pvParameters )
