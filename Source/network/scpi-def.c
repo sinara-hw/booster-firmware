@@ -44,6 +44,8 @@
 #include "adc.h"
 #include "channels.h"
 #include "led_bar.h"
+#include "locks.h"
+#include "i2c.h"
 
 /**
  * Reimplement IEEE488.2 *TST?
@@ -148,7 +150,19 @@ static scpi_result_t INTERLOCK_HPower(scpi_t * context)
 	}
 
 	if (channel < 8) {
-		rf_channels_hwint_override(channel, interlock);
+		ch = rf_channel_get(channel);
+		uint16_t dac_value = ch->cal_values.hw_int_scale * interlock + ch->cal_values.hw_int_offset;
+		printf("Calculated value for pwr %0.2f = %d\n", interlock, dac_value);
+		ch->cal_values.output_dac_cal_value = dac_value;
+
+		if (ch->enabled) {
+			if (lock_take(I2C_LOCK, portMAX_DELAY))
+			{
+				i2c_mux_select(channel);
+				i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
+				lock_free(I2C_LOCK);
+			}
+		}
 		return SCPI_RES_OK;
 	} else {
 		return SCPI_RES_ERR;

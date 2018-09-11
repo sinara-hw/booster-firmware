@@ -656,6 +656,10 @@ BaseType_t prvINTCALCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 
 			if (channel < 8) {
 
+				ch = rf_channel_get(channel);
+				uint16_t old_dac1 = ch->cal_values.input_dac_cal_value;
+				uint16_t old_dac2 = ch->cal_values.output_dac_cal_value;
+
 				printf("Calibrating output interlock\n");
 				retval = rf_channel_calibrate_output_interlock(channel, dacval, 100);
 				if (retval == 0) retval = 100;
@@ -672,6 +676,7 @@ BaseType_t prvINTCALCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 				printf("Calibration step = 10 completed = %d\n", retval);
 				retval *= 1.1;
 				retval = rf_channel_calibrate_output_interlock(channel, retval, 1);
+
 				if (retval != 0) {
 					printf("Calibration step = 1 completed = %d\n", retval);
 
@@ -703,6 +708,9 @@ BaseType_t prvINTCALCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 						}
 					}
 				}
+
+				ch->cal_values.input_dac_cal_value = old_dac1;
+				ch->cal_values.output_dac_cal_value = old_dac2;
 			}
 
             xReturn = pdFALSE;
