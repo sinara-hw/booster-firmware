@@ -16,7 +16,7 @@
 #define ADC_CDR_ADDRESS 	0x40012308
 
 #define NCHANNELS			24
-#define NSAMPLES			500
+#define NSAMPLES			50
 #define BUFFER_SIZE			NCHANNELS * NSAMPLES
 
 #define HALF_BUFFER_MEMSIZE (BUFFER_SIZE / 2) * sizeof(uint16_t)
@@ -234,6 +234,8 @@ void DMA2_Stream0_IRQHandler(void)
 		 */
 		memcpy(converted_values + HALF_BUFFER_MEMSIZE / 2, adc_samples + HALF_BUFFER_MEMSIZE / 2, HALF_BUFFER_MEMSIZE);
 		xSemaphoreGiveFromISR(xADCSemaphore, xHigherPriorityTaskWoken);
+
+		GPIO_ToggleBits(BOARD_LED3);
 	}
 
 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);

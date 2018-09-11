@@ -76,7 +76,6 @@ static uint16_t VCP_Init(void) {
  * @retval Result of the opeartion (USBD_OK in all cases)
  */
 static uint16_t VCP_DeInit(void) {
-	GPIO_ResetBits(BOARD_LED3);
 	return USBD_OK;
 }
 

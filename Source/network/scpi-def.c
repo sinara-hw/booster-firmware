@@ -57,6 +57,10 @@
  */
 static scpi_result_t My_CoreTstQ(scpi_t * context) {
 
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
     SCPI_ResultInt32(context, 0);
 
     return SCPI_RES_OK;
@@ -70,6 +74,10 @@ static scpi_result_t CHANNEL_Enable(scpi_t * context)
 	if (!SCPI_ParamUInt32(context, &channel, false)) {
 		channel = ch_mask;
 		printf("No channel\n");
+	}
+
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
 	}
 
 	if (channel == ch_mask) {
@@ -94,6 +102,10 @@ static scpi_result_t CHANNEL_Disable(scpi_t * context)
 
 	if (!SCPI_ParamUInt32(context, &channel, false)) {
 		channel = ch_mask;
+	}
+
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
 	}
 
 	if (channel == ch_mask) {
@@ -125,6 +137,10 @@ static scpi_result_t INTERLOCK_Power(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
 	if (channel < 8) {
 		rf_channels_soft_interlock_set(channel, interlock);
 		return SCPI_RES_OK;
@@ -146,6 +162,10 @@ static scpi_result_t INTERLOCK_HPower(scpi_t * context)
 	}
 
 	if (!SCPI_ParamDouble(context, &interlock, true)) {
+		return SCPI_RES_ERR;
+	}
+
+	if (SCPI_IsParameterPresent(context)) {
 		return SCPI_RES_ERR;
 	}
 
@@ -180,6 +200,10 @@ static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
 	if (channel < 8) {
 		ch = rf_channel_get(channel);
 		if (ch->soft_interlock_enabled)
@@ -198,6 +222,10 @@ static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 
 static scpi_result_t CHANNEL_EnableQ(scpi_t * context)
 {
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
 	SCPI_ResultUInt8(context, rf_channels_read_enabled());
 
 	return SCPI_RES_OK;
@@ -205,6 +233,10 @@ static scpi_result_t CHANNEL_EnableQ(scpi_t * context)
 
 static scpi_result_t MEASURE_FanQ(scpi_t * context)
 {
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
 	SCPI_ResultUInt8(context, temp_mgt_get_fanspeed());
 
 	return SCPI_RES_OK;
@@ -219,6 +251,10 @@ static scpi_result_t CHANNEL_Current(scpi_t * context)
 
 	if (!SCPI_ParamUInt32(context, &channel, false)) {
 		channel = ch_mask;
+	}
+
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
 	}
 
 	if (channel == ch_mask) {
@@ -256,6 +292,10 @@ static scpi_result_t CHANNEL_Temperature(scpi_t * context)
 		channel = ch_mask;
 	}
 
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
 	if (channel == ch_mask) {
 		for (int i = 0; i < 8; i++) {
 			ch = rf_channel_get(i);
@@ -289,6 +329,10 @@ static scpi_result_t CHANNEL_OutputPower(scpi_t * context)
 
 	if (!SCPI_ParamUInt32(context, &channel, false)) {
 		channel = ch_mask;
+	}
+
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
 	}
 
 	if (channel == ch_mask) {
@@ -326,6 +370,10 @@ static scpi_result_t CHANNEL_ReversePower(scpi_t * context)
 		channel = ch_mask;
 	}
 
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
 	if (channel == ch_mask) {
 		for (int i = 0; i < 8; i++) {
 			ch = rf_channel_get(i);
@@ -358,6 +406,10 @@ static scpi_result_t Interlock_Clear(scpi_t * context)
 
 	if (!SCPI_ParamUInt32(context, &channel, false)) {
 		channel = ch_mask;
+	}
+
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
 	}
 
 	if (channel == ch_mask) {
@@ -398,6 +450,10 @@ static scpi_result_t Interlock_StatusQ(scpi_t * context)
 		channel = ch_mask;
 	}
 
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
 	if (channel == ch_mask) {
 		for (int i = 0; i < 8; i++) {
 			ch = rf_channel_get(i);
@@ -434,6 +490,10 @@ static scpi_result_t Interlock_OverloadQ(scpi_t * context)
 
 	if (!SCPI_ParamUInt32(context, &channel, false)) {
 		channel = ch_mask;
+	}
+
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
 	}
 
 	if (channel == ch_mask) {

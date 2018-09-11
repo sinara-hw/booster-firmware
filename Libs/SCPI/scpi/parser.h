@@ -91,6 +91,7 @@ extern "C" {
     size_t SCPI_ResultArrayFloat(scpi_t * context, const float * array, size_t count, scpi_array_format_t format);
     size_t SCPI_ResultArrayDouble(scpi_t * context, const double * array, size_t count, scpi_array_format_t format);
 
+    scpi_bool_t SCPI_IsParameterPresent(scpi_t * context);
     scpi_bool_t SCPI_Parameter(scpi_t * context, scpi_parameter_t * parameter, scpi_bool_t mandatory);
     scpi_bool_t SCPI_ParamIsValid(scpi_parameter_t * parameter);
     scpi_bool_t SCPI_ParamErrorOccurred(scpi_t * context);

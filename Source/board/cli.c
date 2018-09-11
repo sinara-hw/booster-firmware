@@ -697,10 +697,13 @@ BaseType_t prvINTCALCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 						int16_t b = (int_cal_val_s - ((int_cal_val_s - int_cal_val_e) / (int_cal_pwr_s - int_cal_pwr_e)) * int_cal_pwr_s);
 
 						printf("Got power factors %d %d\n", a, b);
+						ch->cal_values.hw_int_scale = a;
+						ch->cal_values.hw_int_offset = b;
 
 						if (lock_take(I2C_LOCK, portMAX_DELAY))
 						{
 							i2c_mux_select(channel);
+
 							eeprom_write16(HW_INT_SCALE, (uint16_t) a);
 							eeprom_write16(HW_INT_OFFSET, (uint16_t) b);
 
@@ -1457,7 +1460,7 @@ BaseType_t prvIntVCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const ch
 			if (channel < 8) {
 
 				ch = rf_channel_get(channel);
-				uint16_t dac_value = ch->cal_values.hw_int_scale * value + ch->cal_values.hw_int_offset;
+				uint16_t dac_value = (uint16_t) ((ch->cal_values.hw_int_scale * value) + ch->cal_values.hw_int_offset);
 				printf("Calculated value for pwr %0.2f = %d\n", value, dac_value);
 				ch->cal_values.output_dac_cal_value = dac_value;
 

@@ -28,11 +28,7 @@ size_t SCPI_Write(scpi_t * context, const char * data, size_t len)
 
 scpi_result_t SCPI_Flush(scpi_t * context)
 {
-    if (context->user_context != NULL) {
-//        user_data_t * u = (user_data_t *) (context->user_context);
-		/* flush not implemented */
-		return SCPI_RES_OK;
-    }
+	context->output_count = 0; // flush output to avoid newlines
     return SCPI_RES_OK;
 }
 

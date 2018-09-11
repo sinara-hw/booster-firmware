@@ -746,7 +746,7 @@ void rf_channels_info_task(void *pvParameters)
 
 		printf("==============================================================================\n");
 
-		GPIO_ToggleBits(BOARD_LED3);
+//		GPIO_ToggleBits(BOARD_LED3);
 		vTaskDelay(1000);
 	}
 }

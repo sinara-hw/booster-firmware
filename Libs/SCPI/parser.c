@@ -150,10 +150,11 @@ static scpi_bool_t processCommand(scpi_t * context) {
     }
 
     /* set error if command callback did not read all parameters */
-    if (state->pos < (state->buffer + state->len) && !context->cmd_error) {
-        SCPI_ErrorPush(context, SCPI_ERROR_PARAMETER_NOT_ALLOWED);
-        result = FALSE;
-    }
+	if (state->pos < (state->buffer + state->len) && !context->cmd_error) {
+		SCPI_ErrorPush(context, SCPI_ERROR_PARAMETER_NOT_ALLOWED);
+		context->output_count = 0; // flush output to avoid newlines
+		result = FALSE;
+	}
 
     return result;
 }
@@ -675,6 +676,22 @@ static void invalidateToken(scpi_token_t * token, char * ptr) {
     token->len = 0;
     token->ptr = ptr;
     token->type = SCPI_TOKEN_UNKNOWN;
+}
+
+/**
+ * Check if there is any parameter present
+ * @param context
+ * @return
+ */
+scpi_bool_t SCPI_IsParameterPresent(scpi_t * context)
+{
+	if (!(context->param_list.lex_state.pos >= (context->param_list.lex_state.buffer + context->param_list.lex_state.len)))
+	{
+		SCPI_ErrorPush(context, SCPI_ERROR_PARAMETER_NOT_ALLOWED);
+		return TRUE;
+	}
+
+	return FALSE;
 }
 
 /**
