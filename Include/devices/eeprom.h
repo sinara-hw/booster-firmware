@@ -22,6 +22,9 @@
 
 #define BIAS_DAC_VALUE_ADDRESS	28
 
+#define HW_INT_SCALE			30
+#define HW_INT_OFFSET			32
+
 void eeprom_write(uint8_t address, uint8_t data);
 uint8_t eeprom_read(uint8_t address);
 uint16_t eeprom_read16(uint8_t address);

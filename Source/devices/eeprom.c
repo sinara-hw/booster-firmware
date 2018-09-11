@@ -48,6 +48,7 @@ void eeprom_write16(uint8_t address, uint16_t value)
 	eeprom_write(address, hb);
 	vTaskDelay(10);
 	eeprom_write(address + 1, lb);
+	vTaskDelay(10);
 }
 
 

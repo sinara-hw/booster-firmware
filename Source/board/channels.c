@@ -124,6 +124,9 @@ void rf_channel_load_values(channel_t * ch)
 
 	ch->cal_values.bias_dac_cal_value = eeprom_read16(BIAS_DAC_VALUE_ADDRESS);
 
+	ch->cal_values.hw_int_scale = (int16_t) eeprom_read16(HW_INT_SCALE);
+	ch->cal_values.hw_int_offset = (int16_t) eeprom_read16(HW_INT_OFFSET);
+
 	uint16_t interlock = eeprom_read16(SOFT_INTERLOCK_ADDRESS);
 	if (interlock >= 0 && interlock <= 380) {
 		ch->soft_interlock_value = ((double) interlock / 10.0f);
@@ -705,14 +708,32 @@ void rf_channels_info_task(void *pvParameters)
 																	channels[6].cal_values.bias_dac_cal_value,
 																	channels[7].cal_values.bias_dac_cal_value);
 
+		printf("HWIS\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].cal_values.hw_int_scale,
+																			channels[1].cal_values.hw_int_scale,
+																			channels[2].cal_values.hw_int_scale,
+																			channels[3].cal_values.hw_int_scale,
+																			channels[4].cal_values.hw_int_scale,
+																			channels[5].cal_values.hw_int_scale,
+																			channels[6].cal_values.hw_int_scale,
+																			channels[7].cal_values.hw_int_scale);
+
+		printf("HWIO\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].cal_values.hw_int_offset,
+															channels[1].cal_values.hw_int_offset,
+															channels[2].cal_values.hw_int_offset,
+															channels[3].cal_values.hw_int_offset,
+															channels[4].cal_values.hw_int_offset,
+															channels[5].cal_values.hw_int_offset,
+															channels[6].cal_values.hw_int_offset,
+															channels[7].cal_values.hw_int_offset);
+
 		printf("LTEMP\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].measure.local_temp,
-																				channels[1].measure.local_temp,
-																				channels[2].measure.local_temp,
-																				channels[3].measure.local_temp,
-																				channels[4].measure.local_temp,
-																				channels[5].measure.local_temp,
-																				channels[6].measure.local_temp,
-																				channels[7].measure.local_temp);
+																			channels[1].measure.local_temp,
+																			channels[2].measure.local_temp,
+																			channels[3].measure.local_temp,
+																			channels[4].measure.local_temp,
+																			channels[5].measure.local_temp,
+																			channels[6].measure.local_temp,
+																			channels[7].measure.local_temp);
 
 		printf("RTEMP\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].measure.remote_temp,
 																				channels[1].measure.remote_temp,

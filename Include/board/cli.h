@@ -37,5 +37,7 @@ BaseType_t prvNetworkMACChange( char *pcWriteBuffer, size_t xWriteBufferLen, con
 BaseType_t prvBootloaderCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
 BaseType_t prvIntCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
 BaseType_t prvSWInfoCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+BaseType_t prvINTCALCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+BaseType_t prvIntVCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
 
 #endif /* CLI_H_ */
