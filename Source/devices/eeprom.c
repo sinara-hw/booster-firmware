@@ -51,4 +51,32 @@ void eeprom_write16(uint8_t address, uint16_t value)
 	vTaskDelay(10);
 }
 
+uint32_t eeprom_read32(uint8_t address)
+{
+	uint8_t bytes[4];
+	bytes[0] = eeprom_read(address);
+	bytes[1] = eeprom_read(address + 1);
+	bytes[2] = eeprom_read(address + 2);
+	bytes[3] = eeprom_read(address + 3);
+
+	return ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]);
+}
+
+void eeprom_write32(uint8_t address, uint32_t value)
+{
+	uint8_t bytes[4];
+	bytes[0] = (value >> 24) & 0xFF;
+	bytes[1] = (value >> 16) & 0xFF;
+	bytes[2] = (value >> 8) & 0xFF;
+	bytes[3] = value & 0xFF;
+
+	eeprom_write(address, bytes[0]);
+	vTaskDelay(10);
+	eeprom_write(address + 1, bytes[1]);
+	vTaskDelay(10);
+	eeprom_write(address + 2, bytes[2]);
+	vTaskDelay(10);
+	eeprom_write(address + 3, bytes[3]);
+	vTaskDelay(10);
+}
 

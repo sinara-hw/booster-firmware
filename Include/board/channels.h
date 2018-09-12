@@ -23,8 +23,8 @@ typedef struct {
 	uint16_t rfl_pwr_offset;
 	uint16_t rfl_pwr_scale;
 
-	int16_t hw_int_scale;
-	int16_t hw_int_offset;
+	float hw_int_scale;
+	float hw_int_offset;
 } channel_cal_t;
 
 typedef struct {

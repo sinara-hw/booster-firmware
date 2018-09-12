@@ -15,6 +15,7 @@
 #include "led_bar.h"
 #include "tasks.h"
 #include "ads7924.h"
+#include "math.h"
 
 #include "FreeRTOS_CLI.h"
 
@@ -295,6 +296,17 @@ BaseType_t prvSWInfoCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 	( void ) pcCommandString;
 	( void ) xWriteBufferLen;
 	configASSERT(pcWriteBuffer);
+
+	if (lock_take(I2C_LOCK, portMAX_DELAY))
+	{
+		i2c_mux_select(5);
+
+		for (int i = 0xfa; i <= 0xff; i++) printf("%02X = %d\n", i, eeprom_read(i));
+
+		i2c_stop(I2C1);
+
+		lock_free(I2C_LOCK);
+	}
 
 	printf("Software information:\r\nBuilt %s %s\r\nFor hardware revision: v%0.2f\r\n", __DATE__, __TIME__, 1.1f);
 
@@ -693,10 +705,10 @@ BaseType_t prvINTCALCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 					}
 
 					if (int_cal_val_s && int_cal_val_e) {
-						int16_t a = ((int_cal_val_s - int_cal_val_e) / (int_cal_pwr_s - int_cal_pwr_e));
-						int16_t b = (int_cal_val_s - ((int_cal_val_s - int_cal_val_e) / (int_cal_pwr_s - int_cal_pwr_e)) * int_cal_pwr_s);
+						float a = (int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e));
+						float b = (int_cal_pwr_s - ((int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e))) * log(int_cal_val_s));
 
-						printf("Got power factors %d %d\n", a, b);
+						printf("Got power factors %0.2f %0.2f\n", a, b);
 						ch->cal_values.hw_int_scale = a;
 						ch->cal_values.hw_int_offset = b;
 
@@ -704,8 +716,12 @@ BaseType_t prvINTCALCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 						{
 							i2c_mux_select(channel);
 
-							eeprom_write16(HW_INT_SCALE, (uint16_t) a);
-							eeprom_write16(HW_INT_OFFSET, (uint16_t) b);
+							uint32_t u32_scale = 0x00;
+							uint32_t u32_offset = 0x00;
+							memcpy(&u32_scale, &a, sizeof(float));
+							memcpy(&u32_offset, &b, sizeof(float));
+							eeprom_write32(HW_INT_SCALE, u32_scale);
+							eeprom_write32(HW_INT_OFFSET, u32_offset);
 
 							lock_free(I2C_LOCK);
 						}
@@ -1460,17 +1476,18 @@ BaseType_t prvIntVCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const ch
 			if (channel < 8) {
 
 				ch = rf_channel_get(channel);
-				uint16_t dac_value = (uint16_t) ((ch->cal_values.hw_int_scale * value) + ch->cal_values.hw_int_offset);
+				uint16_t dac_value = (uint16_t) (exp((value - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
 				printf("Calculated value for pwr %0.2f = %d\n", value, dac_value);
 				ch->cal_values.output_dac_cal_value = dac_value;
 
-				if (ch->enabled) {
-					if (lock_take(I2C_LOCK, portMAX_DELAY))
-					{
+				if (lock_take(I2C_LOCK, portMAX_DELAY))
+				{
+					eeprom_write16(DAC2_EEPROM_ADDRESS, dac_value);
+					if (ch->enabled) {
 						i2c_mux_select(channel);
 						i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
-						lock_free(I2C_LOCK);
 					}
+					lock_free(I2C_LOCK);
 				}
 			}
 
@@ -1614,7 +1631,7 @@ BaseType_t prvEEPROMRCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const
 			   pdFALSE. */
 
 			if (channel < 8) {
-				if (address < 128) {
+				if (address <= 0xFF) {
 					if (lock_take(I2C_LOCK, portMAX_DELAY))
 					{
 						i2c_mux_select(channel);

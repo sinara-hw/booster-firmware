@@ -124,8 +124,10 @@ void rf_channel_load_values(channel_t * ch)
 
 	ch->cal_values.bias_dac_cal_value = eeprom_read16(BIAS_DAC_VALUE_ADDRESS);
 
-	ch->cal_values.hw_int_scale = (int16_t) eeprom_read16(HW_INT_SCALE);
-	ch->cal_values.hw_int_offset = (int16_t) eeprom_read16(HW_INT_OFFSET);
+	uint32_t u32_int_scale = eeprom_read32(HW_INT_SCALE);
+	uint32_t u32_int_offset = eeprom_read32(HW_INT_OFFSET);
+	memcpy(&ch->cal_values.hw_int_scale, &u32_int_scale, sizeof(float));
+	memcpy(&ch->cal_values.hw_int_offset, &u32_int_offset, sizeof(float));
 
 	uint16_t interlock = eeprom_read16(SOFT_INTERLOCK_ADDRESS);
 	if (interlock >= 0 && interlock <= 380) {
@@ -708,7 +710,7 @@ void rf_channels_info_task(void *pvParameters)
 																	channels[6].cal_values.bias_dac_cal_value,
 																	channels[7].cal_values.bias_dac_cal_value);
 
-		printf("HWIS\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].cal_values.hw_int_scale,
+		printf("HWIS\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].cal_values.hw_int_scale,
 																			channels[1].cal_values.hw_int_scale,
 																			channels[2].cal_values.hw_int_scale,
 																			channels[3].cal_values.hw_int_scale,
@@ -717,7 +719,7 @@ void rf_channels_info_task(void *pvParameters)
 																			channels[6].cal_values.hw_int_scale,
 																			channels[7].cal_values.hw_int_scale);
 
-		printf("HWIO\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].cal_values.hw_int_offset,
+		printf("HWIO\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].cal_values.hw_int_offset,
 															channels[1].cal_values.hw_int_offset,
 															channels[2].cal_values.hw_int_offset,
 															channels[3].cal_values.hw_int_offset,
