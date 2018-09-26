@@ -158,7 +158,7 @@ void prvExtTask(void *pvParameters)
 							rf_channels_enable(ch_msk);
 						} else {
 							rf_channels_disable(ch_msk);
-							led_bar_write(0, 0, 0);
+							led_bar_and(0xFF, 0xFF, 0);
 						}
 					}
 

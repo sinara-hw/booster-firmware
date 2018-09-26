@@ -297,16 +297,26 @@ BaseType_t prvSWInfoCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 	( void ) xWriteBufferLen;
 	configASSERT(pcWriteBuffer);
 
-	if (lock_take(I2C_LOCK, portMAX_DELAY))
-	{
-		i2c_mux_select(5);
-
-		for (int i = 0xfa; i <= 0xff; i++) printf("%02X = %d\n", i, eeprom_read(i));
-
-		i2c_stop(I2C1);
-
-		lock_free(I2C_LOCK);
-	}
+//	uint8_t ipaddr[4] = { 0 };
+//	uint8_t ipaddrgw[4] = { 0 };
+//	uint8_t ipaddrsn[4] = { 0 };
+//	uint8_t macaddr[6] = { 0 };
+//	uint8_t ipsel = 0;
+//	uint8_t macsel = 0;
+//
+//	ipsel = eeprom_read_mb(IP_METHOD);
+//	macsel = eeprom_read_mb(MAC_ADDRESS_SELECT);
+//	for (int i = 0; i < 4; i++) ipaddr[i] = eeprom_read_mb(IP_ADDRESS + i);
+//	for (int i = 0; i < 4; i++) ipaddrgw[i] = eeprom_read_mb(IP_ADDRESS_GW + i);
+//	for (int i = 0; i < 4; i++) ipaddrsn[i] = eeprom_read_mb(IP_ADDRESS_NETMASK + i);
+//	for (int i = 0; i < 6; i++) macaddr[i] = eeprom_read_mb(MAC_ADDRESS + i);
+//
+//	printf("NET SEL %d\n", ipsel);
+//	printf("MAC SEL %d\n", macsel);
+//	printf("IP %d.%d.%d.%d\n", ipaddr[0], ipaddr[1], ipaddr[2], ipaddr[3]);
+//	printf("IPGW %d.%d.%d.%d\n", ipaddrgw[0], ipaddrgw[1], ipaddrgw[2], ipaddrgw[3]);
+//	printf("IPSN %d.%d.%d.%d\n", ipaddrsn[0], ipaddrsn[1], ipaddrsn[2], ipaddrsn[3]);
+//	printf("MAC %02X:%02X:%02X:%02X:%02X:%02X\n", macaddr[0], macaddr[1], macaddr[2], macaddr[3], macaddr[4], macaddr[5]);
 
 	printf("Software information:\r\nBuilt %s %s\r\nFor hardware revision: v%0.2f\r\n", __DATE__, __TIME__, 1.1f);
 
@@ -723,6 +733,11 @@ BaseType_t prvINTCALCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const 
 							eeprom_write32(HW_INT_SCALE, u32_scale);
 							eeprom_write32(HW_INT_OFFSET, u32_offset);
 
+							int_cal_pwr_s = 0;
+							int_cal_pwr_e = 0;
+							int_cal_val_s = 0;
+							int_cal_val_e = 0;
+
 							lock_free(I2C_LOCK);
 						}
 					}
@@ -956,7 +971,7 @@ BaseType_t prvCalibrateChannelCommand( char *pcWriteBuffer, size_t xWriteBufferL
 					vTaskDelay(500);
 
 					printf("Calibration step = 10 completed = %d\n", retval);
-					retval *= 2;
+					retval *= 1.5;
 					retval = rf_channel_calibrate_input_interlock(channel, retval, 1);
 					if (retval != 0) {
 						printf("Calibration step = 1 completed = %d\n", retval);
@@ -1982,7 +1997,12 @@ BaseType_t prvNetworkMACChange( char *pcWriteBuffer, size_t xWriteBufferLen, con
         		uint8_t check = 1;
         		uint8_t macdata[6];
 
-        		printf("macaddr %s\n", macaddr);
+        		if (!strcmp(macaddr, "default")) {
+        			set_default_mac_address();
+        			sprintf( pcWriteBuffer, "Default MAC set success\n" );
+        			return pdFALSE;
+        		}
+
         		if (prvCheckValidMACAddress(macaddr, macdata) != 6) check = 0;
 
         		if (check) {
@@ -2061,7 +2081,6 @@ BaseType_t prvNetworkConfigCommand( char *pcWriteBuffer, size_t xWriteBufferLen,
 			}
 
         	if (lParameterNumber == 3) {
-        		printf("param %s\n", pcParameter);
 				memcpy(subnet, pcParameter, lParameterStringLength);
 			}
 

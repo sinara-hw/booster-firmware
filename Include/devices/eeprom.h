@@ -26,11 +26,22 @@
 #define HW_INT_SCALE					30
 #define HW_INT_OFFSET					34
 
+#define IP_METHOD						10
+#define MAC_ADDRESS_SELECT				11
+#define MAC_ADDRESS						12
+
+#define IP_ADDRESS						18
+#define IP_ADDRESS_GW					22
+#define IP_ADDRESS_NETMASK				26
+
 void eeprom_write(uint8_t address, uint8_t data);
 uint8_t eeprom_read(uint8_t address);
 uint16_t eeprom_read16(uint8_t address);
 void eeprom_write16(uint8_t address, uint16_t value);
 uint32_t eeprom_read32(uint8_t address);
 void eeprom_write32(uint8_t address, uint32_t value);
+
+void eeprom_write_mb(uint8_t address, uint8_t data);
+uint8_t eeprom_read_mb(uint8_t address);
 
 #endif /* EEPROM_H_ */

@@ -33,5 +33,6 @@ void i2c_dac_set(uint16_t value);
 void i2c_dual_dac_set(uint8_t ch, uint16_t value);
 void i2c_dual_dac_set_val(float v1, float v2);
 void i2c_dac_set_value(float value);
+void i2c_mux_reset(void);
 
 #endif /* I2C_H_ */

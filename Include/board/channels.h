@@ -60,11 +60,9 @@ typedef struct {
 	bool soft_interlock;
 	bool overcurrent;
 
-	double soft_interlock_value;
-	bool soft_interlock_enabled;
-
 	channel_cal_t cal_values;
 	channel_meas_t measure;
+	uint8_t hwid[6];
 } channel_t;
 
 /* Initialization functions */

@@ -124,17 +124,15 @@ void rf_channel_load_values(channel_t * ch)
 
 	ch->cal_values.bias_dac_cal_value = eeprom_read16(BIAS_DAC_VALUE_ADDRESS);
 
+	// read the eeprom 6-byte UUID
+	for (int i = 0xfa, j = 0; i <= 0xff; i++, j++) {
+		ch->hwid[j] = eeprom_read(i);
+	}
+
 	uint32_t u32_int_scale = eeprom_read32(HW_INT_SCALE);
 	uint32_t u32_int_offset = eeprom_read32(HW_INT_OFFSET);
 	memcpy(&ch->cal_values.hw_int_scale, &u32_int_scale, sizeof(float));
 	memcpy(&ch->cal_values.hw_int_offset, &u32_int_offset, sizeof(float));
-
-	uint16_t interlock = eeprom_read16(SOFT_INTERLOCK_ADDRESS);
-	if (interlock >= 0 && interlock <= 380) {
-		ch->soft_interlock_value = ((double) interlock / 10.0f);
-		ch->soft_interlock_enabled = true;
-	} else
-		ch->soft_interlock_enabled = false;
 }
 
 uint8_t rf_channels_detect(void)
@@ -165,6 +163,8 @@ uint8_t rf_channels_detect(void)
 				channels[i].output_interlock = false;
 
 				rf_channel_load_values(&channels[i]);
+			} else {
+				led_bar_or(0x00, 0x00, 1UL << i);
 			}
 		}
 
@@ -315,37 +315,6 @@ void rf_channel_disable_procedure(uint8_t channel)
 	}
 }
 
-void rf_channels_soft_interlock_set(uint8_t channel, double value)
-{
-	channel_t * ch;
-
-	if (channel < 8) {
-		if ((1 << channel) & channel_mask) {
-			ch = rf_channel_get(channel);
-
-			if (value < 39.0f && value >= 0) {
-				ch->soft_interlock_value = value;
-				ch->soft_interlock_enabled = true;
-
-				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
-					i2c_mux_select(channel);
-					eeprom_write16(SOFT_INTERLOCK_ADDRESS, (uint16_t) ((float) (value * 10.0f)));
-					lock_free(I2C_LOCK);
-				}
-			} else {
-				ch->soft_interlock_value = 0;
-				ch->soft_interlock_enabled = false;
-
-				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
-					i2c_mux_select(channel);
-					eeprom_write16(SOFT_INTERLOCK_ADDRESS, 0xffff);
-					lock_free(I2C_LOCK);
-				}
-			}
-		}
-	}
-}
-
 channel_t * rf_channel_get(uint8_t num)
 {
 	if (num < 8) return &channels[num];
@@ -359,6 +328,7 @@ void rf_channels_interlock_task(void *pvParameters)
 	uint8_t channel_alert = 0;
 	uint8_t channel_user = 0;
 	uint8_t channel_sigon = 0;
+	uint8_t err_cnt = 0;
 
 	rf_channels_init();
 	rf_channels_detect();
@@ -387,21 +357,25 @@ void rf_channels_interlock_task(void *pvParameters)
 
 				if (((channel_ovl >> i) & 0x01) && (channels[i].sigon && channels[i].enabled)) channels[i].input_interlock = true;
 				if (((channel_user >> i) & 0x01) && (channels[i].sigon && channels[i].enabled)) channels[i].output_interlock = true;
-				if (channels[i].soft_interlock_enabled && (channels[i].measure.fwd_pwr > channels[i].soft_interlock_value)) channels[i].soft_interlock = true;
 
-				if ((channels[i].sigon && channels[i].enabled) && ( channels[i].output_interlock || channels[i].input_interlock || channels[i].soft_interlock )) {
+				if ((channels[i].sigon && channels[i].enabled) && ( channels[i].output_interlock || channels[i].input_interlock)) {
 					rf_channels_sigon(1 << i, false);
 
 					led_bar_and((1UL << i), 0x00, 0x00);
 					led_bar_or(0x00, (1UL << i), 0x00);
 				}
 
-				if (channels[i].measure.remote_temp > 80.0f && channels[i].measure.remote_temp < 5.0f)
+				if (channels[i].enabled && (channels[i].measure.remote_temp > 80.0f || channels[i].measure.remote_temp < 5.0f))
 				{
-					rf_channel_disable_procedure(i);
-					led_bar_and((1UL << i), 0x00, 0x00);
-					led_bar_or(0, 0, (1UL << i));
-					channels[i].error = 1;
+					// avoid one-type glitches on other channels
+					if (err_cnt++ > 32) {
+						rf_channel_disable_procedure(i);
+						led_bar_and((1UL << i), 0x00, 0x00);
+						led_bar_or(0, 0, (1UL << i));
+						channels[i].error = 1;
+						printf("Temperature error %d on channel %d, disabling %0.2f\n", err_cnt, i, channels[i].measure.remote_temp);
+						err_cnt = 0;
+					}
 				}
 
 				if (channels[i].enabled && channels[i].overcurrent)
@@ -465,14 +439,17 @@ void rf_channels_hwint_override(uint8_t channel, double int_value)
 void rf_clear_interlock(void)
 {
 	for (int i = 0; i < 8; i++) {
-		channels[i].input_interlock = false;
-		channels[i].output_interlock = false;
-		channels[i].soft_interlock = false;
+		if (!channels[i].error) {
+			channels[i].input_interlock = false;
+			channels[i].output_interlock = false;
+			channels[i].soft_interlock = false;
+		}
 	}
 
 	vTaskDelay(10);
 	rf_channels_sigon(channel_mask & rf_channels_read_enabled(), true);
-	led_bar_write(rf_channels_read_sigon(), 0, 0);
+	led_bar_or(rf_channels_read_sigon(), 0, 0);
+	led_bar_and(0, rf_channels_read_sigon(), 0);
 }
 
 void rf_channels_info_task(void *pvParameters)
@@ -509,6 +486,24 @@ void rf_channels_info_task(void *pvParameters)
 																channels[5].detected,
 																channels[6].detected,
 																channels[7].detected);
+
+		printf("HWID\t\t%02X:%02X\t%02X:%02X\t%02X:%02X\t%02X:%02X\t%02X:%02X\t%02X:%02X\t%02X:%02X\t%02X:%02X\t\n",
+																channels[0].hwid[4],
+																channels[0].hwid[5],
+																channels[1].hwid[4],
+																channels[1].hwid[5],
+																channels[2].hwid[4],
+																channels[2].hwid[5],
+																channels[3].hwid[4],
+																channels[3].hwid[5],
+																channels[4].hwid[4],
+																channels[4].hwid[5],
+																channels[5].hwid[4],
+																channels[5].hwid[5],
+																channels[6].hwid[4],
+																channels[6].hwid[5],
+																channels[7].hwid[4],
+																channels[7].hwid[5]);
 
 		printf("TXPWR [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.adc_ch1,
 																						channels[1].measure.adc_ch1,
@@ -617,26 +612,6 @@ void rf_channels_info_task(void *pvParameters)
 															channels[5].soft_interlock,
 															channels[6].soft_interlock,
 															channels[7].soft_interlock);
-
-		printf("SINTE\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].soft_interlock_enabled,
-																channels[1].soft_interlock_enabled,
-																channels[2].soft_interlock_enabled,
-																channels[3].soft_interlock_enabled,
-																channels[4].soft_interlock_enabled,
-																channels[5].soft_interlock_enabled,
-																channels[6].soft_interlock_enabled,
-																channels[7].soft_interlock_enabled);
-
-
-		printf("SINTV\t\t%0.1f\t%0.1f\t%0.1f\t%0.1f\t%0.1f\t%0.1f\t%0.1f\t%0.1f\t\n", channels[0].soft_interlock_value,
-																channels[1].soft_interlock_value,
-																channels[2].soft_interlock_value,
-																channels[3].soft_interlock_value,
-																channels[4].soft_interlock_value,
-																channels[5].soft_interlock_value,
-																channels[6].soft_interlock_value,
-																channels[7].soft_interlock_value);
-
 
 		printf("OVC\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].overcurrent,
 															channels[1].overcurrent,

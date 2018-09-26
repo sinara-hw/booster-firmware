@@ -15,6 +15,7 @@
 #include "server.h"
 #include "tasks.h"
 #include "locks.h"
+#include "eeprom.h"
 
 wiz_NetInfo gWIZNETINFO_default = { .mac = {0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef},
 									.ip = {192, 168, 1, 10},
@@ -57,6 +58,43 @@ uint8_t wizchip_read()
 	return spi_receive_byte();
 }
 
+void load_network_values(wiz_NetInfo *glWIZNETINFO)
+{
+	uint8_t ipaddr[4] = { 0 };
+	uint8_t ipaddrgw[4] = { 0 };
+	uint8_t ipaddrsn[4] = { 0 };
+	uint8_t macaddr[6] = { 0 };
+	uint8_t ipsel = 0;
+	uint8_t macsel = 0;
+
+	ipsel = eeprom_read_mb(IP_METHOD);
+	macsel = eeprom_read_mb(MAC_ADDRESS_SELECT);
+	for (int i = 0; i < 4; i++) ipaddr[i] = eeprom_read_mb(IP_ADDRESS + i);
+	for (int i = 0; i < 4; i++) ipaddrgw[i] = eeprom_read_mb(IP_ADDRESS_GW + i);
+	for (int i = 0; i < 4; i++) ipaddrsn[i] = eeprom_read_mb(IP_ADDRESS_NETMASK + i);
+	for (int i = 0; i < 6; i++) macaddr[i] = eeprom_read_mb(MAC_ADDRESS + i);
+
+	if (ipsel == NETINFO_STATIC) {
+		memcpy(glWIZNETINFO->ip, ipaddr, 4);
+		memcpy(glWIZNETINFO->gw, ipaddrgw, 4);
+		memcpy(glWIZNETINFO->sn, ipaddrsn, 4);
+		glWIZNETINFO->dhcp = NETINFO_STATIC;
+	} else {
+		glWIZNETINFO->dhcp = NETINFO_DHCP;
+	}
+
+	if (macsel == 1) {
+		memcpy(glWIZNETINFO->mac, macaddr, 6);
+	} else {
+		glWIZNETINFO->mac[0] = STM_GetUniqueID(6);
+		glWIZNETINFO->mac[1] = STM_GetUniqueID(7);
+		glWIZNETINFO->mac[2] = STM_GetUniqueID(8);
+		glWIZNETINFO->mac[3] = STM_GetUniqueID(9);
+		glWIZNETINFO->mac[4] = STM_GetUniqueID(10);
+		glWIZNETINFO->mac[5] = STM_GetUniqueID(11);
+	}
+}
+
 void net_init(void)
 {
 	uint8_t memsize[2][8] = {{2,2,2,2,2,2,2,2}, {2,2,2,2,2,2,2,2}};
@@ -73,7 +111,13 @@ void net_init(void)
 	}
 
 	// set default network settings
-	ctlnetwork(CN_SET_NETINFO, &gWIZNETINFO);
+	wiz_NetInfo glWIZNETINFO;
+	load_network_values(&glWIZNETINFO);
+	ctlnetwork(CN_SET_NETINFO, &glWIZNETINFO);
+
+	if (glWIZNETINFO.dhcp == NETINFO_STATIC) {
+		vTaskSuspend(xDHCPTask);
+	}
 
 	/* PHY link status check */
 	do
@@ -147,8 +191,48 @@ void set_net_conf(uint8_t * ipsrc, uint8_t * ipdst, uint8_t * subnet)
 	glWIZNETINFO.dhcp = NETINFO_STATIC;
 	prvDHCPTaskStop();
 
+	for (int i = 0; i < 4; i++) {
+		eeprom_write_mb(IP_ADDRESS + i, ipsrc[i]);
+		vTaskDelay(10);
+	}
+	for (int i = 0; i < 4; i++) {
+		eeprom_write_mb(IP_ADDRESS_GW + i, ipdst[i]);
+		vTaskDelay(10);
+	}
+
+	for (int i = 0; i < 4; i++) {
+		eeprom_write_mb(IP_ADDRESS_NETMASK + i, subnet[i]);
+		vTaskDelay(10);
+	}
+
+	eeprom_write_mb(IP_METHOD, NETINFO_STATIC);
+	vTaskDelay(10);
+
 	net_conf(&glWIZNETINFO);
 	display_net_conf();
+}
+
+void set_default_mac_address(void)
+{
+	wiz_NetInfo glWIZNETINFO;
+	ctlnetwork(CN_GET_NETINFO, (void*) &glWIZNETINFO);
+
+	glWIZNETINFO.mac[0] = STM_GetUniqueID(6);
+	glWIZNETINFO.mac[1] = STM_GetUniqueID(7);
+	glWIZNETINFO.mac[2] = STM_GetUniqueID(8);
+	glWIZNETINFO.mac[3] = STM_GetUniqueID(9);
+	glWIZNETINFO.mac[4] = STM_GetUniqueID(10);
+	glWIZNETINFO.mac[5] = STM_GetUniqueID(11);
+
+	net_conf(&glWIZNETINFO);
+
+	// set to 1 to enable custom mac addr
+	eeprom_write_mb(MAC_ADDRESS_SELECT, 0);
+	vTaskDelay(10);
+
+	if (glWIZNETINFO.dhcp == NETINFO_DHCP) {
+		prvDHCPTaskRestart();
+	}
 }
 
 void set_mac_address(uint8_t * macaddress)
@@ -161,6 +245,15 @@ void set_mac_address(uint8_t * macaddress)
 	glWIZNETINFO.mac[3] = macaddress[3];
 	glWIZNETINFO.mac[4] = macaddress[4];
 	glWIZNETINFO.mac[5] = macaddress[5];
+
+	for (int i = 0; i < 6; i++) {
+		eeprom_write_mb(MAC_ADDRESS + i, macaddress[i]);
+		vTaskDelay(10);
+	}
+
+	// set to 1 to enable custom mac addr
+	eeprom_write_mb(MAC_ADDRESS_SELECT, 1);
+	vTaskDelay(10);
 
 	net_conf(&glWIZNETINFO);
 
@@ -256,6 +349,8 @@ void prvDHCPTaskRestart(void)
 	dhcp_timer_init();
 
 	vTaskResume(xDHCPTask);
+	eeprom_write_mb(IP_METHOD, NETINFO_DHCP);
+	vTaskDelay(10);
 }
 
 void prvDHCPTask(void *pvParameters)

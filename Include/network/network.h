@@ -13,6 +13,8 @@
 #define DHCP_SOCKET				7
 #define DHCP_MAX_RETRIES		3
 
+#define STM_GetUniqueID(x)		((x >= 0 && x < 12) ? (*(uint8_t *) (0x1FFF7A10 + (x))) : 0)
+
 // wiznet library functions
 void wizchip_select(void);
 void wizchip_deselect(void);
@@ -25,6 +27,8 @@ void net_conf(wiz_NetInfo * netinfo);
 void set_net_conf(uint8_t * ipsrc, uint8_t * ipdst, uint8_t * subnet);
 void display_net_conf(void);
 void set_mac_address(uint8_t * macaddress);
+void set_default_mac_address(void);
+void load_network_values(wiz_NetInfo *glWIZNETINFO);
 
 // server task restart
 void prvRestartServerTask(void);

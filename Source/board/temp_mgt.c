@@ -13,7 +13,7 @@
 #include "math.h"
 
 #define THRESHOLD 					1.0f
-#define MIN_TEMP 					35
+#define MIN_TEMP 					34
 #define MAX_TEMP 					80
 #define MAX_SPEED 					100
 #define MIN_SPEED 					30
@@ -28,7 +28,7 @@ static double moving_avg(float temp)
     double weight = 0.0f;
 
     fSmp++;
-    weight = 1.0f / fSmp;
+    weight = 4.0f / fSmp;
     fAve = (weight * temp) + ((1 - weight) * fAve);
 
     return fAve;

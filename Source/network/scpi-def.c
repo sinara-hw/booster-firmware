@@ -143,34 +143,6 @@ static scpi_result_t INTERLOCK_Power(scpi_t * context)
 	}
 
 	if (channel < 8) {
-		rf_channels_soft_interlock_set(channel, interlock);
-		return SCPI_RES_OK;
-	} else {
-		return SCPI_RES_ERR;
-	}
-
-	return SCPI_RES_OK;
-}
-
-static scpi_result_t INTERLOCK_HPower(scpi_t * context)
-{
-	uint32_t channel;
-	double interlock;
-	channel_t * ch;
-
-	if (!SCPI_ParamUInt32(context, &channel, true)) {
-		return SCPI_RES_ERR;
-	}
-
-	if (!SCPI_ParamDouble(context, &interlock, true)) {
-		return SCPI_RES_ERR;
-	}
-
-	if (SCPI_IsParameterPresent(context)) {
-		return SCPI_RES_ERR;
-	}
-
-	if (channel < 8) {
 		ch = rf_channel_get(channel);
 		uint16_t dac_value = (uint16_t) (exp((interlock - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
 		printf("Calculated value for pwr %0.2f = %d\n", interlock, dac_value);
@@ -208,10 +180,7 @@ static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 
 	if (channel < 8) {
 		ch = rf_channel_get(channel);
-		if (ch->soft_interlock_enabled)
-			SCPI_ResultDouble(context, ch->soft_interlock_value);
-		else
-			SCPI_ResultDouble(context, 255.0);
+		SCPI_ResultDouble(context, 0.0);
 
 		return SCPI_RES_OK;
 
@@ -572,7 +541,6 @@ const scpi_command_t scpi_commands[] = {
 
 	/* Interlocks */
 	{.pattern = "INTerlock:POWer", .callback = INTERLOCK_Power,},
-	{.pattern = "INTerlock:HPOWer", .callback = INTERLOCK_HPower,},
 	{.pattern = "INTerlock:CLEar", .callback = Interlock_Clear,},
 	{.pattern = "INTerlock:STATus?", .callback = Interlock_StatusQ,},
 	{.pattern = "INTerlock:OVERload?", .callback = Interlock_OverloadQ,},

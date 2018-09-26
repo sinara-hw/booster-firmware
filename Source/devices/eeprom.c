@@ -33,6 +33,32 @@ uint8_t eeprom_read(uint8_t address)
 	return byte;
 }
 
+void eeprom_write_mb(uint8_t address, uint8_t data)
+{
+	i2c_start(I2C2, EEPROM_ADDR, I2C_Direction_Transmitter, 1);
+	i2c_write_byte(I2C2, address >> 8);
+	i2c_write_byte(I2C2, address & 0xFF);
+	i2c_write_byte(I2C2, data);
+	i2c_stop(I2C2);
+}
+
+uint8_t eeprom_read_mb(uint8_t address)
+{
+	uint8_t byte;
+
+	i2c_start(I2C2, EEPROM_ADDR, I2C_Direction_Transmitter, 1);
+	i2c_write_byte(I2C2, address >> 8);
+	i2c_write_byte(I2C2, address & 0xFF);
+	i2c_stop(I2C2);
+
+	i2c_start(I2C2, EEPROM_ADDR, I2C_Direction_Receiver, 1);
+	byte = i2c_read_byte_nack(I2C2);
+
+	i2c_stop(I2C2);
+
+	return byte;
+}
+
 uint16_t eeprom_read16(uint8_t address)
 {
 	uint8_t hb = eeprom_read(address);

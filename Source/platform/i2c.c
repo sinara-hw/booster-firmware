@@ -10,6 +10,8 @@
 #include "stm32f4xx_i2c.h"
 #include "i2c.h"
 
+#define I2C_DEBUG
+
 void i2c_init(void)
 {
 	I2C_InitTypeDef  I2C_InitStructure;
@@ -43,6 +45,46 @@ void i2c_init(void)
 
 	// enable I2C1
 	I2C_Cmd(I2C1, ENABLE);
+
+	/* ============================================================ */
+
+	// enable clocks
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C2, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+
+	// configure GPIO
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10 | GPIO_Pin_11;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+	// Connect I2C1 pins to AF
+	GPIO_PinAFConfig(GPIOB, GPIO_PinSource10, GPIO_AF_I2C2);	// SCL
+	GPIO_PinAFConfig(GPIOB, GPIO_PinSource11, GPIO_AF_I2C2); 	// SDA
+
+	// configure I2C1
+	I2C_InitStructure.I2C_ClockSpeed = 1000000; 			// 100kHz
+	I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;				// I2C mode
+	I2C_InitStructure.I2C_DutyCycle = I2C_DutyCycle_2;		// 50% duty cycle --> standard
+	I2C_InitStructure.I2C_OwnAddress1 = 0x00;				// own address, not relevant in master mode
+	I2C_InitStructure.I2C_Ack = I2C_Ack_Disable;			// disable acknowledge when reading (can be changed later on)
+	I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit; // set address length to 7 bit addresses
+	I2C_InitStructure.I2C_OwnAddress1 = 0x00;
+	I2C_Init(I2C2, &I2C_InitStructure);						// init I2C1
+
+	// enable I2C1
+	I2C_Cmd(I2C2, ENABLE);
+}
+
+static void i2c_reset(void)
+{
+	// due to shorting SCL pin to ground can cause glitches
+	// that are gone only after rebooting whole interface
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, DISABLE);
+	vTaskDelay(10);
+	i2c_init();
 }
 
 uint8_t i2c_mux_select(uint8_t channel)
@@ -63,6 +105,13 @@ uint8_t i2c_mux_select(uint8_t channel)
 	}
 
 	return 1;
+}
+
+void i2c_mux_reset(void)
+{
+	GPIO_ResetBits(GPIOB, GPIO_Pin_14);
+	for (int i = 0; i < 256; i++){};
+	GPIO_SetBits(GPIOB, GPIO_Pin_14);
 }
 
 uint8_t i2c_scan_devices(bool verbose)
@@ -129,6 +178,10 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 	// wait until I2C1 is not busy anymore
 	while (I2C_GetFlagStatus(I2Cx, I2C_FLAG_BUSY)) {
 		if (--timeout == 0x00) {
+#ifdef I2C_DEBUG
+			printf("[i2c_start] busy timeout\n");
+			i2c_reset();
+#endif
 			return 1;
 		}
 	}
@@ -142,6 +195,10 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 	timeout = I2C_TIMEOUT;
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_MODE_SELECT)) {
 		if (--timeout == 0x00) {
+#ifdef I2C_DEBUG
+			printf("[i2c_start] mode select timeout\n");
+			i2c_reset();
+#endif
 			return 2;
 		}
 	}
@@ -153,6 +210,10 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 		timeout = I2C_TIMEOUT;
 		while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) {
 			if (--timeout == 0x00) {
+#ifdef I2C_DEBUG
+				printf("[i2c_start] tx timeout\n");
+				i2c_reset();
+#endif
 				return 3;
 			}
 		}
@@ -160,6 +221,10 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 		timeout = I2C_TIMEOUT;
 		while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) {
 			if (--timeout == 0x00) {
+#ifdef I2C_DEBUG
+				printf("[i2c_start] rx timeout\n");
+				i2c_reset();
+#endif
 				return 4;
 			}
 		}
@@ -184,6 +249,10 @@ uint8_t i2c_write_byte(I2C_TypeDef* I2Cx, uint8_t data)
 	// wait for I2C1 EV8_2 --> byte has been transmitted
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) {
 		if (--timeout == 0x00) {
+#ifdef I2C_DEBUG
+			printf("[i2c_writeb] mode select timeout\n");
+			i2c_reset();
+#endif
 			return 1;
 		}
 	}
@@ -196,7 +265,15 @@ uint8_t i2c_read_byte_ack(I2C_TypeDef* I2Cx)
 	uint32_t timeout = I2C_TIMEOUT;
 
 	I2C_AcknowledgeConfig(I2Cx, ENABLE);
-	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED) && --timeout);
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
+		if (--timeout == 0x00) {
+#ifdef I2C_DEBUG
+			printf("[i2c_read_ack] rx timeout\n");
+			i2c_reset();
+#endif
+			break;
+		}
+	}
 
 	return I2C_ReceiveData(I2Cx);
 }
@@ -206,7 +283,15 @@ uint8_t i2c_read_byte_nack(I2C_TypeDef* I2Cx)
 	uint32_t timeout = I2C_TIMEOUT;
 
 	I2C_AcknowledgeConfig(I2Cx, DISABLE);
-	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED) && --timeout);
+	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
+		if (--timeout == 0x00) {
+#ifdef I2C_DEBUG
+			printf("[i2c_read_nack] rx timeout\n");
+			i2c_reset();
+#endif
+			break;
+		}
+	}
 
 	return I2C_ReceiveData(I2Cx);
 }
@@ -291,6 +376,3 @@ void i2c_dual_dac_set_val(float v1, float v2)
 	i2c_write_byte(I2C1, (value2 & 0x00F) << 4);
 	i2c_stop(I2C1);
 }
-
-
-
