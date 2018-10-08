@@ -10,22 +10,25 @@
 
 #define EEPROM_ADDR						0b1010000
 
-#define SOFT_INTERLOCK_ADDRESS  		14
+/* MODULE EEPROM ADDRESSES */
+#define VERSION_EEPROM_ADDRESS			0	/* 1 byte */
+#define CAL_DATE_EEPROM_ADDRESS			1	/* 4 bytes 1-4 */
 
-#define DAC1_EEPROM_ADDRESS				16
-#define DAC2_EEPROM_ADDRESS				18
+#define DAC1_EEPROM_ADDRESS				16	/* 2 bytes 16-17 */
+#define DAC2_EEPROM_ADDRESS				18	/* 2 bytes 18-19 */
 
-#define ADC1_OFFSET_ADDRESS				20
-#define ADC2_OFFSET_ADDRESS				22
+#define ADC1_OFFSET_ADDRESS				20	/* 2 bytes 20-21 */
+#define ADC2_OFFSET_ADDRESS				22	/* 2 bytes 22-23 */
 
-#define ADC1_SCALE_ADDRESS				24
-#define ADC2_SCALE_ADDRESS				26
+#define ADC1_SCALE_ADDRESS				24	/* 2 bytes 24-25 */
+#define ADC2_SCALE_ADDRESS				26	/* 2 bytes 26-27 */
 
-#define BIAS_DAC_VALUE_ADDRESS			28
+#define BIAS_DAC_VALUE_ADDRESS			28	/* 2 bytes 28-29 */
 
-#define HW_INT_SCALE					30
-#define HW_INT_OFFSET					34
+#define HW_INT_SCALE					30	/* 4 bytes 30-33 */
+#define HW_INT_OFFSET					34	/* 4 bytes 34-37 */
 
+/* MAIN BOARD EEPROM ADDRESSES */
 #define IP_METHOD						10
 #define MAC_ADDRESS_SELECT				11
 #define MAC_ADDRESS						12
