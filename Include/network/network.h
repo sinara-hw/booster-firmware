@@ -43,4 +43,7 @@ void prvDHCPTaskStart(void);
 void prvDHCPTaskStop(void);
 void prvDHCPTaskRestart(void);
 
+uint8_t prvCheckValidIPAddress(char * ipstr, uint8_t * result);
+uint8_t prvCheckValidMACAddress(char * ipstr, uint8_t * result);
+
 #endif /* NETWORK_H_ */

@@ -25,16 +25,8 @@ int __io_putchar(int ch)
 {
 #ifdef DEBUG
 	taskENTER_CRITICAL();
-	/* Place your implementation of fputc here */
-	/* e.g. write a character to the USART */
-//	if (print_enable){
 	VCP_put_char(ch);
-//	} else {
-//		if (log_cnt < 4095) bootlog[log_cnt++] = ch;
-//	}
-
 	taskEXIT_CRITICAL();
-
 	return ch;
 #endif
 }
