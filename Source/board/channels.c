@@ -732,6 +732,7 @@ void rf_channels_info_task(void *pvParameters)
 uint16_t rf_channel_calibrate_input_interlock(uint8_t channel, int16_t start_value, uint8_t step)
 {
 	int16_t dacval = 0;
+	uint8_t count = 0;
 
 	if (start_value > 0 && start_value < 1700)
 		dacval = start_value;
@@ -742,8 +743,6 @@ uint16_t rf_channel_calibrate_input_interlock(uint8_t channel, int16_t start_val
 
 	if (channel < 8)
 	{
-		printf("Calibrating ch %d start_value %d step %d\n", channel, dacval, step);
-
 		if (lock_take(I2C_LOCK, portMAX_DELAY))
 		{
 			i2c_mux_select(channel);
@@ -759,8 +758,6 @@ uint16_t rf_channel_calibrate_input_interlock(uint8_t channel, int16_t start_val
 		rf_clear_interlock();
 
 		while (dacval > 0) {
-
-			printf("Trying value %d\n", dacval);
 			if (lock_take(I2C_LOCK, portMAX_DELAY))
 			{
 				i2c_mux_select(channel);
@@ -778,18 +775,22 @@ uint16_t rf_channel_calibrate_input_interlock(uint8_t channel, int16_t start_val
 
 			vTaskDelay(200);
 
-			led_bar_write(rf_channels_read_sigon(), (rf_channels_read_ovl()) & rf_channels_read_sigon(), (rf_channels_read_user()) & rf_channels_read_sigon());
+			if (count++ % 2)
+				led_bar_or((1 << channel), 0, 0);
+			else
+				led_bar_and((1 << channel), 0, 0);
 
 			uint8_t val = 0;
 			val = rf_channels_read_ovl();
+			printf("[iintcal] trying value %d, status %d\n", dacval, (val >> channel) & 0x01);
 
 			if ((val >> channel) & 0x01) {
-				printf("Found interlock value = %d\n", dacval);
+				printf("[iintcal] interlock value = %d\n", dacval);
 
 				rf_channel_disable_procedure(channel);
 				vTaskDelay(100);
-				led_bar_write(0, 0, 0);
 				vTaskResume(task_rf_interlock);
+				led_bar_and((1 << channel), 0, 0);
 
 				return (uint16_t) dacval;
 				break;
@@ -799,10 +800,11 @@ uint16_t rf_channel_calibrate_input_interlock(uint8_t channel, int16_t start_val
 			dacval -= step;
 		}
 
+		printf("[iintcal] done, interlock value not found\n");
 		rf_channel_disable_procedure(channel);
 		vTaskDelay(100);
-		led_bar_write(0, 0, 0);
 		vTaskResume(task_rf_interlock);
+		led_bar_and((1 << channel), 0, 0);
 	}
 
 	return (uint16_t) dacval;
@@ -811,6 +813,7 @@ uint16_t rf_channel_calibrate_input_interlock(uint8_t channel, int16_t start_val
 uint16_t rf_channel_calibrate_output_interlock(uint8_t channel, int16_t start_value, uint8_t step)
 {
 	int16_t dacval = 0;
+	uint8_t count = 0;
 
 	if (start_value > 0 && start_value < 1700)
 		dacval = start_value;
@@ -823,8 +826,6 @@ uint16_t rf_channel_calibrate_output_interlock(uint8_t channel, int16_t start_va
 	{
 		channels[channel].cal_values.output_dac_cal_value = dacval;
 
-		printf("Calibrating ch %d start_value %d step %d\n", channel, dacval, step);
-
 		vTaskSuspend(task_rf_interlock);
 		vTaskDelay(100);
 		rf_channel_enable_procedure(channel);
@@ -832,8 +833,6 @@ uint16_t rf_channel_calibrate_output_interlock(uint8_t channel, int16_t start_va
 		rf_clear_interlock();
 
 		while (dacval > 0) {
-
-			printf("Trying value %d\n", dacval);
 			if (lock_take(I2C_LOCK, portMAX_DELAY))
 			{
 				i2c_mux_select(channel);
@@ -851,17 +850,21 @@ uint16_t rf_channel_calibrate_output_interlock(uint8_t channel, int16_t start_va
 
 			vTaskDelay(200);
 
-			led_bar_write(rf_channels_read_sigon(), (rf_channels_read_ovl()) & rf_channels_read_sigon(), (rf_channels_read_user()) & rf_channels_read_sigon());
+			if (count++ % 2)
+				led_bar_or((1 << channel), 0, 0);
+			else
+				led_bar_and((1 << channel), 0, 0);
 
 			uint8_t val = 0;
 			val = rf_channels_read_user();
+			printf("[ointcal] trying value %d, status %d\n", dacval, (val >> channel) & 0x01);
 
 			if ((val >> channel) & 0x01) {
-				printf("Found interlock value = %d\n", dacval);
+				printf("[ointcal] done, interlock value = %d\n", dacval);
 				rf_channel_disable_procedure(channel);
 				vTaskDelay(100);
-				led_bar_write(0, 0, 0);
 				vTaskResume(task_rf_interlock);
+				led_bar_and((1 << channel), 0, 0);
 
 				return (uint16_t) dacval;
 				break;
@@ -871,10 +874,11 @@ uint16_t rf_channel_calibrate_output_interlock(uint8_t channel, int16_t start_va
 			dacval -= step;
 		}
 
+		printf("[ointcal] done, interlock value not found\n");
 		rf_channel_disable_procedure(channel);
 		vTaskDelay(100);
-		led_bar_write(0, 0, 0);
 		vTaskResume(task_rf_interlock);
+		led_bar_and((1 << channel), 0, 0);
 	}
 
 	return (uint16_t) dacval;
