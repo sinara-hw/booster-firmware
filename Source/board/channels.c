@@ -886,6 +886,8 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 {
 	int16_t dacval = 4095;
 	uint8_t count = 0;
+	uint16_t value;
+	double avg_current = 0.0f;
 
 	if (channel < 8)
 	{
@@ -907,13 +909,11 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 
 			vTaskDelay(100);
 
-			uint16_t value;
-			double avg_current = 0.0f;
-
+			avg_current = 0.0f;
 			if (lock_take(I2C_LOCK, portMAX_DELAY))
 			{
 				i2c_mux_select(channel);
-				for (int i = 0; i < 10; i++)
+				for (int i = 0; i < 32; i++)
 				{
 					avg_current += (((ads7924_get_channel_voltage(0) / 50) / 0.02f) * 1000);
 					vTaskDelay(20);
@@ -921,7 +921,7 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 				lock_free(I2C_LOCK);
 			}
 
-			value = (uint16_t) (avg_current / 10);
+			value = (uint16_t) (avg_current / 32);
 			uint16_t diff = abs(value - current);
 
 			// guard for off-the-chart values like 200ma's at start
@@ -938,7 +938,7 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 			else
 				led_bar_and((1 << channel), 0, 0);
 
-//			printf("[biascal] dacval %d, progress %d/%d, diff %d, step %d\r\n", dacval, value, current, diff, diff > 10 ? (diff * 2) : 15);
+			printf("[biascal] dacval %d, progress %d/%d, diff %d, step %d\r\n", dacval, value, current, diff, diff > 10 ? (diff * 2) : 15);
 
 			if (value > current * 0.99 && value < current * 1.01) {
 				printf("[biascal] done, value = %d, current = %d\n", dacval, value);
@@ -956,6 +956,7 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 		}
 	}
 
+	printf("[biascal] error, current too low %d < %d\r\n", value, current);
 	rf_channel_disable_procedure(channel);
 	vTaskResume(task_rf_interlock);
 	led_bar_and((1 << channel), 0, 0);
