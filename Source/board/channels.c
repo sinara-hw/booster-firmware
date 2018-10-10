@@ -16,6 +16,7 @@
 #include "temp_mgt.h"
 #include "eeprom.h"
 #include "tasks.h"
+#include "ucli.h"
 
 static channel_t channels[8] = { 0 };
 volatile uint8_t channel_mask = 0;
@@ -23,6 +24,8 @@ volatile uint8_t channel_mask = 0;
 TaskHandle_t task_rf_measure;
 TaskHandle_t task_rf_info;
 TaskHandle_t task_rf_interlock;
+
+#define SW_EEPROM_VERSION		2
 
 void rf_channels_init(void)
 {
@@ -112,6 +115,9 @@ uint8_t rf_channels_get_mask(void)
 
 void rf_channel_load_values(channel_t * ch)
 {
+	uint8_t ver = eeprom_read(0x00);
+	if (ver == 0xFF) eeprom_write(0x00, SW_EEPROM_VERSION);
+
 	// load interlocks value
 	ch->cal_values.input_dac_cal_value = eeprom_read16(DAC1_EEPROM_ADDRESS);
 	ch->cal_values.output_dac_cal_value = eeprom_read16(DAC2_EEPROM_ADDRESS);
@@ -238,19 +244,14 @@ bool rf_channel_enable_procedure(uint8_t channel)
 	{
 		i2c_mux_select(channel);
 		i2c_dac_set(4095);
-
-		vTaskDelay(50);
+		vTaskDelay(10);
 
 		// set calibration values
 		i2c_dual_dac_set(0, channels[channel].cal_values.input_dac_cal_value);
 		vTaskDelay(10);
-
 		i2c_dual_dac_set(1, channels[channel].cal_values.output_dac_cal_value);
 		vTaskDelay(10);
-
-//		i2c_dac_set_value(2.05f);
 		i2c_dac_set(channels[channel].cal_values.bias_dac_cal_value);
-
 		vTaskDelay(10);
 
 		lock_free(I2C_LOCK);
@@ -879,9 +880,12 @@ uint16_t rf_channel_calibrate_output_interlock(uint8_t channel, int16_t start_va
 	return (uint16_t) dacval;
 }
 
+extern ucli_ctx_t ucli_ctx;
+
 bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 {
 	int16_t dacval = 4095;
+	uint8_t count = 0;
 
 	if (channel < 8)
 	{
@@ -918,23 +922,29 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 			}
 
 			value = (uint16_t) (avg_current / 10);
-			printf("DAC %d CURRENT %d\n", dacval, value);
+			uint16_t diff = abs(value - current);
 
-//			if (dacval == 4095 && val > current) {
-//				printf("Wrong value! %d current %d\n", dacval, val);
-//				eeprom_write16(BIAS_DAC_VALUE_ADDRESS, dacval);
-//				channels[channel].cal_values.bias_dac_cal_value = dacval;
-//
-//				rf_channel_disable_procedure(channel);
-//				vTaskResume(task_rf_interlock);
-//
-//				return false;
-//			}
-
-			if (value > current * 0.99 && value < current * 1.01) {
-				printf("Found value %d current %d\n", dacval, value);
+			// guard for off-the-chart values like 200ma's at start
+			if (value > (float) (current * 1.01f)) {
+				printf("[biascal] error, current too high %d > %d\r\n", value, current);
 				rf_channel_disable_procedure(channel);
 				vTaskResume(task_rf_interlock);
+				led_bar_and((1 << channel), 0, 0);
+				return false;
+			}
+
+			if (count++ % 2)
+				led_bar_or((1 << channel), 0, 0);
+			else
+				led_bar_and((1 << channel), 0, 0);
+
+//			printf("[biascal] dacval %d, progress %d/%d, diff %d, step %d\r\n", dacval, value, current, diff, diff > 10 ? (diff * 2) : 15);
+
+			if (value > current * 0.99 && value < current * 1.01) {
+				printf("[biascal] done, value = %d, current = %d\n", dacval, value);
+				rf_channel_disable_procedure(channel);
+				vTaskResume(task_rf_interlock);
+				led_bar_and((1 << channel), 0, 0);
 
 				eeprom_write16(BIAS_DAC_VALUE_ADDRESS, dacval);
 				channels[channel].cal_values.bias_dac_cal_value = dacval;
@@ -942,12 +952,13 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 				return true;
 			}
 
-			dacval -= 15;
+			dacval -= diff > 10 ? (diff * 2) : 15;
 		}
 	}
 
 	rf_channel_disable_procedure(channel);
 	vTaskResume(task_rf_interlock);
+	led_bar_and((1 << channel), 0, 0);
 
 	return false;
 }

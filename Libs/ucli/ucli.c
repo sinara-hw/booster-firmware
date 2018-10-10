@@ -411,11 +411,12 @@ static unsigned char ucli_process_cmd_list(ucli_ctx_t * a_ctx, ucli_cmd_t * cmds
                    (cmds[i].argc == a_ctx->argc - 1) || 
                    (!cmds[i].argc && a_ctx->argc == 1)) {
                     	cmds[i].fh((void *)a_ctx);
+                    	ret = E_CMD_OK;
                 } else {
                     ret = E_CMD_LACK_ARGS;
                 }
+                break;
             }	
-            break;
         }
         i++;
     }
