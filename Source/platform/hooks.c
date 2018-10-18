@@ -16,7 +16,7 @@ void vApplicationStackOverflowHook(xTaskHandle pxTask,
 }
 
 void vApplicationIdleHook(void) {
-
+	IWDG_ReloadCounter();
 }
 
 void vApplicationTickHook(void) {

@@ -87,6 +87,7 @@ void prvTempMgtTask(void *pvParameters)
 	//float chTemp = 0.0f;
 	uint8_t speed = 0;
 	double maxTemp = 0.0f;
+	fTemp = (MIN_TEMP - 1);
 
 	for (;;)
 	{
@@ -110,7 +111,7 @@ void prvTempMgtTask(void *pvParameters)
 			if (fTemp > MIN_TEMP) {
 				speed = fan_speed(fTemp);
 				set_fan_speed(speed);
-				printf("Temp %f -> Fan %d\n", fTemp, speed);
+				printf("[tempmgt] temp %f -> Fan %d\n", fTemp, speed);
 			} else {
 				set_fan_speed(0);
 			}

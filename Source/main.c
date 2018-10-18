@@ -10,6 +10,7 @@
 
 #include "config.h"
 #include "stm32f4xx_rcc.h"
+#include "stm32f4xx_iwdg.h"
 
 // platform drivers
 #include "i2c.h"
@@ -38,6 +39,15 @@
 // usb
 #include "usb.h"
 
+static void watchdog_init(void)
+{
+	IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);
+	IWDG_SetPrescaler(IWDG_Prescaler_4);
+	IWDG_SetReload(0xFFFF);
+	IWDG_ReloadCounter();
+	IWDG_Enable();
+}
+
 static void prvSetupHardware(void)
 {
 	SystemCoreClockUpdate();
@@ -48,6 +58,7 @@ static void prvSetupHardware(void)
 	spi_init();
 	ext_init();
 	lock_init();
+	watchdog_init();
 
 	max6639_init();
 	led_bar_init();
@@ -55,6 +66,12 @@ static void prvSetupHardware(void)
 
 	RCC_ClocksTypeDef RCC_ClockFreq;
 	RCC_GetClocksFreq(&RCC_ClockFreq);
+
+	if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) != RESET) {
+		// watchdog reset occurred
+		RCC_ClearFlag();
+	}
+
 	printf("[log] device boot\n");
 	printf("[log] SYSCLK frequency: %lu\n", RCC_ClockFreq.SYSCLK_Frequency);
 	printf("[log] PCLK1 frequency: %lu\n", RCC_ClockFreq.PCLK1_Frequency);
@@ -91,3 +108,4 @@ int main(void)
 
 	return 1;
 }
+

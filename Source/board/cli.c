@@ -49,7 +49,7 @@ static void fh_clear(void * a_data)
 
 static void fh_sw_version(void * a_data)
 {
-	printf("v%.02f, built %s %s\r\nFor hardware revision: v%0.2f\r\n", 1.2f, __DATE__, __TIME__, 1.1f);
+	printf("RFPA v%.02f, built %s %s, for hardware revision: v%0.2f\r\n", 1.2f, __DATE__, __TIME__, 1.1f);
 }
 
 static void fh_enabled(void * a_data)
@@ -128,29 +128,29 @@ static void fh_calpwr(void * a_data)
 		ch = rf_channel_get(channel);
 
 		if (pwr_type == 1) {
-			printf("[calwpr] Value1 for pwr %d = %d\n", pwr_cal, ch->measure.adc_raw_ch1);
+			printf("[calpwr] done, value1 for pwr %d = %d\n", pwr_cal, ch->measure.adc_raw_ch1);
 			cal_in_pwr1 = pwr_cal;
 			cal_in_val1 = ch->measure.adc_raw_ch1;
 		} else if (pwr_type == 2) {
-			printf("[calwpr] Value2 for pwr %d = %d\n", pwr_cal, ch->measure.adc_raw_ch1);
+			printf("[calpwr] done, value2 for pwr %d = %d\n", pwr_cal, ch->measure.adc_raw_ch1);
 			cal_in_pwr2 = pwr_cal;
 			cal_in_val2 = ch->measure.adc_raw_ch1;
 		} else if (pwr_type == 3) {
-			printf("[calwpr] Value1 for pwr %d = %d\n", pwr_cal, ch->measure.adc_raw_ch2);
+			printf("[calpwr] done, value1 for pwr %d = %d\n", pwr_cal, ch->measure.adc_raw_ch2);
 			cal_rfl_pwr1 = pwr_cal;
 			cal_rfl_val1 = ch->measure.adc_raw_ch2;
 		} else if (pwr_type == 4) {
-			printf("[calwpr] Value2 for pwr %d = %d\n", pwr_cal, ch->measure.adc_raw_ch2);
+			printf("[calpwr] done, value2 for pwr %d = %d\n", pwr_cal, ch->measure.adc_raw_ch2);
 			cal_rfl_pwr2 = pwr_cal;
 			cal_rfl_val2 = ch->measure.adc_raw_ch2;
 		}
 
 		if (cal_in_val1 != 0 && cal_in_val2 != 0)
 		{
-			printf("[calwpr] Calculating points for %d -> %d\n", cal_in_pwr1, cal_in_pwr2);
+//			printf("[calwpr] Calculating points for %d -> %d\n", cal_in_pwr1, cal_in_pwr2);
 			uint16_t a = ((cal_in_val1 - cal_in_val2) / (cal_in_pwr1 - cal_in_pwr2));
 			uint16_t b = (cal_in_val1 - ((cal_in_val1 - cal_in_val2) / (cal_in_pwr1 - cal_in_pwr2)) * cal_in_pwr1);
-			printf("[calwpr] INPWR A = %d B = %d\n", a, b);
+			printf("[calpwr] done, a=%d b=%d\n", a, b);
 
 			ch = rf_channel_get(channel);
 			// save values to eeprom
@@ -174,10 +174,10 @@ static void fh_calpwr(void * a_data)
 
 		if (cal_rfl_val1 != 0 && cal_rfl_val2 != 0)
 		{
-			printf("[calwpr] Calculating points for %d -> %d\n", cal_rfl_pwr1, cal_rfl_pwr2);
+//			printf("[calwpr] Calculating points for %d -> %d\n", cal_rfl_pwr1, cal_rfl_pwr2);
 			int16_t a = ((cal_rfl_val1 - cal_rfl_val2) / (cal_rfl_pwr1 - cal_rfl_pwr2));
 			int16_t b = (cal_rfl_val1 - ((cal_rfl_val1 - cal_rfl_val2) / (cal_rfl_pwr1 - cal_rfl_pwr2)) * cal_rfl_pwr1);
-			printf("[calwpr] RFLPWR A = %d B = %d\n", a, b);
+			printf("[calpwr] done, a=%d b=%d\n", a, b);
 
 			ch = rf_channel_get(channel);
 			// save values to eeprom
@@ -235,7 +235,7 @@ static void fh_intcal(void * a_data)
 		uint16_t old_dac1 = ch->cal_values.input_dac_cal_value;
 		uint16_t old_dac2 = ch->cal_values.output_dac_cal_value;
 
-		printf("[intcal] Calibrating output interlock\n");
+		printf("[intcal] Calibrating output interlock ch %d\r\n", channel);
 		retval = rf_channel_calibrate_output_interlock(channel, dacval, 100);
 		if (retval == 0) retval = 100;
 		printf("[intcal] Calibration step = 100 completed = %d\n", retval);
@@ -259,19 +259,19 @@ static void fh_intcal(void * a_data)
 				int_cal_val_s = retval;
 				int_cal_pwr_s = pwr_cal;
 
-				printf("[intcal] Got 1-point cal val %d pwr %d\r\n", retval, pwr_cal);
+				printf("[intcal] done, got 1-point cal val %d pwr %d\r\n", retval, pwr_cal);
 			} else if (pwr_type == 2) {
 				int_cal_val_e = retval;
 				int_cal_pwr_e = pwr_cal;
 
-				printf("[intcal] Got 2-point cal val %d pwr %d\r\n", retval, pwr_cal);
+				printf("[intcal] done, got 2-point cal val %d pwr %d\r\n", retval, pwr_cal);
 			}
 
 			if (int_cal_val_s && int_cal_val_e) {
 				float a = (int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e));
 				float b = (int_cal_pwr_s - ((int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e))) * log(int_cal_val_s));
 
-				printf("[intcal] Got power factors %0.2f %0.2f\n", a, b);
+				printf("[intcal] done, got power factors a=%0.2f b=%0.2f\n", a, b);
 				ch->cal_values.hw_int_scale = a;
 				ch->cal_values.hw_int_offset = b;
 
@@ -474,7 +474,6 @@ static void fh_intval(void * a_data)
 	if ((uint8_t) channel < 8) {
 		ch = rf_channel_get(channel);
 		uint16_t dac_value = (uint16_t) (exp((value - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
-		printf("Calculated value for pwr %0.2f = %d\n", value, dac_value);
 		ch->cal_values.output_dac_cal_value = dac_value;
 
 		if (lock_take(I2C_LOCK, portMAX_DELAY))
@@ -740,7 +739,6 @@ static ucli_cmd_t g_cmds[] = {
 	{ "enable", fh_enable, 0x01, "Enable selected channel mask\r\n" },
 	{ "disable", fh_disable, 0x01, "Disable selected channel mask\r\n" },
 //	{ "bias", fh_bias, 0x02, "Set channel bias voltage DAC value\r\n" },
-	{ "clearcal", fh_clearcal, 0x02, "Clear hardware interlock calibration values\r\n" },
 	{ "int", fh_int, 0x02, "Set output interlock by raw value\r\n" },
 	{ "intv", fh_intval, 0x02, "Set output interlock by power level\r\n" },
 	{ "chanid", fh_chanid, 0x01, "Display channel hwid\r\n" },
@@ -753,6 +751,7 @@ static ucli_cmd_t g_cmds[] = {
 	{ "intcal", fh_intcal, 0x03 },
 	{ "cal", fh_cal, 0x02 },
 	{ "biascal", fh_biascal, 0x02 },
+	{ "clearcal", fh_clearcal, 0x02 },
 
     // null
     { 0x00, 0x00, 0x00  }
