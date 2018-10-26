@@ -35,6 +35,7 @@
 #include "led_bar.h"
 #include "temp_mgt.h"
 #include "gpio.h"
+#include "ucli.h"
 
 // usb
 #include "usb.h"
@@ -53,12 +54,13 @@ static void prvSetupHardware(void)
 	SystemCoreClockUpdate();
 
 	usb_init();
+	cli_init();
 	gpio_init();
 	i2c_init();
 	spi_init();
 	ext_init();
 	lock_init();
-	watchdog_init();
+//	watchdog_init();
 
 	max6639_init();
 	led_bar_init();
@@ -72,18 +74,10 @@ static void prvSetupHardware(void)
 		RCC_ClearFlag();
 	}
 
-	printf("[log] device boot\n");
-	printf("[log] SYSCLK frequency: %lu\n", RCC_ClockFreq.SYSCLK_Frequency);
-	printf("[log] PCLK1 frequency: %lu\n", RCC_ClockFreq.PCLK1_Frequency);
-	printf("[log] PCLK2 frequency: %lu\n", RCC_ClockFreq.PCLK2_Frequency);
-}
-
-void prvLEDTask2(void *pvParameters)
-{
-	for (;;)
-	{
-		vTaskDelay(500);
-	}
+	ucli_log(UCLI_LOG_INFO, "device boot\r\n");
+	ucli_log(UCLI_LOG_INFO, "SYSCLK frequency: %lu\r\n", RCC_ClockFreq.SYSCLK_Frequency);
+	ucli_log(UCLI_LOG_INFO, "PCLK1 frequency: %lu\r\n", RCC_ClockFreq.PCLK1_Frequency);
+	ucli_log(UCLI_LOG_INFO, "PCLK2 frequency: %lu\r\n", RCC_ClockFreq.PCLK2_Frequency);
 }
 
 int main(void)
@@ -91,8 +85,8 @@ int main(void)
 	prvSetupHardware();
 
 	uint16_t val = adc_autotest();
-	printf("[test] ADC: %s | raw: %d | VrefInt %.2f V\n", val == 0 ? "ERROR" : "OK", val, (float) ((val * 2.5) / 4096));
-	printf("[test] PGOOD: %s\n", GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4) ? "OK" : "ERROR");
+	ucli_log(UCLI_LOG_INFO, "ADC: %s | raw: %d | VrefInt %.2f V\r\n", val == 0 ? "ERROR" : "OK", val, (float) ((val * 2.5) / 4096));
+	ucli_log(UCLI_LOG_INFO, "PGOOD: %s\r\n", GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4) ? "OK" : "ERROR");
 	if (GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4)) GPIO_SetBits(BOARD_LED1);
 
 	xTaskCreate(prvTempMgtTask, "FAN", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY, NULL);
@@ -101,7 +95,7 @@ int main(void)
 	xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 2048UL, NULL, tskIDLE_PRIORITY + 2, &xUDPServerTask);
 	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 1, NULL );
 	xTaskCreate(prvExtTask, "Ext", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL );
-	xTaskCreate(rf_channels_interlock_task, "RF Prot", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 4, &task_rf_interlock );
+	xTaskCreate(rf_channels_interlock_task, "RF Interlock", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 4, &task_rf_interlock );
 
 	/* Start the scheduler */
 	vTaskStartScheduler();

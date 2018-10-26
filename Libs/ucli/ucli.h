@@ -1,3 +1,6 @@
+#ifndef UCLI_H_
+#define UCLI_H_
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -21,7 +24,7 @@
 #define UCLI_CMD_HISTORY_LEN            8
 #define UCLI_MULTICODE_INPUT_MAX_LEN    3
 
-#define UCLI_LOG_STASH_LEN              96
+#define UCLI_LOG_STASH_LEN              32
 #define UCLI_LOG_BUFFER_SIZE            UCLI_CMD_BUFFER_SIZE
 #define UCLI_LOG_DEFAULT_LEVEL          0
 
@@ -145,20 +148,21 @@ typedef struct {
 	ucli_multicode_input_t mc;
 } ucli_ctx_t;
 
-void ucli_process_chr(ucli_ctx_t * a_ctx, uint8_t chr);
-void ucli_init(ucli_ctx_t *a_ctx, ucli_cmd_t *a_cmds);
+void ucli_process_chr(uint8_t chr);
+void ucli_init(void * print_fn, ucli_cmd_t *a_cmds);
 
 #if UCLI_ENABLE_VT100_SUPPORT
-void ucli_vt100_clear_line(ucli_ctx_t * a_ctx);
-void ucli_vt100_clear_screen(ucli_ctx_t * a_ctx);
+void ucli_vt100_clear_line(void);
+void ucli_vt100_clear_screen(void);
 #endif
 
-bool ucli_param_get_double(ucli_ctx_t * a_ctx, uint8_t argc, double * num);
-bool ucli_param_get_float(ucli_ctx_t * a_ctx, uint8_t argc, float * num);
-bool ucli_param_get_bool(ucli_ctx_t * a_ctx, uint8_t argc, bool * num);
-bool ucli_param_get_int(ucli_ctx_t * a_ctx, uint8_t argc, int * num);
+bool ucli_param_get_double(uint8_t argc, double * num);
+bool ucli_param_get_float(uint8_t argc, float * num);
+bool ucli_param_get_bool(uint8_t argc, bool * num);
+bool ucli_param_get_int(uint8_t argc, int * num);
 
-bool ucli_progress_bar(ucli_ctx_t * a_ctx, int current, int start, int stop, bool clearln);
+bool ucli_progress_bar(int current, int start, int stop, bool clearln);
+void ucli_logstash_push(uint8_t level, char * str);
+void ucli_log(uint8_t level, const char * sFormat, ...);
 
-
-void ucli_logstash_push(ucli_ctx_t * a_ctx, uint8_t level, char * str);
+#endif

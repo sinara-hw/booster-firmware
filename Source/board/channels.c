@@ -143,8 +143,6 @@ void rf_channel_load_values(channel_t * ch)
 
 uint8_t rf_channels_detect(void)
 {
-	printf("Starting detect channels\n");
-
 	if (lock_take(I2C_LOCK, portMAX_DELAY))
 	{
 		for (int i = 0; i < CHANNEL_COUNT; i++)
@@ -152,14 +150,14 @@ uint8_t rf_channels_detect(void)
 			i2c_mux_select(i);
 
 			uint8_t dac_detected = i2c_device_connected(I2C1, I2C_DAC_ADDR);
-			vTaskDelay(10);
+			vTaskDelay(15);
 			uint8_t dual_dac_detected = i2c_device_connected(I2C1, I2C_DUAL_DAC_ADDR);
-			vTaskDelay(10);
+			vTaskDelay(15);
 			uint8_t temp_sensor_detected = i2c_device_connected(I2C1, I2C_MODULE_TEMP);
+			vTaskDelay(15);
 
 			if (dual_dac_detected && dac_detected && temp_sensor_detected)
 			{
-				printf("Channel %d OK\n", i);
 				ads7924_init();
 				max6642_init();
 
@@ -169,6 +167,8 @@ uint8_t rf_channels_detect(void)
 				channels[i].output_interlock = false;
 
 				rf_channel_load_values(&channels[i]);
+
+				ucli_log(UCLI_LOG_INFO, "RF Channel at %d detected, id = %02X:%02X\r\n", i, channels[i].hwid[0], channels[i].hwid[1]);
 			} else {
 				led_bar_or(0x00, 0x00, 1UL << i);
 			}
@@ -264,13 +264,13 @@ bool rf_channel_enable_procedure(uint8_t channel)
 
 	rf_channels_sigon(bitmask, true);
 
-//	if (lock_take(I2C_LOCK, portMAX_DELAY))
-//	{
-//		i2c_mux_select(channel);
-//		ads7924_enable_alert();
-//		ads7924_clear_alert();
-//		lock_free(I2C_LOCK);
-//	}
+	if (lock_take(I2C_LOCK, portMAX_DELAY))
+	{
+		i2c_mux_select(channel);
+		ads7924_enable_alert();
+
+		lock_free(I2C_LOCK);
+	}
 
 	return true;
 }
@@ -381,10 +381,22 @@ void rf_channels_interlock_task(void *pvParameters)
 
 				if (channels[i].enabled && channels[i].overcurrent)
 				{
-					rf_channel_disable_procedure(i);
-					led_bar_and((1UL << i), 0x00, 0x00);
-					led_bar_or(0, 0, (1UL << i));
-					channels[i].error = 1;
+					// avoid false alarms
+					if (channels[i].measure.i30 > 0.05) {
+						ucli_log(UCLI_LOG_ERROR, "OVC on channel %d, current %0.2f\r\n", i, channels[i].measure.i30);
+						rf_channel_disable_procedure(i);
+						led_bar_and((1UL << i), 0x00, 0x00);
+						led_bar_or(0, 0, (1UL << i));
+						channels[i].error = 1;
+					} else {
+						// false alarm generated at startup
+						if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+							i2c_mux_select(i);
+							ads7924_clear_alert();
+
+							lock_free(I2C_LOCK);
+						}
+					}
 				}
 			}
 		}
@@ -408,8 +420,10 @@ void rf_channels_measure_task(void *pvParameters)
 					channels[i].measure.rfl_pwr = (double) (channels[i].measure.adc_raw_ch1 - channels[i].cal_values.rfl_pwr_offset) / (double) channels[i].cal_values.rfl_pwr_scale;
 
 					channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / 50) / 0.02f;
-					channels[i].measure.i60 = (ads7924_get_channel_voltage(0) / 50) / 0.1f;
-					channels[i].measure.in80 = (ads7924_get_channel_voltage(0) / 50) / 4.7f;
+					channels[i].measure.i60 = (ads7924_get_channel_voltage(1) / 50) / 0.1f;
+					channels[i].measure.in80 = (ads7924_get_channel_voltage(2) / 50) / 4.7f;
+
+					channels[i].measure.p5v0mp = ads7924_get_channel_voltage(3);
 
 					channels[i].measure.local_temp = max6642_get_local_temp();
 					channels[i].measure.remote_temp = max6642_get_remote_temp();
@@ -451,6 +465,31 @@ void rf_clear_interlock(void)
 	rf_channels_sigon(channel_mask & rf_channels_read_enabled(), true);
 	led_bar_or(rf_channels_read_sigon(), 0, 0);
 	led_bar_and(0, rf_channels_read_sigon(), 0);
+}
+
+bool rf_channel_clear_interlock(uint8_t channel)
+{
+	channel_t * ch;
+
+	if (channel < 8) {
+		ch = rf_channel_get(channel);
+		ch->input_interlock = false;
+		ch->output_interlock = false;
+		ch->soft_interlock = false;
+
+		vTaskDelay(10);
+
+		uint8_t chan = rf_channels_read_enabled() & (1 << channel);
+		uint8_t channel_mask = rf_channels_get_mask() & chan;
+
+		rf_channels_sigon(channel_mask, true);
+		led_bar_or(rf_channels_read_sigon(), 0, 0);
+		led_bar_and(0x00, (1 << channel), 0x00);
+
+		return true;
+	}
+
+	return false;
 }
 
 void rf_channels_info_task(void *pvParameters)
@@ -568,6 +607,15 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[5].measure.in80 * 1000,
 																						channels[6].measure.in80 * 1000,
 																						channels[7].measure.in80 * 1000);
+
+		printf("5V0MP [V]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.p5v0mp,
+																						channels[1].measure.p5v0mp,
+																						channels[2].measure.p5v0mp,
+																						channels[3].measure.p5v0mp,
+																						channels[4].measure.p5v0mp,
+																						channels[5].measure.p5v0mp,
+																						channels[6].measure.p5v0mp,
+																						channels[7].measure.p5v0mp);
 
 		printf("ON\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].enabled,
 															channels[1].enabled,
@@ -782,10 +830,10 @@ uint16_t rf_channel_calibrate_input_interlock(uint8_t channel, int16_t start_val
 
 			uint8_t val = 0;
 			val = rf_channels_read_ovl();
-			printf("[iintcal] trying value %d, status %d\n", dacval, (val >> channel) & 0x01);
+//			printf("[iintcal] trying value %d, status %d\n", dacval, (val >> channel) & 0x01);
 
 			if ((val >> channel) & 0x01) {
-				printf("[iintcal] interlock value = %d\n", dacval);
+//				printf("[iintcal] interlock value = %d, status %d\r\n", dacval, (val >> channel) & 0x01);
 
 				rf_channel_disable_procedure(channel);
 				vTaskDelay(100);
@@ -805,7 +853,7 @@ uint16_t rf_channel_calibrate_input_interlock(uint8_t channel, int16_t start_val
 		vTaskResume(task_rf_interlock);
 		led_bar_and((1 << channel), 0, 0);
 
-		printf("[iintcal] done, interlock value not found\n");
+		printf("[iintcal] error, interlock value not found\n");
 	}
 
 	return (uint16_t) dacval;
@@ -886,8 +934,6 @@ uint16_t rf_channel_calibrate_output_interlock(uint8_t channel, int16_t start_va
 	return (uint16_t) dacval;
 }
 
-extern ucli_ctx_t ucli_ctx;
-
 bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 {
 	int16_t dacval = 4095;
@@ -931,7 +977,8 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 			uint16_t diff = abs(value - current);
 
 			// guard for off-the-chart values like 200ma's at start
-			if (value > (float) (current * 1.01f)) {
+			if (value > (float) (current * 1.01f))
+			{
 				rf_channel_disable_procedure(channel);
 				vTaskResume(task_rf_interlock);
 				led_bar_and((1 << channel), 0, 0);
@@ -946,8 +993,10 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 				led_bar_and((1 << channel), 0, 0);
 
 //			printf("[biascal] dacval %d, progress %d/%d, diff %d, step %d\r\n", dacval, value, current, diff, diff > 10 ? (diff * 2) : 15);
+			ucli_progress_bar(value, 0, current, true);
 
-			if (value > current * 0.99 && value < current * 1.01) {
+			if (value > current * 0.99 && value < current * 1.01)
+			{
 				rf_channel_disable_procedure(channel);
 				vTaskResume(task_rf_interlock);
 				led_bar_and((1 << channel), 0, 0);
@@ -955,6 +1004,7 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 				eeprom_write16(BIAS_DAC_VALUE_ADDRESS, dacval);
 				channels[channel].cal_values.bias_dac_cal_value = dacval;
 
+				ucli_progress_bar(value, 0, value, false);
 				printf("[biascal] done, value = %d, current = %d\n", dacval, value);
 				return true;
 			}

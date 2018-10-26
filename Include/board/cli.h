@@ -11,8 +11,7 @@
 #include "ucli.h"
 #include "config.h"
 
-ucli_ctx_t ucli_ctx;
-
+void cli_init(void);
 void vCommandConsoleTask( void *pvParameters );
 
 #endif /* CLI_H_ */

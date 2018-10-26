@@ -40,6 +40,7 @@ typedef struct {
 	double i30;
 	double i60;
 	double in80;
+	double p5v0mp;
 
 	/* Temperatures */
 	double local_temp;
@@ -89,6 +90,7 @@ void rf_sigon_enable(uint8_t mask);
 /* misc */
 channel_t * rf_channel_get(uint8_t num);
 void rf_clear_interlock(void);
+bool rf_channel_clear_interlock(uint8_t channel);
 uint8_t rf_channels_get_mask(void);
 void rf_channels_soft_interlock_set(uint8_t channel, double value);
 void rf_channels_hwint_override(uint8_t channel, double int_value);

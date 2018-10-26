@@ -41,12 +41,6 @@ static void fh_stop(void * a_data)
 }
 
 
-static void fh_clear(void * a_data)
-{
-	rf_clear_interlock();
-}
-
-
 static void fh_sw_version(void * a_data)
 {
 	printf("RFPA v%.02f, built %s %s, for hardware revision: v%0.2f\r\n", 1.2f, __DATE__, __TIME__, 1.1f);
@@ -63,7 +57,7 @@ static void fh_status(void * a_data)
 	int channel = 0;
 	channel_t * ch;
 
-	ucli_param_get_int(a_ctx, 1, &channel);
+	ucli_param_get_int(1, &channel);
 	channel = (uint8_t) channel;
 
 	if (channel < 8) {
@@ -75,6 +69,25 @@ static void fh_status(void * a_data)
 
 	} else
 		printf("[status] Wrong channel number\r\n");
+}
+
+static void fh_clearint(void * a_data)
+{
+	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
+	int channel = 0;
+
+	ucli_param_get_int(1, &channel);
+	channel = (uint8_t) channel;
+
+	if (a_ctx->argc == 1) {
+		rf_clear_interlock();
+		printf("[clear] cleared all\r\n");
+	} else {
+		if (rf_channel_clear_interlock(channel))
+			printf("[clear] cleared %d\r\n", channel);
+		else
+			printf("[clear] Wrong channel number\r\n");
+	}
 }
 
 static void fh_devid(void * a_data)
@@ -93,6 +106,21 @@ static void fh_bootloader(void * a_data)
 static void fh_detected(void * a_data)
 {
 	printf("[detected] %d\r\n", rf_channels_get_mask());
+}
+
+static void fh_i2cd(void * a_data)
+{
+	int channel = 0;
+
+	ucli_param_get_int(1, &channel);
+	channel = (uint8_t) channel;
+
+	if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+		i2c_mux_select(channel);
+
+		i2c_scan_devices(true);
+		lock_free(I2C_LOCK);
+	}
 }
 
 
@@ -115,9 +143,9 @@ static void fh_calpwr(void * a_data)
 	int pwr_cal = 0;
 	channel_t * ch;
 
-	ucli_param_get_int(a_ctx, 1, &channel);
-	ucli_param_get_int(a_ctx, 2, &pwr_type);
-	ucli_param_get_int(a_ctx, 3, &pwr_cal);
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &pwr_type);
+	ucli_param_get_int(3, &pwr_cal);
 
 	channel = (uint8_t) channel;
 	pwr_type = (uint8_t) pwr_type;
@@ -150,7 +178,7 @@ static void fh_calpwr(void * a_data)
 //			printf("[calwpr] Calculating points for %d -> %d\n", cal_in_pwr1, cal_in_pwr2);
 			uint16_t a = ((cal_in_val1 - cal_in_val2) / (cal_in_pwr1 - cal_in_pwr2));
 			uint16_t b = (cal_in_val1 - ((cal_in_val1 - cal_in_val2) / (cal_in_pwr1 - cal_in_pwr2)) * cal_in_pwr1);
-			printf("[calpwr] done, a=%d b=%d\n", a, b);
+			printf("[calpwr] done, a=%0.2f b=%0.2f\n", a, b);
 
 			ch = rf_channel_get(channel);
 			// save values to eeprom
@@ -177,7 +205,7 @@ static void fh_calpwr(void * a_data)
 //			printf("[calwpr] Calculating points for %d -> %d\n", cal_rfl_pwr1, cal_rfl_pwr2);
 			int16_t a = ((cal_rfl_val1 - cal_rfl_val2) / (cal_rfl_pwr1 - cal_rfl_pwr2));
 			int16_t b = (cal_rfl_val1 - ((cal_rfl_val1 - cal_rfl_val2) / (cal_rfl_pwr1 - cal_rfl_pwr2)) * cal_rfl_pwr1);
-			printf("[calpwr] done, a=%d b=%d\n", a, b);
+			printf("[calpwr] done, a=%0.2f b=%0.2f\n", a, b);
 
 			ch = rf_channel_get(channel);
 			// save values to eeprom
@@ -218,9 +246,9 @@ static void fh_intcal(void * a_data)
 	int pwr_cal = 0;
 	channel_t * ch;
 
-	ucli_param_get_int(a_ctx, 1, &channel);
-	ucli_param_get_int(a_ctx, 2, &pwr_type);
-	ucli_param_get_int(a_ctx, 3, &pwr_cal);
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &pwr_type);
+	ucli_param_get_int(3, &pwr_cal);
 
 	channel = (uint8_t) channel;
 	pwr_type = (uint8_t) pwr_type;
@@ -310,8 +338,8 @@ static void fh_cal(void * a_data)
 	int type = 0;
 	channel_t * ch;
 
-	ucli_param_get_int(a_ctx, 1, &channel);
-	ucli_param_get_int(a_ctx, 2, &type);
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &type);
 
 	channel = (uint8_t) channel;
 	type = (uint8_t) type;
@@ -339,7 +367,7 @@ static void fh_cal(void * a_data)
 			retval *= 1.5;
 			retval = rf_channel_calibrate_input_interlock(channel, retval, 1);
 			if (retval != 0) {
-				printf("[cal] Calibration step = 1 completed = %d\n", retval);
+				printf("[cal] done, value = %d\n", retval);
 
 				ch = rf_channel_get(channel);
 				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
@@ -350,7 +378,7 @@ static void fh_cal(void * a_data)
 					lock_free(I2C_LOCK);
 				}
 			} else {
-				printf("[cal] Calibration failed\n");
+				printf("[cal] error, failed\n");
 			}
 		}
 
@@ -372,7 +400,7 @@ static void fh_cal(void * a_data)
 			retval *= 1.1;
 			retval = rf_channel_calibrate_output_interlock(channel, retval, 1);
 			if (retval != 0) {
-				printf("[cal] Calibration step = 1 completed = %d\n", retval);
+				printf("[cal] done, value = %d\n", retval);
 
 				ch = rf_channel_get(channel);
 				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
@@ -399,8 +427,8 @@ static void fh_biascal(void * a_data)
 	int value = 0;
 	channel_t * ch;
 
-	ucli_param_get_int(a_ctx, 1, &channel);
-	ucli_param_get_int(a_ctx, 2, &value);
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &value);
 
 	channel = (uint8_t) channel;
 	value = (uint8_t) value;
@@ -420,8 +448,8 @@ static void fh_chanid(void * a_data)
 	int value = 0;
 	channel_t * ch;
 
-	ucli_param_get_int(a_ctx, 1, &channel);
-	ucli_param_get_int(a_ctx, 2, &value);
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &value);
 
 	if ((uint8_t) channel < 8)
 	{
@@ -440,8 +468,8 @@ static void fh_int(void * a_data)
 	int value = 0;
 	channel_t * ch;
 
-	ucli_param_get_int(a_ctx, 1, &channel);
-	ucli_param_get_int(a_ctx, 2, &value);
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &value);
 
 	if ((uint8_t) channel < 8) {
 		ch = rf_channel_get((uint8_t) channel);
@@ -468,8 +496,8 @@ static void fh_intval(void * a_data)
 	float value = 0;
 	channel_t * ch;
 
-	ucli_param_get_int(a_ctx, 1, &channel);
-	ucli_param_get_float(a_ctx, 2, &value);
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_float(2, &value);
 
 	if ((uint8_t) channel < 8) {
 		ch = rf_channel_get(channel);
@@ -478,9 +506,9 @@ static void fh_intval(void * a_data)
 
 		if (lock_take(I2C_LOCK, portMAX_DELAY))
 		{
+			i2c_mux_select((uint8_t) channel);
 			eeprom_write16(DAC2_EEPROM_ADDRESS, dac_value);
 			if (ch->enabled) {
-				i2c_mux_select(channel);
 				i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
 			}
 			lock_free(I2C_LOCK);
@@ -495,7 +523,7 @@ static void fh_enable(void * a_data)
 {
 	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel_mask = 0;
-	ucli_param_get_int(a_ctx, 1, &channel_mask);
+	ucli_param_get_int(1, &channel_mask);
 
 	rf_channels_enable((uint8_t) channel_mask);
 	printf("[enable] Enabled %d channel mask\r\n", (uint8_t) channel_mask);
@@ -506,7 +534,7 @@ static void fh_disable(void * a_data)
 {
 	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel_mask = 0;
-	ucli_param_get_int(a_ctx, 1, &channel_mask);
+	ucli_param_get_int(1, &channel_mask);
 
 	rf_channels_disable((uint8_t) channel_mask);
 	printf("[disable] Disabled %d channel mask\r\n", (uint8_t) channel_mask);
@@ -520,9 +548,9 @@ static void fh_dac(void * a_data)
 	int dac_channel = 0;
 	int value = 0;
 
-	ucli_param_get_int(a_ctx, 1, &channel);
-	ucli_param_get_int(a_ctx, 2, &dac_channel);
-	ucli_param_get_int(a_ctx, 3, &value);
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &dac_channel);
+	ucli_param_get_int(3, &value);
 
 	if ((uint8_t) channel < 8) {
 		if ((uint8_t) dac_channel < 3) {
@@ -547,8 +575,8 @@ static void fh_clearcal(void * a_data)
 	int value = 0;
 	channel_t * ch;
 
-	ucli_param_get_int(a_ctx, 1, &channel);
-	ucli_param_get_int(a_ctx, 2, &value);
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &value);
 
 	if ((uint8_t) channel < 8)
 	{
@@ -575,15 +603,15 @@ static void fh_bias(void * a_data)
 	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel = 0;
 	int value = 0;
-	ucli_param_get_int(a_ctx, 1, &channel);
-	ucli_param_get_int(a_ctx, 2, &value);
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &value);
 
 	if ((uint8_t) channel < 8) {
 		if (lock_take(I2C_LOCK, portMAX_DELAY))
 		{
 			i2c_mux_select((uint8_t) channel);
-			i2c_dac_set((uint8_t) value);
-			printf("[bias] DAC value = %d\r\n", (uint8_t) value);
+			i2c_dac_set((uint16_t) value);
+			printf("[bias] DAC value = %d\r\n", (uint16_t) value);
 			lock_free(I2C_LOCK);
 		}
 	} else
@@ -597,8 +625,8 @@ static void fh_eepromr(void * a_data)
 	int channel = 0;
 	int address = 0;
 
-	ucli_param_get_int(a_ctx, 1, &channel);
-	ucli_param_get_int(a_ctx, 2, &address);
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &address);
 
 	if ((uint8_t) channel < 8)
 	{
@@ -621,9 +649,9 @@ static void fh_eepromw(void * a_data)
 	int address = 0;
 	int data = 0;
 
-	ucli_param_get_int(a_ctx, 1, &channel);
-	ucli_param_get_int(a_ctx, 2, &address);
-	ucli_param_get_int(a_ctx, 3, &data);
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &address);
+	ucli_param_get_int(3, &data);
 
 	if ((uint8_t) channel < 8)
 	{
@@ -637,6 +665,104 @@ static void fh_eepromw(void * a_data)
 		}
 	} else {
 		printf("[eepromw] Wrong channel number\r\n");
+	}
+}
+
+static void fh_ovc(void * a_data)
+{
+	int channel = 0;
+	int value = 0;
+
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &value);
+
+	if ((uint8_t) channel < 8)
+	{
+		if (lock_take(I2C_LOCK, portMAX_DELAY))
+		{
+			i2c_mux_select((uint8_t) channel);
+			ads7924_set_threshholds(0, (uint8_t) value, 0);
+			vTaskDelay(5);
+			ads7924_enable_alert();
+			vTaskDelay(5);
+
+			lock_free(I2C_LOCK);
+		}
+	} else {
+		printf("[ovc] Wrong channel number\r\n");
+	}
+}
+
+
+static void fh_i2cw(void * a_data)
+{
+	int channel = 0;
+	int address = 0;
+	int reg = 0;
+	int data = 0;
+
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &address);
+	ucli_param_get_int(3, &reg);
+	ucli_param_get_int(4, &data);
+
+	if ((uint8_t) channel < 8)
+	{
+		if (lock_take(I2C_LOCK, portMAX_DELAY))
+		{
+			i2c_mux_select((uint8_t) channel);
+			i2c_write(ADS7924_I2C, address, reg, data);
+			printf("[i2cw] write to %d reg %d data %d\r\n", address, reg, data);
+			lock_free(I2C_LOCK);
+		}
+	} else {
+		printf("[i2cw] Wrong channel number\r\n");
+	}
+}
+
+
+static void fh_i2cr(void * a_data)
+{
+	int channel = 0;
+	int address = 0;
+	int reg = 0;
+
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &address);
+	ucli_param_get_int(3, &reg);
+
+	if ((uint8_t) channel < 8)
+	{
+		if (lock_take(I2C_LOCK, portMAX_DELAY))
+		{
+			i2c_mux_select((uint8_t) channel);
+			uint8_t data = i2c_read(ADS7924_I2C, address, reg);
+			printf("[i2cw] read to %d reg %d = %d\r\n", address, reg, data);
+			lock_free(I2C_LOCK);
+		}
+	} else {
+		printf("[i2cw] Wrong channel number\r\n");
+	}
+}
+
+
+static void fh_ovclear(void * a_data)
+{
+	int channel = 0;
+
+	ucli_param_get_int(1, &channel);
+
+	if ((uint8_t) channel < 8)
+	{
+		if (lock_take(I2C_LOCK, portMAX_DELAY))
+		{
+			i2c_mux_select((uint8_t) channel);
+			ads7924_clear_alert();
+
+			lock_free(I2C_LOCK);
+		}
+	} else {
+		printf("[ovclear] Wrong channel number\r\n");
 	}
 }
 
@@ -705,20 +831,20 @@ static void fh_macconfig(void * a_data)
 		printf("[macconfig] Wrong MAC address specified\r\n");
 }
 
+void cli_init(void)
+{
+	ucli_init((void*) __io_putchar, g_cmds);
+}
 
 void vCommandConsoleTask(void *pvParameters)
 {
 	char ch;
 
-	memset(&ucli_ctx, 0x00, sizeof(ucli_ctx_t));
-	ucli_ctx.printfn = (void*) __io_putchar;
-	ucli_init(&ucli_ctx, g_cmds);
-
 	for (;;)
 	{
 		if (xQueueReceive(_xRxQueue, &ch, portMAX_DELAY))
 		{
-			ucli_process_chr(&ucli_ctx, ch);
+			ucli_process_chr(ch);
 		}
 	}
 }
@@ -738,7 +864,7 @@ static ucli_cmd_t g_cmds[] = {
 	{ "macconfig", fh_macconfig, 0x01, "Change network MAC address\r\n" },
 	{ "enable", fh_enable, 0x01, "Enable selected channel mask\r\n" },
 	{ "disable", fh_disable, 0x01, "Disable selected channel mask\r\n" },
-//	{ "bias", fh_bias, 0x02, "Set channel bias voltage DAC value\r\n" },
+	{ "bias", fh_bias, 0x02, "Set channel bias voltage DAC value\r\n" },
 	{ "int", fh_int, 0x02, "Set output interlock by raw value\r\n" },
 	{ "intv", fh_intval, 0x02, "Set output interlock by power level\r\n" },
 	{ "chanid", fh_chanid, 0x01, "Display channel hwid\r\n" },
@@ -746,6 +872,12 @@ static ucli_cmd_t g_cmds[] = {
 	{ "detected", fh_detected, 0x00, "Return detected channel bit mask\r\n" },
 	{ "enabled", fh_enabled, 0x00, "Show enabled and sigon channel masks\r\n" },
 	{ "status", fh_status, 0x01, "Display channel brief status\r\n" },
+	{ "i2c", fh_i2cd, 0x01, "Detect I2C devices on selected channel\r\n" },
+	{ "clearint", fh_clearint, -1, "Clear interlock status of selected channel\r\n" },
+	{ "ovc", fh_ovc, 0x02, "Set value of OVC protection\r\n" },
+	{ "ovclear", fh_ovclear, 0x01, "Clear OVC status\r\n" },
+	{ "i2cw", fh_i2cw, 0x04, "Write I2C on selected channel\r\n" },
+	{ "i2cr", fh_i2cr, 0x03, "Read I2C on selected channel\r\n" },
 
 	{ "calpwr", fh_calpwr, 0x03 },
 	{ "intcal", fh_intcal, 0x03 },
