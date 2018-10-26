@@ -261,14 +261,15 @@ bool rf_channel_enable_procedure(uint8_t channel)
 	vTaskDelay(5);
 	rf_channels_sigon(bitmask, false);
 	vTaskDelay(5);
-
 	rf_channels_sigon(bitmask, true);
+
+	vTaskDelay(50);
 
 	if (lock_take(I2C_LOCK, portMAX_DELAY))
 	{
 		i2c_mux_select(channel);
 		ads7924_enable_alert();
-
+		ads7924_clear_alert();
 		lock_free(I2C_LOCK);
 	}
 
@@ -379,21 +380,36 @@ void rf_channels_interlock_task(void *pvParameters)
 					}
 				}
 
+				// fully software version
+//				if (channels[i].enabled && channels[i].measure.i30 > 0.6) {
+//					err_cnt++;
+//
+//					if (err_cnt > 16)
+//					{
+//						ucli_log(UCLI_LOG_ERROR, "OVC on channel %d, current %0.2f\r\n", i, channels[i].measure.i30);
+//						rf_channel_disable_procedure(i);
+//						led_bar_and((1UL << i), 0x00, 0x00);
+//						led_bar_or(0, 0, (1UL << i));
+//						channels[i].error = 1;
+//					}
+//				}
+
 				if (channels[i].enabled && channels[i].overcurrent)
 				{
-					// avoid false alarms
-					if (channels[i].measure.i30 > 0.05) {
+					err_cnt++;
+//					ucli_log(UCLI_LOG_DEBUG, "OVC %d tripped cnt %d\r\n", i, err_cnt);
+					if (err_cnt > 16)
+					{
 						ucli_log(UCLI_LOG_ERROR, "OVC on channel %d, current %0.2f\r\n", i, channels[i].measure.i30);
 						rf_channel_disable_procedure(i);
 						led_bar_and((1UL << i), 0x00, 0x00);
 						led_bar_or(0, 0, (1UL << i));
 						channels[i].error = 1;
 					} else {
-						// false alarm generated at startup
-						if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+						if (lock_take(I2C_LOCK, portMAX_DELAY))
+						{
 							i2c_mux_select(i);
 							ads7924_clear_alert();
-
 							lock_free(I2C_LOCK);
 						}
 					}
@@ -423,7 +439,7 @@ void rf_channels_measure_task(void *pvParameters)
 					channels[i].measure.i60 = (ads7924_get_channel_voltage(1) / 50) / 0.1f;
 					channels[i].measure.in80 = (ads7924_get_channel_voltage(2) / 50) / 4.7f;
 
-					channels[i].measure.p5v0mp = ads7924_get_channel_voltage(3);
+					channels[i].measure.p5v0mp = ads7924_get_channel_voltage(3) * 2.5f;
 
 					channels[i].measure.local_temp = max6642_get_local_temp();
 					channels[i].measure.remote_temp = max6642_get_remote_temp();
@@ -948,6 +964,13 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 		rf_channel_enable_procedure(channel);
 		rf_channels_sigon((1 << channel), false); // disable sigon
 		vTaskDelay(100);
+
+		if (lock_take(I2C_LOCK, portMAX_DELAY))
+		{
+			i2c_mux_select(channel);
+			ads7924_disable_alert();
+			lock_free(I2C_LOCK);
+		}
 
 		while (dacval > 0)
 		{

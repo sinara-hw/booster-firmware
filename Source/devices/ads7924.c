@@ -109,11 +109,13 @@ void ads7924_init(void)
 	ads7924_set_mode(MODE_AUTO_SCAN);
 	i2c_write(I2C1, ADS7924_ADDRESS, 0x12, 0b11100010);
 
+	// sleep to 20ms per measurement
+//	i2c_write(I2C1, ADS7924_ADDRESS, 0x13, 0b00000011);
+
 	// set alert for i30 at 600mA
 	// 1bit = AVDD/256
 	// upper limit 600mA
 	ads7924_set_threshholds(0, 60, 0);
-	ads7924_clear_alert();
 }
 
 void ads7924_enable_alert(void)
