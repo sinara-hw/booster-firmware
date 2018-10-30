@@ -557,8 +557,8 @@ static void fh_dac(void * a_data)
 			if (lock_take(I2C_LOCK, portMAX_DELAY))
 			{
 				i2c_mux_select((uint8_t) channel);
-				i2c_dual_dac_set((uint8_t) dac_channel, value);
-				printf("[dac] dac[%d] = %d\r\n", (uint8_t) dac_channel, (uint8_t) value);
+				i2c_dual_dac_set((uint8_t) dac_channel, (uint16_t) value);
+				printf("[dac] dac[%d] = %d\r\n", (uint8_t) dac_channel, (uint16_t) value);
 
 				lock_free(I2C_LOCK);
 			}
@@ -790,7 +790,7 @@ static void fh_netconfig(void * a_data)
 	} else if (a_ctx->argc == 2) {
 		if (!strcmp(a_ctx->argv[1], "dhcp")) {
 			prvDHCPTaskRestart();
-			printf("[ipconfig] dhcp\r\n");
+			printf("[ifconfig] dhcp\r\n");
 		}
 	} else if (a_ctx->argc == 4) {
 		uint8_t check = 1;
@@ -802,9 +802,9 @@ static void fh_netconfig(void * a_data)
 		if (check)
 		{
 			set_net_conf(ipaddr, ipdst, subnet);
-			printf("[ipconfig] static %s %s %s\r\n", ipaddr, ipdst, subnet);
+			printf("[ifconfig] static %s %s %s\r\n", ipaddr, ipdst, subnet);
 		} else
-			printf("[ipconfig] error while parsing parameters\r\n");
+			printf("[ifconfig] error while parsing parameters\r\n");
 	}
 }
 
@@ -855,30 +855,30 @@ static ucli_cmd_t g_cmds[] = {
 	{ "reboot", fh_reboot, 0x00, "Reboot device\r\n" },
 	{ "version", fh_sw_version, 0x00, "Print software version information\r\n" },
 	{ "bootloader", fh_bootloader, 0x00, "Enter DFU bootloader\r\n" },
-	{ "eepromr", fh_eepromr, 0x02, "Read module EEPROM address\r\n" },
-	{ "eepromw", fh_eepromw, 0x03, "Write module EEPROM address\r\n" },
+	{ "eepromr", fh_eepromr, 0x02, "Read module EEPROM address\r\n", "eepromr usage:\r\n\teepromr <channel id> <address>\r\n\tUsed to read selected channel module EEPROM memory.\r\n\t> eepromr 5 0\r\n\t[eepromr] EEPROM reg[0] = 2\r\n" },
+	{ "eepromw", fh_eepromw, 0x03, "Write module EEPROM address\r\n", "eepromw usage:\r\n\teepromw <channel id> <address> <data>\r\n\tUsed to write to selected channel module EEPROM memory.\r\n\t> eepromw 5 0 2\r\n\t[eepromw] EEPROM reg[0] = 2\r\n" },
 	{ "task-stats", fh_taskstats, 0x00, "Display task info\r\n" },
 	{ "start", fh_start, 0x00, "Start the watch thread\r\n" },
 	{ "stop", fh_stop, 0x00, "Stop the watch thread\r\n" },
-	{ "ifconfig", fh_netconfig, -1, "Change or display network settings\r\n" },
-	{ "macconfig", fh_macconfig, 0x01, "Change network MAC address\r\n" },
-	{ "enable", fh_enable, 0x01, "Enable selected channel mask\r\n" },
-	{ "disable", fh_disable, 0x01, "Disable selected channel mask\r\n" },
-	{ "bias", fh_bias, 0x02, "Set channel bias voltage DAC value\r\n" },
-	{ "int", fh_int, 0x02, "Set output interlock by raw value\r\n" },
-	{ "intv", fh_intval, 0x02, "Set output interlock by power level\r\n" },
+	{ "ifconfig", fh_netconfig, -1, "Change or display network settings\r\n", "ifconfig usage:\r\n\tifconfig - display network configuration info\r\n\tifconfig dhcp - enable DHCP\r\n\tifconfig <ip src> <gw ip> <netmask> - set static network address\r\n" },
+	{ "macconfig", fh_macconfig, 0x01, "Change network MAC address\r\n", "macconfig usage:\r\n\tmacconfig default - restore original MAC address\r\n\tmacconfig XX:XX:XX:XX:XX:XX - sets selected MAC address\r\n" },
+	{ "enable", fh_enable, 0x01, "Enable selected channel mask\r\n", "enable usage:\r\n\tenable <channel mask> - enable specified channel with bitmask. eg 255 enables all channels = 11111111\r\n" },
+	{ "disable", fh_disable, 0x01, "Disable selected channel mask\r\n", "disable usage:\r\n\tdisable <channel mask> - disable specified channel with bitmask. eg 255 disables all channels = 11111111\r\n" },
+	{ "bias", fh_bias, 0x02, "Set channel bias voltage DAC value\r\n" , "bias usage:\r\n\tbias <channel> <value> - sets specified DAC value for selected channel in order to adjust bias current. Changes are not saved to EEPROM" },
+	{ "int", fh_int, 0x02, "Set output interlock by raw value\r\n", "int usage:\r\n\tint <channel> <value> - sets raw value to output interlock comparator\r\n" },
+	{ "intv", fh_intval, 0x02, "Set output interlock by power level\r\n", "intv usage:\r\n\tintv <channel> <power> - sets value for output interlock comparator based on output power\r\n" },
 	{ "chanid", fh_chanid, 0x01, "Display channel hwid\r\n" },
-	{ "dac", fh_dac, 0x03, "Set module DAC channel values\r\n" },
+	{ "dac", fh_dac, 0x03, "Set module DAC channel values\r\n", "dac usage:\r\n\tdac <channel> <dac_channel> <value> - sets selected channel DAC values. DAC channel range 0-1, value 0-65535\r\n" },
 	{ "detected", fh_detected, 0x00, "Return detected channel bit mask\r\n" },
 	{ "enabled", fh_enabled, 0x00, "Show enabled and sigon channel masks\r\n" },
 	{ "status", fh_status, 0x01, "Display channel brief status\r\n" },
-	{ "i2c", fh_i2cd, 0x01, "Detect I2C devices on selected channel\r\n" },
-	{ "clearint", fh_clearint, -1, "Clear interlock status of selected channel\r\n" },
-	{ "ovc", fh_ovc, 0x02, "Set value of OVC protection\r\n" },
-	{ "ovclear", fh_ovclear, 0x01, "Clear OVC status\r\n" },
-	{ "i2cw", fh_i2cw, 0x04, "Write I2C on selected channel\r\n" },
-	{ "i2cr", fh_i2cr, 0x03, "Read I2C on selected channel\r\n" },
+	{ "i2cdetect", fh_i2cd, 0x01, "Detect I2C devices on selected channel\r\n", "i2cdetect usage:\r\n\ti2cdetect <channel> - scan I2C bus for selected channel\r\n"},
+	{ "clearint", fh_clearint, -1, "Clear interlock status of selected channel\r\n", "clearcal usage:\r\n\tclearcal <channel> - clear selected channel interlock. If channel number is left blank all channel interlocks are cleared\r\n" },
+	{ "i2cw", fh_i2cw, 0x04, "Write I2C on selected channel\r\n", "i2cw usage:\r\n\ti2cw <channel> <address> <data> - write one byte to selected channel address\r\n" },
+	{ "i2cr", fh_i2cr, 0x03, "Read I2C on selected channel\r\n", "i2cr usage:\r\n\ti2cw <channel> <address> - read one byte from selected channel address\r\n" },
 
+	{ "ovc", fh_ovc, 0x02 },
+	{ "ovclear", fh_ovclear, 0x01 },
 	{ "calpwr", fh_calpwr, 0x03 },
 	{ "intcal", fh_intcal, 0x03 },
 	{ "cal", fh_cal, 0x02 },

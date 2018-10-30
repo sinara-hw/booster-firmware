@@ -113,7 +113,7 @@ void ads7924_init(void)
 //	i2c_write(I2C1, ADS7924_ADDRESS, 0x13, 0b00000011);
 
 	// set alert for i30 at 600mA
-	// 1bit = AVDD/256
+	// 1 bit = AVDD/256
 	// upper limit 600mA
 	ads7924_set_threshholds(0, 60, 0);
 }

@@ -26,8 +26,7 @@ void HardFault_Handler(void) {
   /* Very bad thing =( Print some useful info and reboot */
   printf("HardFault CFSR = %X  BFAR = %X\n", (unsigned int) SCB->CFSR,
          (unsigned int) SCB->BFAR);
-  for (;;) {
-  }
+  for (;;) {}
 }
 
 void NMI_Handler(void) {
