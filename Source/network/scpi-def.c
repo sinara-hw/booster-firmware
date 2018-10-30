@@ -143,26 +143,26 @@ static scpi_result_t INTERLOCK_Power(scpi_t * context)
 	}
 
 	if (channel < 8) {
-		ch = rf_channel_get(channel);
-		uint16_t dac_value = (uint16_t) (exp((interlock - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
-		printf("Calculated value for pwr %0.2f = %d\n", interlock, dac_value);
-		ch->cal_values.output_dac_cal_value = dac_value;
+		if (interlock >= 0 && interlock <= 38.0) {
+			ch = rf_channel_get(channel);
+			uint16_t dac_value = (uint16_t) (exp((interlock - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
+			printf("Calculated value for pwr %0.2f = %d\n", interlock, dac_value);
+			ch->cal_values.output_dac_cal_value = dac_value;
 
-		if (lock_take(I2C_LOCK, portMAX_DELAY))
-		{
-			eeprom_write16(DAC2_EEPROM_ADDRESS, dac_value);
-			if (ch->enabled) {
-				i2c_mux_select(channel);
-				i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
+			if (lock_take(I2C_LOCK, portMAX_DELAY))
+			{
+				eeprom_write16(DAC2_EEPROM_ADDRESS, dac_value);
+				if (ch->enabled) {
+					i2c_mux_select(channel);
+					i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
+				}
+				lock_free(I2C_LOCK);
 			}
-			lock_free(I2C_LOCK);
+			return SCPI_RES_OK;
 		}
-		return SCPI_RES_OK;
-	} else {
-		return SCPI_RES_ERR;
 	}
 
-	return SCPI_RES_OK;
+	return SCPI_RES_ERR;
 }
 
 static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
@@ -181,7 +181,6 @@ static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 	if (channel < 8) {
 		ch = rf_channel_get(channel);
 		SCPI_ResultDouble(context, 0.0);
-
 		return SCPI_RES_OK;
 
 	} else {
@@ -428,7 +427,7 @@ static scpi_result_t Interlock_StatusQ(scpi_t * context)
 	if (channel == ch_mask) {
 		for (int i = 0; i < 8; i++) {
 			ch = rf_channel_get(i);
-			if (ch->input_interlock || ch->output_interlock || ch->soft_interlock) {
+			if (ch->input_interlock || ch->output_interlock) {
 				mask |= 1UL << i;
 			}
 		}
@@ -494,6 +493,48 @@ static scpi_result_t Interlock_OverloadQ(scpi_t * context)
 	return SCPI_RES_OK;
 }
 
+static scpi_result_t Interlock_ErrorQ(scpi_t * context)
+{
+	uint32_t channel;
+	uint8_t ch_mask = rf_channels_get_mask();
+	channel_t * ch;
+	uint8_t mask = 0;
+
+	if (!SCPI_ParamUInt32(context, &channel, false)) {
+		channel = ch_mask;
+	}
+
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
+	if (channel == ch_mask) {
+		for (int i = 0; i < 8; i++) {
+			ch = rf_channel_get(i);
+			if (ch->error) {
+				mask |= 1UL << i;
+			}
+		}
+		SCPI_ResultUInt8(context, mask);
+		return SCPI_RES_OK;
+	}
+
+	if (channel < 8) {
+		ch = rf_channel_get(channel);
+		if (ch->error) {
+			SCPI_ResultBool(context, true);
+			return SCPI_RES_OK;
+		} else {
+			SCPI_ResultBool(context, false);
+			return SCPI_RES_OK;
+		}
+	} else {
+		return SCPI_RES_ERR;
+	}
+
+	return SCPI_RES_OK;
+}
+
 const scpi_command_t scpi_commands[] = {
     /* IEEE Mandated Commands (SCPI std V1999.0 4.1.1) */
     { .pattern = "*CLS", .callback = SCPI_CoreCls,},
@@ -544,6 +585,7 @@ const scpi_command_t scpi_commands[] = {
 	{.pattern = "INTerlock:CLEar", .callback = Interlock_Clear,},
 	{.pattern = "INTerlock:STATus?", .callback = Interlock_StatusQ,},
 	{.pattern = "INTerlock:OVERload?", .callback = Interlock_OverloadQ,},
+	{.pattern = "INTerlock:ERRor?", .callback = Interlock_ErrorQ,},
 	{.pattern = "INTerlock:POWer?", .callback = INTERLOCK_PowerQ,},
 
     SCPI_CMD_LIST_END

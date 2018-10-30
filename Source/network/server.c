@@ -130,10 +130,13 @@ void prvUDPServerTask(void *pvParameters)
 								setSn_IR(sn, Sn_IR_CON);
 							}
 
+							GPIO_SetBits(BOARD_LED1);
 							len = getSn_RX_RSR(0);
 							if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
+
 							recv(sn, rx_buffer, len);
 							rx_buffer[len] = '\0';
+							GPIO_ResetBits(BOARD_LED1);
 
 							if (scpi_context.user_context != NULL) {
 								user_data_t * u = (user_data_t *) (scpi_context.user_context);

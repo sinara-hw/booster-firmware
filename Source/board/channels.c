@@ -341,7 +341,7 @@ void rf_channels_interlock_task(void *pvParameters)
 
 	for (;;)
 	{
-		GPIO_ToggleBits(BOARD_LED1);
+//		GPIO_ToggleBits(BOARD_LED1);
 
 		channel_enabled = rf_channels_read_enabled();
 		channel_ovl = rf_channels_read_ovl();
@@ -350,9 +350,7 @@ void rf_channels_interlock_task(void *pvParameters)
 		channel_user = rf_channels_read_user();
 
 		for (int i = 0; i < 8; i++) {
-
 			if ((1 << i) & channel_mask) {
-
 				channels[i].overcurrent = (channel_alert >> i) & 0x01;
 				channels[i].enabled = (channel_enabled >> i) & 0x01;
 				channels[i].sigon = (channel_sigon >> i) & 0x01;

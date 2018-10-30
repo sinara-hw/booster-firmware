@@ -11,7 +11,7 @@
 
 #define SPI_TIMEOUT 2000
 
-#define DATA_SIZE 	4096
+#define DATA_SIZE 	128
 DMA_InitTypeDef 	DMA_InitStructure;
 uint8_t 			pTmpBuf1[DATA_SIZE + 3];
 uint8_t 			pTmpBuf2[DATA_SIZE + 3];
@@ -71,7 +71,7 @@ void spi_init(void)
 	SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
 	SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
 	SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_32;
+	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_8;
 	SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
 	SPI_InitStructure.SPI_CRCPolynomial = 7;
 
