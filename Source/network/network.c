@@ -387,3 +387,42 @@ void prvDHCPTask(void *pvParameters)
 		}
 	}
 }
+
+uint8_t prvCheckValidIPAddress(char * ipstr, uint8_t * result)
+{
+	uint8_t lParameterCount = 0;
+	char * ch;
+	uint8_t num;
+
+	ch = strtok((char*)ipstr, ".");
+	while (ch != NULL) {
+		num = atoi(ch);
+		if (num >= 0 && num <= 255 && lParameterCount < 4) {
+			result[lParameterCount++] = num;
+			printf("IP [%d] = %d\n", lParameterCount, num);
+		}
+		ch = strtok(NULL, ".");
+	}
+
+	return lParameterCount;
+}
+
+
+uint8_t prvCheckValidMACAddress(char * ipstr, uint8_t * result)
+{
+	uint8_t lParameterCount = 0;
+	char * ch;
+	uint8_t num;
+
+	ch = strtok((char*)ipstr, ":");
+	while (ch != NULL) {
+		num = strtol(ch, NULL, 16);
+		if (num >= 0 && num <= 255 && lParameterCount < 6) {
+			result[lParameterCount++] = num;
+			printf("MAC [%d] = %d\n", lParameterCount, num);
+		}
+		ch = strtok(NULL, ":");
+	}
+
+	return lParameterCount;
+}

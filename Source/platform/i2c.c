@@ -10,7 +10,7 @@
 #include "stm32f4xx_i2c.h"
 #include "i2c.h"
 
-#define I2C_DEBUG
+//#define I2C_DEBUG
 
 void i2c_init(void)
 {
