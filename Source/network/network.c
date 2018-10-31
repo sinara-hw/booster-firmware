@@ -40,12 +40,12 @@ uint8_t dhcp_buf[1024] = { 0 };
 
 void wizchip_select(void)
 {
-	GPIO_ResetBits(GPIOA, GPIO_Pin_4);
+//	GPIO_ResetBits(GPIOA, GPIO_Pin_4);
 }
 
 void wizchip_deselect(void)
 {
-	GPIO_SetBits(GPIOA, GPIO_Pin_4);
+//	GPIO_SetBits(GPIOA, GPIO_Pin_4);
 }
 
 void wizchip_write(uint8_t wb)

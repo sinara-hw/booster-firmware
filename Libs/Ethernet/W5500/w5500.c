@@ -60,7 +60,7 @@
 #define _W5500_SPI_FDM_OP_LEN2_     0x02
 #define _W5500_SPI_FDM_OP_LEN4_     0x03
 
-//#define SPI_USE_DMA
+#define SPI_USE_DMA
 
 #if   (_WIZCHIP_ == 5500)
 ////////////////////////////////////////////////////
