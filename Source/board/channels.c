@@ -282,7 +282,8 @@ void rf_channels_enable(uint8_t mask)
 	{
 		if ((1 << i) & mask) {
 			if (rf_channel_enable_procedure(i)) {
-				led_bar_or(1UL << i, 0, 0);
+				// dont light up led when interlock trips during poweron
+				if (channels[i].sigon) led_bar_or(1UL << i, 0, 0);
 			}
 		}
 	}
@@ -331,6 +332,8 @@ void rf_channels_interlock_task(void *pvParameters)
 	uint8_t channel_user = 0;
 	uint8_t channel_sigon = 0;
 	uint8_t err_cnt = 0;
+	uint8_t err_cnt2 = 0;
+	uint8_t pwr_diff = 0;
 
 	rf_channels_init();
 	rf_channels_detect();
@@ -384,6 +387,27 @@ void rf_channels_interlock_task(void *pvParameters)
 						channels[i].error = 1;
 						ucli_log(UCLI_LOG_ERROR, "Temperature error on channel %d temp = %0.2f, disabling\r\n", i, channels[i].measure.remote_temp);
 						err_cnt = 0;
+					}
+				}
+
+				if (channels[i].sigon && channels[i].enabled) {
+					pwr_diff = abs(channels[i].measure.adc_raw_ch1 - channels[i].measure.adc_raw_ch2);
+					if (pwr_diff < 20 || channels[i].soft_interlock)
+					{
+						ucli_log(UCLI_LOG_ERROR, "Reverse power interlock tripped on channel %d, tx %0.2f rfl %0.2f\r\n", i, channels[i].measure.adc_ch1, channels[i].measure.adc_ch1);
+
+						rf_channels_sigon(1 << i, false);
+						if (lock_take(I2C_LOCK, portMAX_DELAY))
+						{
+							i2c_mux_select(i);
+							i2c_dac_set(0);
+							lock_free(I2C_LOCK);
+						}
+
+						led_bar_and((1UL << i), 0x00, 0x00);
+						led_bar_or(0x00, (1UL << i), 0x00);
+
+						channels[i].soft_interlock = true;
 					}
 				}
 
@@ -491,6 +515,7 @@ bool rf_channel_clear_interlock(uint8_t channel)
 		if (ch->detected) {
 			ch->input_interlock = false;
 			ch->output_interlock = false;
+			ch->soft_interlock = false;
 
 			vTaskDelay(10);
 
