@@ -53,7 +53,6 @@ static void fh_enabled(void * a_data)
 
 static void fh_status(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel = 0;
 	channel_t * ch;
 
@@ -137,7 +136,6 @@ static uint16_t cal_rfl_pwr2 = 0;
 
 static void fh_calpwr(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel = 0;
 	int pwr_type = 0;
 	int pwr_cal = 0;
@@ -178,7 +176,7 @@ static void fh_calpwr(void * a_data)
 //			printf("[calwpr] Calculating points for %d -> %d\n", cal_in_pwr1, cal_in_pwr2);
 			uint16_t a = ((cal_in_val1 - cal_in_val2) / (cal_in_pwr1 - cal_in_pwr2));
 			uint16_t b = (cal_in_val1 - ((cal_in_val1 - cal_in_val2) / (cal_in_pwr1 - cal_in_pwr2)) * cal_in_pwr1);
-			printf("[calpwr] done, a=%0.2f b=%0.2f\n", a, b);
+			printf("[calpwr] done, a=%d b=%d\n", a, b);
 
 			ch = rf_channel_get(channel);
 			// save values to eeprom
@@ -205,7 +203,7 @@ static void fh_calpwr(void * a_data)
 //			printf("[calwpr] Calculating points for %d -> %d\n", cal_rfl_pwr1, cal_rfl_pwr2);
 			int16_t a = ((cal_rfl_val1 - cal_rfl_val2) / (cal_rfl_pwr1 - cal_rfl_pwr2));
 			int16_t b = (cal_rfl_val1 - ((cal_rfl_val1 - cal_rfl_val2) / (cal_rfl_pwr1 - cal_rfl_pwr2)) * cal_rfl_pwr1);
-			printf("[calpwr] done, a=%0.2f b=%0.2f\n", a, b);
+			printf("[calpwr] done, a=%d b=%d\n", a, b);
 
 			ch = rf_channel_get(channel);
 			// save values to eeprom
@@ -240,7 +238,6 @@ static uint16_t int_cal_pwr_e = 0;
 
 static void fh_intcal(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel = 0;
 	int pwr_type = 0;
 	int pwr_cal = 0;
@@ -333,7 +330,6 @@ static void fh_intcal(void * a_data)
 
 static void fh_cal(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel = 0;
 	int type = 0;
 	channel_t * ch;
@@ -422,10 +418,8 @@ static void fh_cal(void * a_data)
 
 static void fh_biascal(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel = 0;
 	int value = 0;
-	channel_t * ch;
 
 	ucli_param_get_int(1, &channel);
 	ucli_param_get_int(2, &value);
@@ -443,7 +437,6 @@ static void fh_biascal(void * a_data)
 
 static void fh_chanid(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel = 0;
 	int value = 0;
 	channel_t * ch;
@@ -463,7 +456,6 @@ static void fh_chanid(void * a_data)
 
 static void fh_int(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel = 0;
 	int value = 0;
 	channel_t * ch;
@@ -491,7 +483,6 @@ static void fh_int(void * a_data)
 
 static void fh_intval(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel = 0;
 	float value = 0;
 	channel_t * ch;
@@ -521,7 +512,6 @@ static void fh_intval(void * a_data)
 
 static void fh_enable(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel_mask = 0;
 	ucli_param_get_int(1, &channel_mask);
 
@@ -532,7 +522,6 @@ static void fh_enable(void * a_data)
 
 static void fh_disable(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel_mask = 0;
 	ucli_param_get_int(1, &channel_mask);
 
@@ -543,7 +532,6 @@ static void fh_disable(void * a_data)
 
 static void fh_dac(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel = 0;
 	int dac_channel = 0;
 	int value = 0;
@@ -570,7 +558,6 @@ static void fh_dac(void * a_data)
 
 static void fh_clearcal(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel = 0;
 	int value = 0;
 	channel_t * ch;
@@ -600,7 +587,6 @@ static void fh_clearcal(void * a_data)
 
 static void fh_bias(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel = 0;
 	int value = 0;
 	ucli_param_get_int(1, &channel);
@@ -621,7 +607,6 @@ static void fh_bias(void * a_data)
 
 static void fh_eepromr(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel = 0;
 	int address = 0;
 
@@ -644,7 +629,6 @@ static void fh_eepromr(void * a_data)
 
 static void fh_eepromw(void * a_data)
 {
-	ucli_ctx_t * a_ctx = (ucli_ctx_t *) a_data;
 	int channel = 0;
 	int address = 0;
 	int data = 0;
@@ -831,6 +815,11 @@ static void fh_macconfig(void * a_data)
 		printf("[macconfig] Wrong MAC address specified\r\n");
 }
 
+static void fh_wdtest(void * a_data)
+{
+	for (;;);
+}
+
 void cli_init(void)
 {
 	ucli_init((void*) __io_putchar, g_cmds);
@@ -877,6 +866,8 @@ static ucli_cmd_t g_cmds[] = {
 	{ "i2cw", fh_i2cw, 0x04, "Write I2C on selected channel\r\n", "i2cw usage:\r\n\ti2cw <channel> <address> <data> - write one byte to selected channel address\r\n" },
 	{ "i2cr", fh_i2cr, 0x03, "Read I2C on selected channel\r\n", "i2cr usage:\r\n\ti2cw <channel> <address> - read one byte from selected channel address\r\n" },
 
+	// "hidden" commands not for end-user
+	{ "wdtest", fh_wdtest, 0x00 },
 	{ "ovc", fh_ovc, 0x02 },
 	{ "ovclear", fh_ovclear, 0x01 },
 	{ "calpwr", fh_calpwr, 0x03 },

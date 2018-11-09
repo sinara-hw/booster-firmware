@@ -43,8 +43,8 @@
 static void watchdog_init(void)
 {
 	IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);
-	IWDG_SetPrescaler(IWDG_Prescaler_4);
-	IWDG_SetReload(0xFFFF);
+	IWDG_SetPrescaler(IWDG_Prescaler_32); // 1024 Hz clock
+	IWDG_SetReload(0x7ff); // 2 second reset timeout
 	IWDG_ReloadCounter();
 	IWDG_Enable();
 }
@@ -60,7 +60,7 @@ static void prvSetupHardware(void)
 	spi_init();
 	ext_init();
 	lock_init();
-//	watchdog_init();
+	watchdog_init();
 
 	max6639_init();
 	led_bar_init();
@@ -71,6 +71,7 @@ static void prvSetupHardware(void)
 
 	if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) != RESET) {
 		// watchdog reset occurred
+		ucli_log(UCLI_LOG_WARN, "watchdog reset occurred!\r\n");
 		RCC_ClearFlag();
 	}
 

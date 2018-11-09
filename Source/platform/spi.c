@@ -22,7 +22,6 @@ void spi_init(void)
 {
 	GPIO_InitTypeDef GPIO_InitStructure;
 	SPI_InitTypeDef SPI_InitStructure;
-//	NVIC_InitTypeDef NVIC_InitStructure;
 
 	// Clocks init
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);

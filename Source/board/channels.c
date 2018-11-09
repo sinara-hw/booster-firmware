@@ -25,7 +25,7 @@ TaskHandle_t task_rf_measure;
 TaskHandle_t task_rf_info;
 TaskHandle_t task_rf_interlock;
 
-#define SW_EEPROM_VERSION		2
+#define SW_EEPROM_VERSION			2
 
 void rf_channels_init(void)
 {
@@ -823,7 +823,6 @@ void rf_channels_info_task(void *pvParameters)
 
 		printf("==============================================================================\n");
 
-//		GPIO_ToggleBits(BOARD_LED3);
 		vTaskDelay(1000);
 	}
 }
