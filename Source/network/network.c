@@ -40,12 +40,12 @@ uint8_t dhcp_buf[1024] = { 0 };
 
 void wizchip_select(void)
 {
-//	GPIO_ResetBits(GPIOA, GPIO_Pin_4);
+	GPIO_ResetBits(GPIOA, GPIO_Pin_4);
 }
 
 void wizchip_deselect(void)
 {
-//	GPIO_SetBits(GPIOA, GPIO_Pin_4);
+	GPIO_SetBits(GPIOA, GPIO_Pin_4);
 }
 
 void wizchip_write(uint8_t wb)
@@ -67,25 +67,36 @@ void load_network_values(wiz_NetInfo *glWIZNETINFO)
 	uint8_t ipsel = 0;
 	uint8_t macsel = 0;
 
-	ipsel = eeprom_read_mb(IP_METHOD);
-	macsel = eeprom_read_mb(MAC_ADDRESS_SELECT);
-	for (int i = 0; i < 4; i++) ipaddr[i] = eeprom_read_mb(IP_ADDRESS + i);
-	for (int i = 0; i < 4; i++) ipaddrgw[i] = eeprom_read_mb(IP_ADDRESS_GW + i);
-	for (int i = 0; i < 4; i++) ipaddrsn[i] = eeprom_read_mb(IP_ADDRESS_NETMASK + i);
-	for (int i = 0; i < 6; i++) macaddr[i] = eeprom_read_mb(MAC_ADDRESS + i);
+	if (i2c_device_connected(I2C2, EEPROM_ADDR))
+	{
+		ipsel = eeprom_read_mb(IP_METHOD);
+		macsel = eeprom_read_mb(MAC_ADDRESS_SELECT);
+		for (int i = 0; i < 4; i++) ipaddr[i] = eeprom_read_mb(IP_ADDRESS + i);
+		for (int i = 0; i < 4; i++) ipaddrgw[i] = eeprom_read_mb(IP_ADDRESS_GW + i);
+		for (int i = 0; i < 4; i++) ipaddrsn[i] = eeprom_read_mb(IP_ADDRESS_NETMASK + i);
+		for (int i = 0; i < 6; i++) macaddr[i] = eeprom_read_mb(MAC_ADDRESS + i);
 
-	if (ipsel == NETINFO_STATIC) {
-		memcpy(glWIZNETINFO->ip, ipaddr, 4);
-		memcpy(glWIZNETINFO->gw, ipaddrgw, 4);
-		memcpy(glWIZNETINFO->sn, ipaddrsn, 4);
-		glWIZNETINFO->dhcp = NETINFO_STATIC;
+		if (ipsel == NETINFO_STATIC) {
+			memcpy(glWIZNETINFO->ip, ipaddr, 4);
+			memcpy(glWIZNETINFO->gw, ipaddrgw, 4);
+			memcpy(glWIZNETINFO->sn, ipaddrsn, 4);
+			glWIZNETINFO->dhcp = NETINFO_STATIC;
+		} else {
+			glWIZNETINFO->dhcp = NETINFO_DHCP;
+		}
+
+		if (macsel == 1) {
+			memcpy(glWIZNETINFO->mac, macaddr, 6);
+		} else {
+			glWIZNETINFO->mac[0] = STM_GetUniqueID(6);
+			glWIZNETINFO->mac[1] = STM_GetUniqueID(7);
+			glWIZNETINFO->mac[2] = STM_GetUniqueID(8);
+			glWIZNETINFO->mac[3] = STM_GetUniqueID(9);
+			glWIZNETINFO->mac[4] = STM_GetUniqueID(10);
+			glWIZNETINFO->mac[5] = STM_GetUniqueID(11);
+		}
 	} else {
 		glWIZNETINFO->dhcp = NETINFO_DHCP;
-	}
-
-	if (macsel == 1) {
-		memcpy(glWIZNETINFO->mac, macaddr, 6);
-	} else {
 		glWIZNETINFO->mac[0] = STM_GetUniqueID(6);
 		glWIZNETINFO->mac[1] = STM_GetUniqueID(7);
 		glWIZNETINFO->mac[2] = STM_GetUniqueID(8);
@@ -104,7 +115,7 @@ void net_init(void)
 	reg_wizchip_spi_cbfunc(wizchip_read, wizchip_write);
 
 	/* WIZCHIP SOCKET Buffer initialize */
-	if(ctlwizchip(CW_INIT_WIZCHIP,(void*)memsize) == -1)
+	if(ctlwizchip(CW_INIT_WIZCHIP,(void*) memsize) == -1)
 	{
 		printf("[dbg] WIZCHIP Init fail.\r\n");
 		while(1);
@@ -319,6 +330,8 @@ void ldhcp_ip_assign(void)
 	net_conf(&glWIZNETINFO);
 	display_net_conf();
 	printf("[log] DHCP lease time: %ld s\n", getDHCPLeasetime());
+
+	GPIO_SetBits(BOARD_LED1);
 
 	prvRestartServerTask();
 }

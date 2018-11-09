@@ -9,6 +9,7 @@
 #include "socket.h"
 #include "server.h"
 #include "locks.h"
+#include "ucli.h"
 
 #include "scpi/scpi.h"
 extern scpi_t scpi_context;
@@ -78,7 +79,7 @@ static void prvSetupUDPServer(void)
 
 //	if(getSn_SR(0) == SOCK_UDP)
 //	{
-	printf("[log] TCP Server initialization complete\n");
+	ucli_log(UCLI_LOG_INFO, "TCP Server initialization complete\n");
 //	}
 }
 
@@ -96,18 +97,18 @@ void prvUDPServerTask(void *pvParameters)
 	uint8_t tmp = 0;
 	do
 	{
-		if(ctlwizchip(CW_GET_PHYLINK, (void*)&tmp) == -1)
-			printf("[dbg] Unknown PHY Link status.\r\n");
+		if(ctlwizchip(CW_GET_PHYLINK, (void*) &tmp) == -1)
+			ucli_log(UCLI_LOG_INFO, "[dbg] Unknown PHY Link status.\r\n");
 		vTaskDelay(configTICK_RATE_HZ / 10);
 	} while (tmp == PHY_LINK_OFF);
 
-	printf("[log] network init done, starting server..\n");
+	ucli_log(UCLI_LOG_INFO, "network init done, starting server..\n");
 	udp_int_init();
 	prvSetupUDPServer();
 
 	uint16_t imr = IK_SOCK_0;
 	if (ctlwizchip(CW_SET_INTRMASK, &imr) == -1) {
-		printf("[dbg] cannot set imr");
+		ucli_log(UCLI_LOG_INFO, "[dbg] cannot set imr");
 	}
 
 	listen(0);

@@ -236,6 +236,7 @@ static scpi_result_t CHANNEL_Current(scpi_t * context)
 				data[i] = 0;
 			}
 		}
+
 		SCPI_ResultArrayDouble(context, data, 8, SCPI_FORMAT_ASCII);
 		return SCPI_RES_OK;
 	}

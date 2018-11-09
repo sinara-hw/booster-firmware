@@ -9,9 +9,11 @@
 #include "stm32f4xx_gpio.h"
 #include "stm32f4xx_spi.h"
 
+#include "ucli.h"
+
 #define SPI_TIMEOUT 2000
 
-#define DATA_SIZE 	128
+#define DATA_SIZE 	640
 DMA_InitTypeDef 	DMA_InitStructure;
 uint8_t 			pTmpBuf1[DATA_SIZE + 3];
 uint8_t 			pTmpBuf2[DATA_SIZE + 3];
@@ -71,7 +73,7 @@ void spi_init(void)
 	SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
 	SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
 	SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_64;
+	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2;
 	SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
 	SPI_InitStructure.SPI_CRCPolynomial = 7;
 
@@ -118,6 +120,8 @@ void spi_dma_read(uint8_t* Addref, uint8_t* pRxBuf, uint16_t rx_len)
 	pTmpBuf1[1] = Addref[1];
 	pTmpBuf1[2] = Addref[2];
 
+	while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_BSY) == SET);
+
 	DMA_InitStructure.DMA_BufferSize = (uint16_t)(rx_len + 3);
 	DMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Enable;
 	DMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
@@ -145,23 +149,35 @@ void spi_dma_read(uint8_t* Addref, uint8_t* pRxBuf, uint16_t rx_len)
 	DMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t) pTmpBuf2;
 	DMA_Init(DMA2_Stream2, &DMA_InitStructure);
 
+	/* Enable the DMA SPI TX Stream */
+	DMA_Cmd(DMA2_Stream3, ENABLE);
+	/* Enable the DMA SPI RX Stream */
+	DMA_Cmd(DMA2_Stream2, ENABLE);
+
+	GPIO_ResetBits(BOARD_WIZNET_CS);
+
 	/* Enable the SPI Rx DMA request */
 	SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Rx, ENABLE);
 	SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Tx, ENABLE);
 
-	GPIO_ResetBits(BOARD_WIZNET_CS);
-
-	/* Enable the DMA SPI TX Stream */
-	DMA_Cmd(DMA2_Stream3, ENABLE);
-
-	/* Enable the DMA SPI RX Stream */
-	DMA_Cmd(DMA2_Stream2, ENABLE);
-
 	/* Waiting the end of Data transfer */
-	while (DMA_GetFlagStatus(DMA2_Stream3, DMA_FLAG_TCIF3) == RESET);
-	while (DMA_GetFlagStatus(DMA2_Stream2, DMA_FLAG_TCIF2) == RESET);
-//	xSemaphoreTake( xDMATxComplete, tcpLONG_DELAY );
-//	xSemaphoreTake( xDMARxComplete, tcpLONG_DELAY );
+	uint16_t timeout = 0xFFFF;
+	while (DMA_GetFlagStatus(DMA2_Stream3, DMA_FLAG_TCIF3) == RESET)
+	{
+		if (!timeout--) {
+			ucli_log(UCLI_LOG_INFO, "spi read timeout 2\r\n");
+			break;
+		}
+	}
+
+	timeout = 0xFFFF;
+	while (DMA_GetFlagStatus(DMA2_Stream2, DMA_FLAG_TCIF2) == RESET)
+	{
+		if (!timeout--) {
+			ucli_log(UCLI_LOG_ERROR, "spi read timeout 2\r\n");
+			break;
+		}
+	}
 
 	GPIO_SetBits(BOARD_WIZNET_CS);
 
@@ -187,6 +203,8 @@ void spi_dma_write(uint8_t* Addref, uint8_t* pTxBuf, uint16_t tx_len)
 
 	for (int i = 0; i < tx_len; i++)
 		pTmpBuf1[3 + i] = pTxBuf[i];
+
+	while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_BSY) == SET);
 
 	DMA_InitStructure.DMA_BufferSize = (uint16_t)(tx_len + 3);
 	DMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Disable;
@@ -226,10 +244,23 @@ void spi_dma_write(uint8_t* Addref, uint8_t* pTxBuf, uint16_t tx_len)
 	SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Tx, ENABLE);
 
 	/* Waiting the end of Data transfer */
-	while (DMA_GetFlagStatus(DMA2_Stream3, DMA_FLAG_TCIF3) == RESET);
-	while (DMA_GetFlagStatus(DMA2_Stream2, DMA_FLAG_TCIF2) == RESET);
-//	xSemaphoreTake( xDMATxComplete, tcpLONG_DELAY );
-//	xSemaphoreTake( xDMARxComplete, tcpLONG_DELAY );
+	uint16_t timeout = 0xFFFF;
+	while (DMA_GetFlagStatus(DMA2_Stream3, DMA_FLAG_TCIF3) == RESET)
+	{
+		if (!timeout--) {
+			ucli_log(UCLI_LOG_ERROR, "spi write timeout\r\n");
+			break;
+		}
+	}
+
+	timeout = 0xFFFF;
+	while (DMA_GetFlagStatus(DMA2_Stream2, DMA_FLAG_TCIF2) == RESET)
+	{
+		if (!timeout--) {
+			ucli_log(UCLI_LOG_ERROR, "spi write timeout 2\r\n");
+			break;
+		}
+	}
 
 	GPIO_SetBits(BOARD_WIZNET_CS);
 
@@ -242,4 +273,3 @@ void spi_dma_write(uint8_t* Addref, uint8_t* pTxBuf, uint16_t tx_len)
 	SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Rx, DISABLE);
 	SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Tx, DISABLE);
 }
-
