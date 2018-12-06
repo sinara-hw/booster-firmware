@@ -22,7 +22,6 @@ extern xQueueHandle _xRxQueue;
 extern int __io_putchar(int ch);
 static ucli_cmd_t g_cmds[];
 
-
 static void fh_reboot(void * a_data)
 {
 	NVIC_SystemReset();
@@ -91,9 +90,9 @@ static void fh_clearint(void * a_data)
 
 static void fh_devid(void * a_data)
 {
-	uint32_t b1 = (*(uint32_t *) (0x1FFF7A10));
-	uint32_t b2 = (*(uint32_t *) (0x1FFF7A10 + 4));
-	uint32_t b3 = (*(uint32_t *) (0x1FFF7A10 + 8));
+	unsigned int b1 = (*(uint32_t *) (0x1FFF7A10));
+	unsigned int b2 = (*(uint32_t *) (0x1FFF7A10 + 4));
+	unsigned int b3 = (*(uint32_t *) (0x1FFF7A10 + 8));
 	printf("[devid] %08X%08X%08X\r\n", b1, b2, b3);
 }
 
@@ -817,6 +816,7 @@ static void fh_macconfig(void * a_data)
 
 static void fh_wdtest(void * a_data)
 {
+	printf("Waiting for watchdog reset\r\n");
 	for (;;);
 }
 

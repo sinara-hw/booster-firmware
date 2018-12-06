@@ -164,7 +164,7 @@ void spi_dma_read(uint8_t* Addref, uint8_t* pRxBuf, uint16_t rx_len)
 	while (DMA_GetFlagStatus(DMA2_Stream3, DMA_FLAG_TCIF3) == RESET)
 	{
 		if (!timeout--) {
-			ucli_log(UCLI_LOG_INFO, "spi read timeout 2\r\n");
+			ucli_log(UCLI_LOG_ERROR, "spi read timeout 2\r\n");
 			break;
 		}
 	}

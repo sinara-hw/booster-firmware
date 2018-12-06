@@ -16,6 +16,7 @@
 #include "tasks.h"
 #include "locks.h"
 #include "eeprom.h"
+#include "ucli.h"
 
 wiz_NetInfo gWIZNETINFO_default = { .mac = {0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef},
 									.ip = {192, 168, 1, 10},
@@ -69,6 +70,8 @@ void load_network_values(wiz_NetInfo *glWIZNETINFO)
 
 	if (i2c_device_connected(I2C2, EEPROM_ADDR))
 	{
+		ucli_log(UCLI_LOG_INFO, "Found mainboard EEPROM, loading values\r\n");
+
 		ipsel = eeprom_read_mb(IP_METHOD);
 		macsel = eeprom_read_mb(MAC_ADDRESS_SELECT);
 		for (int i = 0; i < 4; i++) ipaddr[i] = eeprom_read_mb(IP_ADDRESS + i);
@@ -117,7 +120,7 @@ void net_init(void)
 	/* WIZCHIP SOCKET Buffer initialize */
 	if(ctlwizchip(CW_INIT_WIZCHIP,(void*) memsize) == -1)
 	{
-		printf("[dbg] WIZCHIP Init fail.\r\n");
+		ucli_log(UCLI_LOG_ERROR, "WIZCHIP Init fail.\r\n");
 		while(1);
 	}
 
@@ -134,7 +137,7 @@ void net_init(void)
 	do
 	{
 		if(ctlwizchip(CW_GET_PHYLINK, (void*)&tmp) == -1)
-			printf("[dbg] Unknown PHY Link status.\r\n");
+			ucli_log(UCLI_LOG_ERROR, "Unknown PHY Link status.\r\n");
 		vTaskDelay(configTICK_RATE_HZ / 10);
 	} while (tmp == PHY_LINK_OFF);
 }
@@ -326,19 +329,19 @@ void ldhcp_ip_assign(void)
 	getDNSfromDHCP(glWIZNETINFO.dns);
 	glWIZNETINFO.dhcp = NETINFO_DHCP;
 
+	ucli_log(UCLI_LOG_INFO, "DHCP IP acquired: %d.%d.%d.%d\r\n", glWIZNETINFO.ip[0], glWIZNETINFO.ip[1], glWIZNETINFO.ip[2], glWIZNETINFO.ip[3]);
+
 	/* Network initialization */
 	net_conf(&glWIZNETINFO);
 	display_net_conf();
-	printf("[log] DHCP lease time: %ld s\n", getDHCPLeasetime());
-
-	GPIO_SetBits(BOARD_LED1);
+	ucli_log(UCLI_LOG_INFO, "DHCP lease time: %ld s\n", getDHCPLeasetime());
 
 	prvRestartServerTask();
 }
 
 void ldhcp_ip_conflict(void)
 {
-	printf("[log] DHCP IP Conflict\n");
+	ucli_log(UCLI_LOG_ERROR, "DHCP IP Conflict\r\n");
 
 	// restart DHCP
 	net_init();
@@ -383,10 +386,10 @@ void prvDHCPTask(void *pvParameters)
 				case DHCP_FAILED:
 					if (++ldhcp_retry_count > DHCP_MAX_RETRIES)
 					{
-						printf("[log] DHCP failed after %d retries\n", ldhcp_retry_count);
+						ucli_log(UCLI_LOG_ERROR, "DHCP failed after %d retries\r\n", ldhcp_retry_count);
 						net_conf(&gWIZNETINFO_default);
 						ldhcp_retry_count = 0;
-						printf("[log] Loaded static IP settings\n");
+						ucli_log(UCLI_LOG_INFO, "Loaded static IP settings\r\n");
 						display_net_conf();
 						prvDHCPTaskStop();
 					}
@@ -412,7 +415,7 @@ uint8_t prvCheckValidIPAddress(char * ipstr, uint8_t * result)
 		num = atoi(ch);
 		if (num >= 0 && num <= 255 && lParameterCount < 4) {
 			result[lParameterCount++] = num;
-			printf("IP [%d] = %d\n", lParameterCount, num);
+//			printf("IP [%d] = %d\n", lParameterCount, num);
 		}
 		ch = strtok(NULL, ".");
 	}
@@ -432,7 +435,7 @@ uint8_t prvCheckValidMACAddress(char * ipstr, uint8_t * result)
 		num = strtol(ch, NULL, 16);
 		if (num >= 0 && num <= 255 && lParameterCount < 6) {
 			result[lParameterCount++] = num;
-			printf("MAC [%d] = %d\n", lParameterCount, num);
+//			printf("MAC [%d] = %d\n", lParameterCount, num);
 		}
 		ch = strtok(NULL, ":");
 	}

@@ -73,14 +73,17 @@ static void prvSetupUDPServer(void)
 	xSemaphoreTake(xUDPMessageAvailable, 0);
 
 	// create sockets
-	// socket(0, Sn_MR_UDP, 5000, 0);
-	socket(0, Sn_MR_TCP, 5000, 0x00);
+	uint8_t ret = socket(0, Sn_MR_TCP, 5000, 0x00);
+	if (ret != 0)
+		ucli_log(UCLI_LOG_ERROR, "TCP Server initialization fail, status %d\n", ret);
+	else
+		ucli_log(UCLI_LOG_INFO, "TCP Server initialization complete\n");
+
 	setSn_IMR(0, 15); // set RECV interrupt mask
 
-//	if(getSn_SR(0) == SOCK_UDP)
-//	{
-	ucli_log(UCLI_LOG_INFO, "TCP Server initialization complete\n");
-//	}
+	uint8_t state = getSn_SR(0);
+	if (state == SOCK_INIT)
+		ucli_log(UCLI_LOG_INFO, "network socket state %X\r\n", state);
 }
 
 void prvUDPServerTask(void *pvParameters)
@@ -98,20 +101,21 @@ void prvUDPServerTask(void *pvParameters)
 	do
 	{
 		if(ctlwizchip(CW_GET_PHYLINK, (void*) &tmp) == -1)
-			ucli_log(UCLI_LOG_INFO, "[dbg] Unknown PHY Link status.\r\n");
+			ucli_log(UCLI_LOG_INFO, "unknown PHY Link status.\r\n");
 		vTaskDelay(configTICK_RATE_HZ / 10);
 	} while (tmp == PHY_LINK_OFF);
 
-	ucli_log(UCLI_LOG_INFO, "network init done, starting server..\n");
+	ucli_log(UCLI_LOG_INFO, "network init done, starting server..\r\n");
 	udp_int_init();
 	prvSetupUDPServer();
 
 	uint16_t imr = IK_SOCK_0;
 	if (ctlwizchip(CW_SET_INTRMASK, &imr) == -1) {
-		ucli_log(UCLI_LOG_INFO, "[dbg] cannot set imr");
+		ucli_log(UCLI_LOG_ERROR, "network error, cannot set imr\r\n");
 	}
 
-	listen(0);
+	uint8_t ret = listen(0);
+	ucli_log(UCLI_LOG_INFO, "network socket listen %s\r\n", ret ? "OK" : "ERROR");
 
 	for (;;)
 	{
@@ -129,6 +133,7 @@ void prvUDPServerTask(void *pvParameters)
 								getSn_DIPR(sn, destip);
 								destport = getSn_DPORT(sn);
 								setSn_IR(sn, Sn_IR_CON);
+								ucli_log(UCLI_LOG_INFO, "network client %d.%d.%d.%d connected\r\n", destip[0], destip[1], destip[2], destip[3]);
 							}
 
 							GPIO_SetBits(BOARD_LED1);
@@ -138,6 +143,8 @@ void prvUDPServerTask(void *pvParameters)
 							recv(sn, rx_buffer, len);
 							rx_buffer[len] = '\0';
 							GPIO_ResetBits(BOARD_LED1);
+
+//							ucli_log(UCLI_LOG_DEBUG, "network debug received %s\r\n", rx_buffer);
 
 							if (scpi_context.user_context != NULL) {
 								user_data_t * u = (user_data_t *) (scpi_context.user_context);
@@ -149,12 +156,13 @@ void prvUDPServerTask(void *pvParameters)
 							break;
 						case SOCK_CLOSE_WAIT:
 						case SOCK_CLOSED:
+							ucli_log(UCLI_LOG_INFO, "network client disconnected\r\n");
 							disconnect(sn);
 							socket(0, Sn_MR_TCP, 5000, 0x00);
 							listen(0);
 							break;
 						default:
-							printf("Unhandled socket event %d\n", getSn_SR(0));
+							ucli_log(UCLI_LOG_ERROR, "Unhandled network socket event %d\r\n", getSn_SR(0));
 							break;
 					}
 
