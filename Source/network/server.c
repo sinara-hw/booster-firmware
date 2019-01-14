@@ -75,9 +75,9 @@ static void prvSetupUDPServer(void)
 	// create sockets
 	uint8_t ret = socket(0, Sn_MR_TCP, 5000, 0x00);
 	if (ret != 0)
-		ucli_log(UCLI_LOG_ERROR, "TCP Server initialization fail, status %d\n", ret);
+		ucli_log(UCLI_LOG_ERROR, "TCP Server initialization fail, status %d\r\n", ret);
 	else
-		ucli_log(UCLI_LOG_INFO, "TCP Server initialization complete\n");
+		ucli_log(UCLI_LOG_INFO, "TCP Server initialization complete\r\n");
 
 	setSn_IMR(0, 15); // set RECV interrupt mask
 

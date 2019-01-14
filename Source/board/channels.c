@@ -390,26 +390,26 @@ void rf_channels_interlock_task(void *pvParameters)
 					}
 				}
 
-				if (channels[i].sigon && channels[i].enabled) {
-					pwr_diff = abs(channels[i].measure.adc_raw_ch1 - channels[i].measure.adc_raw_ch2);
-					if (pwr_diff < 20 || channels[i].soft_interlock)
-					{
-						ucli_log(UCLI_LOG_ERROR, "Reverse power interlock tripped on channel %d, tx %0.2f rfl %0.2f\r\n", i, channels[i].measure.adc_ch1, channels[i].measure.adc_ch1);
-
-						rf_channels_sigon(1 << i, false);
-						if (lock_take(I2C_LOCK, portMAX_DELAY))
-						{
-							i2c_mux_select(i);
-							i2c_dac_set(0);
-							lock_free(I2C_LOCK);
-						}
-
-						led_bar_and((1UL << i), 0x00, 0x00);
-						led_bar_or(0x00, (1UL << i), 0x00);
-
-						channels[i].soft_interlock = true;
-					}
-				}
+//				if (channels[i].sigon && channels[i].enabled) {
+//					pwr_diff = abs(channels[i].measure.adc_raw_ch1 - channels[i].measure.adc_raw_ch2);
+//					if (pwr_diff < 20 || channels[i].soft_interlock)
+//					{
+//						ucli_log(UCLI_LOG_ERROR, "Reverse power interlock tripped on channel %d, tx %0.2f rfl %0.2f\r\n", i, channels[i].measure.adc_ch1, channels[i].measure.adc_ch1);
+//
+//						rf_channels_sigon(1 << i, false);
+//						if (lock_take(I2C_LOCK, portMAX_DELAY))
+//						{
+//							i2c_mux_select(i);
+//							i2c_dac_set(0);
+//							lock_free(I2C_LOCK);
+//						}
+//
+//						led_bar_and((1UL << i), 0x00, 0x00);
+//						led_bar_or(0x00, (1UL << i), 0x00);
+//
+//						channels[i].soft_interlock = true;
+//					}
+//				}
 
 				// fully software version
 //				if (channels[i].enabled && channels[i].measure.i30 > 0.6) {
