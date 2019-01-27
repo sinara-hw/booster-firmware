@@ -76,7 +76,8 @@ double ads7924_get_channel_voltage(uint8_t ch)
 	uint8_t msb = i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr);
 	uint8_t lsb = i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr + 1);
 
-	return (double) (((((msb << 8) | lsb) >> 4) * 2.50) / 4095);
+	uint16_t raw = ((msb << 8) | lsb) >> 4;
+	return (double) ((raw * 2.50f) / 4095);
 }
 
 void ads7924_get_data(uint16_t * data)
@@ -106,16 +107,17 @@ void ads7924_init(void)
 	ads7924_reset();
 	for (int i = 0; i < 84000; i++) {}; // wait for power-up sequence to end
 
-	ads7924_set_mode(MODE_AUTO_SCAN);
+	ads7924_set_mode(MODE_AUTO_SCAN_SLEEP);
 	i2c_write(I2C1, ADS7924_ADDRESS, 0x12, 0b11100010);
 
-	// sleep to 20ms per measurement
-//	i2c_write(I2C1, ADS7924_ADDRESS, 0x13, 0b00000011);
+	// sleep to 10ms per measurement
+//	i2c_write(I2C1, ADS7924_ADDRESS, 0x13, 0b00000010);
+//	i2c_write(I2C1, ADS7924_ADDRESS, 0x14, 0b00011111);
 
 	// set alert for i30 at 600mA
 	// 1 bit = AVDD/256
 	// upper limit 600mA
-	ads7924_set_threshholds(0, 60, 0);
+	ads7924_set_threshholds(0, 160, 0);
 }
 
 void ads7924_enable_alert(void)

@@ -18,14 +18,14 @@
 #include "tasks.h"
 #include "ucli.h"
 
+#define SW_EEPROM_VERSION			2
+
 static channel_t channels[8] = { 0 };
 volatile uint8_t channel_mask = 0;
 
 TaskHandle_t task_rf_measure;
 TaskHandle_t task_rf_info;
 TaskHandle_t task_rf_interlock;
-
-#define SW_EEPROM_VERSION			2
 
 void rf_channels_init(void)
 {
@@ -168,7 +168,7 @@ uint8_t rf_channels_detect(void)
 
 				rf_channel_load_values(&channels[i]);
 
-				ucli_log(UCLI_LOG_INFO, "RF Channel at %d detected, id = %02X:%02X\r\n", i, channels[i].hwid[0], channels[i].hwid[1]);
+				ucli_log(UCLI_LOG_INFO, "RF Channel at %d detected, id = %02X:%02X\r\n", i, channels[i].hwid[4], channels[i].hwid[5]);
 			} else {
 				led_bar_or(0x00, 0x00, 1UL << i);
 			}
@@ -237,15 +237,20 @@ bool rf_channel_enable_procedure(uint8_t channel)
 		return false;
 	}
 
+	if (lock_take(I2C_LOCK, portMAX_DELAY))
+	{
+		i2c_mux_select(channel);
+		i2c_dac_set(4095);
+		vTaskDelay(10);
+
+		lock_free(I2C_LOCK);
+	}
+
 	rf_channels_control(bitmask, true);
 	vTaskDelay(10);
 
 	if (lock_take(I2C_LOCK, portMAX_DELAY))
 	{
-		i2c_mux_select(channel);
-		i2c_dac_set(4095);
-		vTaskDelay(50);
-
 		// set calibration values
 		i2c_dual_dac_set(0, channels[channel].cal_values.input_dac_cal_value);
 		vTaskDelay(10);
@@ -268,8 +273,8 @@ bool rf_channel_enable_procedure(uint8_t channel)
 	if (lock_take(I2C_LOCK, portMAX_DELAY))
 	{
 		i2c_mux_select(channel);
-		ads7924_enable_alert();
-		ads7924_clear_alert();
+//		ads7924_enable_alert();
+//		ads7924_clear_alert();
 		lock_free(I2C_LOCK);
 	}
 
@@ -465,7 +470,7 @@ void rf_channels_measure_task(void *pvParameters)
 					channels[i].measure.fwd_pwr = (double) (channels[i].measure.adc_raw_ch1 - channels[i].cal_values.fwd_pwr_offset) / (double) channels[i].cal_values.fwd_pwr_scale;
 					channels[i].measure.rfl_pwr = (double) (channels[i].measure.adc_raw_ch1 - channels[i].cal_values.rfl_pwr_offset) / (double) channels[i].cal_values.rfl_pwr_scale;
 
-					channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / 50) / 0.02f;
+					channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / 50) / 0.091f;
 					channels[i].measure.i60 = (ads7924_get_channel_voltage(1) / 50) / 0.1f;
 					channels[i].measure.in80 = (ads7924_get_channel_voltage(2) / 50) / 4.7f;
 
@@ -476,7 +481,6 @@ void rf_channels_measure_task(void *pvParameters)
 
 					lock_free(I2C_LOCK);
 				}
-
 			}
 		}
 
@@ -649,15 +653,6 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[5].measure.i60,
 																						channels[6].measure.i60,
 																						channels[7].measure.i60);
-
-		printf("IN8V0 [mA]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.in80 * 1000,
-																						channels[1].measure.in80 * 1000,
-																						channels[2].measure.in80 * 1000,
-																						channels[3].measure.in80 * 1000,
-																						channels[4].measure.in80 * 1000,
-																						channels[5].measure.in80 * 1000,
-																						channels[6].measure.in80 * 1000,
-																						channels[7].measure.in80 * 1000);
 
 		printf("5V0MP [V]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.p5v0mp,
 																						channels[1].measure.p5v0mp,
@@ -1024,7 +1019,7 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 				i2c_mux_select(channel);
 				for (int i = 0; i < 32; i++)
 				{
-					avg_current += (((ads7924_get_channel_voltage(0) / 50) / 0.02f) * 1000);
+					avg_current += (((ads7924_get_channel_voltage(0) / 50) / 0.091f) * 1000);
 					vTaskDelay(20);
 				}
 				lock_free(I2C_LOCK);

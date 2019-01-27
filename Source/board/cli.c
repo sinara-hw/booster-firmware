@@ -61,12 +61,31 @@ static void fh_status(void * a_data)
 	if (channel < 8) {
 		ch = rf_channel_get(channel);
 
-		printf("[status] e=%d s=%d r1=%d r2=%d tx=%0.3f rf=%0.3f curr=%0.3f\r\n", ch->enabled,
+		printf("[status] e=%d s=%d r1=%d r2=%d tx=%0.3f rf=%0.3f curr=%0.3f t=%0.2f\r\n", ch->enabled,
 				ch->sigon, ch->measure.adc_raw_ch1, ch->measure.adc_raw_ch2,
-				ch->measure.fwd_pwr, ch->measure.rfl_pwr, ch->measure.i30);
+				ch->measure.fwd_pwr, ch->measure.rfl_pwr, ch->measure.i30, ch->measure.remote_temp);
 
 	} else
 		printf("[status] Wrong channel number\r\n");
+}
+
+static void fh_currents(void * a_data)
+{
+	channel_t * ch;
+	double currents[8] = { 0 };
+	for (int i = 0; i < 8; i++)
+	{
+		ch = rf_channel_get(i);
+		if (ch->detected)
+		{
+			currents[i] = ch->measure.i30;
+		} else {
+			currents[i] = 0.0f;
+		}
+	}
+
+	printf("[currents] %0.4f, %0.4f, %0.4f, %0.4f, %0.4f, %0.4f, %0.4f, %0.4f\r\n",
+			currents[0],currents[1],currents[2],currents[3],currents[4],currents[5],currents[6],currents[7]);
 }
 
 static void fh_clearint(void * a_data)
@@ -865,6 +884,7 @@ static ucli_cmd_t g_cmds[] = {
 	{ "clearint", fh_clearint, -1, "Clear interlock status of selected channel\r\n", "clearcal usage:\r\n\tclearcal <channel> - clear selected channel interlock. If channel number is left blank all channel interlocks are cleared\r\n" },
 	{ "i2cw", fh_i2cw, 0x04, "Write I2C on selected channel\r\n", "i2cw usage:\r\n\ti2cw <channel> <address> <data> - write one byte to selected channel address\r\n" },
 	{ "i2cr", fh_i2cr, 0x03, "Read I2C on selected channel\r\n", "i2cr usage:\r\n\ti2cw <channel> <address> - read one byte from selected channel address\r\n" },
+	{ "currents", fh_currents, 0x00, "Return list of all P30V currents\r\n"},
 
 	// "hidden" commands not for end-user
 	{ "wdtest", fh_wdtest, 0x00 },

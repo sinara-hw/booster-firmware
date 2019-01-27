@@ -70,6 +70,7 @@ static scpi_result_t My_CoreTstQ(scpi_t * context) {
 static scpi_result_t CHANNEL_Enable(scpi_t * context)
 {
 	uint32_t channel;
+	char text[3] = { 0 };
 	uint8_t ch_mask = rf_channels_get_mask();
 
 	if (!SCPI_ParamUInt32(context, &channel, false)) {
@@ -80,6 +81,8 @@ static scpi_result_t CHANNEL_Enable(scpi_t * context)
 	if (SCPI_IsParameterPresent(context)) {
 		return SCPI_RES_ERR;
 	}
+
+	printf("GOT %d\r\n", channel);
 
 	if (channel == ch_mask) {
 		rf_channels_enable(channel);

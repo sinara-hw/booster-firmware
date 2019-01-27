@@ -100,22 +100,47 @@ void prvUDPServerTask(void *pvParameters)
 	uint8_t tmp = 0;
 	do
 	{
-		if(ctlwizchip(CW_GET_PHYLINK, (void*) &tmp) == -1)
-			ucli_log(UCLI_LOG_INFO, "unknown PHY Link status.\r\n");
-		vTaskDelay(configTICK_RATE_HZ / 10);
+		if (lock_take(ETH_LOCK, portMAX_DELAY))
+		{
+			if(ctlwizchip(CW_GET_PHYLINK, (void*) &tmp) == -1) {
+				ucli_log(UCLI_LOG_INFO, "unknown PHY Link status.\r\n");
+			}
+			lock_free(ETH_LOCK);
+		}
+		vTaskDelay(configTICK_RATE_HZ / 5);
 	} while (tmp == PHY_LINK_OFF);
 
-	ucli_log(UCLI_LOG_INFO, "network init done, starting server..\r\n");
+	ucli_log(UCLI_LOG_INFO, "waiting for network address..\r\n");
 	udp_int_init();
-	prvSetupUDPServer();
 
-	uint16_t imr = IK_SOCK_0;
-	if (ctlwizchip(CW_SET_INTRMASK, &imr) == -1) {
-		ucli_log(UCLI_LOG_ERROR, "network error, cannot set imr\r\n");
+	// wait for IP addres before initialization
+	uint32_t taddr = 0;
+	do {
+		if (lock_take(ETH_LOCK, portMAX_DELAY))
+		{
+			getSIPR((uint8_t*)&taddr);
+			lock_free(ETH_LOCK);
+		}
+		vTaskDelay(configTICK_RATE_HZ / 5);
+	} while (taddr == 0);
+
+	vTaskDelay(500);
+
+	// actual setup
+	if (lock_take(ETH_LOCK, portMAX_DELAY))
+	{
+		prvSetupUDPServer();
+
+		uint16_t imr = IK_SOCK_0;
+		if (ctlwizchip(CW_SET_INTRMASK, &imr) == -1) {
+			ucli_log(UCLI_LOG_ERROR, "network error, cannot set imr\r\n");
+		}
+
+		uint8_t ret = listen(0);
+		ucli_log(UCLI_LOG_INFO, "network socket (on port %d) listen %s\r\n", 5000, ret ? "OK" : "ERROR");
+
+		lock_free(ETH_LOCK);
 	}
-
-	uint8_t ret = listen(0);
-	ucli_log(UCLI_LOG_INFO, "network socket listen %s\r\n", ret ? "OK" : "ERROR");
 
 	for (;;)
 	{

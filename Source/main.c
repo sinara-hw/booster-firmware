@@ -40,6 +40,8 @@
 // usb
 #include "usb.h"
 
+static volatile uint8_t hw_rev = 0;
+
 static void watchdog_init(void)
 {
 	IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);
@@ -69,6 +71,9 @@ static void prvSetupHardware(void)
 	RCC_ClocksTypeDef RCC_ClockFreq;
 	RCC_GetClocksFreq(&RCC_ClockFreq);
 
+	hw_rev = GPIO_ReadInputDataBit(GPIOF, GPIO_Pin_2) << 2 | GPIO_ReadInputDataBit(GPIOF, GPIO_Pin_1) << 1 |GPIO_ReadInputDataBit(GPIOF, GPIO_Pin_0);
+	ucli_log(UCLI_LOG_INFO, "hardware revision %d\r\n", hw_rev);
+
 	if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) != RESET) {
 		// watchdog reset occurred
 		ucli_log(UCLI_LOG_WARN, "watchdog reset occurred!\r\n");
@@ -79,6 +84,29 @@ static void prvSetupHardware(void)
 	ucli_log(UCLI_LOG_INFO, "SYSCLK frequency: %lu\r\n", RCC_ClockFreq.SYSCLK_Frequency);
 	ucli_log(UCLI_LOG_INFO, "PCLK1 frequency: %lu\r\n", RCC_ClockFreq.PCLK1_Frequency);
 	ucli_log(UCLI_LOG_INFO, "PCLK2 frequency: %lu\r\n", RCC_ClockFreq.PCLK2_Frequency);
+}
+
+typedef struct {
+	double input;
+	double output;
+	double setpoint;
+
+	double kp;
+	double ki;
+	double kd;
+	int pon;
+
+	double output_sum;
+	double last_input;
+	double out_min;
+	double out_max;
+
+	int dir;
+} temp_pid_t;
+
+void prvLEDTask(void * pvParameters)
+{
+
 }
 
 int main(void)

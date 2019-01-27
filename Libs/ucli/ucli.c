@@ -43,12 +43,15 @@ void ucli_log(uint8_t level, const char * sFormat, ...)
 		vsprintf(buf, sFormat, ParamList);
 		va_end(ParamList);
 
+#if UCLI_ENABLE_LOG_PRINT
 		uint8_t len = 0;
 		if (level <= 4) 
 			len = sprintf(header, "[%s] ", ucli_log_levels[level]);
 
 		if (len) ucli_print_string(header);
 		ucli_print_string(buf);
+#endif
+
 #if UCLI_ENABLE_LOGSTASH
 		ucli_logstash_push(level, buf);
 #endif
