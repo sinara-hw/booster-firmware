@@ -26,7 +26,7 @@ uint8_t eeprom_read(uint8_t address)
 	i2c_stop(I2C1);
 
 	i2c_start(I2C1, EEPROM_ADDR, I2C_Direction_Receiver, 1);
-	byte = i2c_read_byte_nack(I2C1);
+	i2c_read_byte_nack(I2C1, &byte);
 
 	i2c_stop(I2C1);
 
@@ -52,7 +52,7 @@ uint8_t eeprom_read_mb(uint8_t address)
 	i2c_stop(I2C2);
 
 	i2c_start(I2C2, EEPROM_ADDR, I2C_Direction_Receiver, 1);
-	byte = i2c_read_byte_nack(I2C2);
+	i2c_read_byte_nack(I2C2, &byte);
 
 	i2c_stop(I2C2);
 
@@ -105,4 +105,3 @@ void eeprom_write32(uint8_t address, uint32_t value)
 	eeprom_write(address + 3, bytes[3]);
 	vTaskDelay(10);
 }
-

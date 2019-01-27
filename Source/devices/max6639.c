@@ -9,10 +9,9 @@
 
 bool max6639_test(uint8_t addr)
 {
-	uint8_t device_id = i2c_read(MAX6639_I2C, addr, MAX6639_REG_DEVID);
-	uint8_t man_id = i2c_read(MAX6639_I2C, addr, MAX6639_REG_MANUID);
-
-	printf("[log] max6639 device id %d manufacturer id %d\n", device_id, man_id);
+	uint8_t device_id, man_id = 0;
+	i2c_read(MAX6639_I2C, addr, MAX6639_REG_DEVID, &device_id);
+	i2c_read(MAX6639_I2C, addr, MAX6639_REG_MANUID, &man_id);
 
 	return (device_id == 0x58 && man_id == 0x4D);
 }
@@ -106,8 +105,9 @@ void max6639_init(void)
 float max6639_get_temperature(uint8_t addr, uint8_t ch)
 {
 	float total = 0.0;
-	uint8_t temp = i2c_read(MAX6639_I2C, addr, MAX6639_REG_TEMP(ch));
-	uint8_t temp_ext = i2c_read(MAX6639_I2C, addr, MAX6639_REG_TEMP_EXT(ch));
+	uint8_t temp, temp_ext = 0;
+	i2c_read(MAX6639_I2C, addr, MAX6639_REG_TEMP(ch), &temp);
+	i2c_read(MAX6639_I2C, addr, MAX6639_REG_TEMP_EXT(ch), &temp_ext);
 
 	total = (float) temp;
 	if (temp_ext & 0x80) total += 0.50;
