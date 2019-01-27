@@ -11,7 +11,13 @@
 #include "i2c.h"
 #include "ucli.h"
 
-//#define I2C_DEBUG
+typedef enum {
+	I2C_TRANSMIT_OK,
+	I2C_TRANSMIT_BUSY,
+	I2C_TRANSMIT_SELECT_TIMEOUT,
+	I2C_TRANSMIT_DIRECION_TIMEOUT,
+	I2C_TRANSMIT_TIMEOUT,
+};
 
 void i2c_init(void)
 {
@@ -179,11 +185,7 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 	// wait until I2C1 is not busy anymore
 	while (I2C_GetFlagStatus(I2Cx, I2C_FLAG_BUSY)) {
 		if (--timeout == 0x00) {
-			ucli_log(UCLI_LOG_WARN, "[i2c_start] busy timeout\n");
-#ifdef I2C_DEBUG
-			i2c_reset();
-#endif
-			return 1;
+			return I2C_TRANSMIT_BUSY;
 		}
 	}
 
@@ -196,11 +198,7 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 	timeout = I2C_TIMEOUT;
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_MODE_SELECT)) {
 		if (--timeout == 0x00) {
-			ucli_log(UCLI_LOG_WARN, "[i2c_start] mode select timeout\n");
-#ifdef I2C_DEBUG
-			i2c_reset();
-#endif
-			return 2;
+			return I2C_TRANSMIT_SELECT_TIMEOUT;
 		}
 	}
 
@@ -211,27 +209,19 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 		timeout = I2C_TIMEOUT;
 		while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) {
 			if (--timeout == 0x00) {
-				ucli_log(UCLI_LOG_WARN, "[i2c_start] tx timeout\n");
-#ifdef I2C_DEBUG
-				i2c_reset();
-#endif
-				return 3;
+				return I2C_TRANSMIT_DIRECION_TIMEOUT;
 			}
 		}
 	} else if (direction == I2C_Direction_Receiver) {
 		timeout = I2C_TIMEOUT;
 		while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) {
 			if (--timeout == 0x00) {
-				ucli_log(UCLI_LOG_WARN, "[i2c_start] rx timeout\n");
-#ifdef I2C_DEBUG
-				i2c_reset();
-#endif
-				return 4;
+				return I2C_TRANSMIT_DIRECION_TIMEOUT;
 			}
 		}
 	}
 
-	return 0;
+	return I2C_TRANSMIT_OK;
 }
 
 
@@ -250,52 +240,57 @@ uint8_t i2c_write_byte(I2C_TypeDef* I2Cx, uint8_t data)
 	// wait for I2C1 EV8_2 --> byte has been transmitted
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) {
 		if (--timeout == 0x00) {
-			printf("[i2c_writeb] mode select timeout\n");
-#ifdef I2C_DEBUG
-			i2c_reset();
-#endif
-			return 1;
+			return I2C_TRANSMIT_TIMEOUT;
 		}
 	}
 
-	return 0;
+	return I2C_TRANSMIT_OK;
 }
 
-uint8_t i2c_read_byte_ack(I2C_TypeDef* I2Cx)
+uint8_t i2c_read_byte_ack(I2C_TypeDef* I2Cx, uint8_t * data)
 {
 	uint32_t timeout = I2C_TIMEOUT;
 
 	I2C_AcknowledgeConfig(I2Cx, ENABLE);
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
 		if (--timeout == 0x00) {
-			printf("[i2c_read_ack] rx timeout\n");
-#ifdef I2C_DEBUG
-			i2c_reset();
-#endif
-			break;
+			return I2C_TRANSMIT_TIMEOUT;
 		}
 	}
 
-	return I2C_ReceiveData(I2Cx);
+	*data = I2C_ReceiveData(I2Cx);
+	return I2C_TRANSMIT_OK;
 }
 
-uint8_t i2c_read_byte_nack(I2C_TypeDef* I2Cx)
+uint8_t i2c_read_byte_nack(I2C_TypeDef* I2Cx, uint8_t * data)
 {
 	uint32_t timeout = I2C_TIMEOUT;
 
 	I2C_AcknowledgeConfig(I2Cx, DISABLE);
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
 		if (--timeout == 0x00) {
-			printf("[i2c_read_nack] rx timeout\n");
-#ifdef I2C_DEBUG
-			i2c_reset();
-#endif
-			break;
+			return I2C_TRANSMIT_TIMEOUT;
 		}
 	}
 
-	return I2C_ReceiveData(I2Cx);
+	*data = I2C_ReceiveData(I2Cx);
+	return I2C_TRANSMIT_OK;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 void i2c_dac_set(uint16_t value)
 {
