@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include "math.h"
 #include "scpi/scpi.h"
 #include "scpi-def.h"
 

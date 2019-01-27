@@ -27,6 +27,14 @@ typedef enum {
 static uint8_t mux_channel = 0;
 static uint32_t i2c_errors[8] = { 0 };
 
+uint32_t i2c_get_channel_errors(uint8_t channel)
+{
+	if (channel < 8)
+		return i2c_errors[channel];
+
+	return 0;
+}
+
 void i2c_init(void)
 {
 	I2C_InitTypeDef  I2C_InitStructure;

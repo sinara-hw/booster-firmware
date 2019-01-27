@@ -738,7 +738,8 @@ static void fh_i2cr(void * a_data)
 		if (lock_take(I2C_LOCK, portMAX_DELAY))
 		{
 			i2c_mux_select((uint8_t) channel);
-			uint8_t data = i2c_read(ADS7924_I2C, address, reg);
+			uint8_t data = 0;
+			i2c_read(ADS7924_I2C, address, reg, &data);
 			printf("[i2cw] read to %d reg %d = %d\r\n", address, reg, data);
 			lock_free(I2C_LOCK);
 		}
