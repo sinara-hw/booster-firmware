@@ -351,38 +351,52 @@ static scpi_result_t CHANNEL_Temperature(scpi_t * context)
 
 static scpi_result_t CHANNEL_OutputPower(scpi_t * context)
 {
-	uint32_t channel;
-	uint8_t ch_mask = rf_channels_get_mask();
+	scpi_bool_t result;
+	scpi_parameter_t param;
+	int32_t intval = 0;
 	channel_t * ch;
 	double data[8] = { 0 };
 
-	if (!SCPI_ParamUInt32(context, &channel, false)) {
-		channel = ch_mask;
-	}
+	scpi_choice_def_t bool_options[] = {
+		{"ALL", 1},
+		SCPI_CHOICE_LIST_END /* termination of option list */
+	};
 
+	result = SCPI_Parameter(context, &param, true);
+
+	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
 		return SCPI_RES_ERR;
 	}
 
-	if (channel == ch_mask) {
-		for (int i = 0; i < 8; i++) {
-			ch = rf_channel_get(i);
-			if (ch->enabled) {
-				data[i] = ch->measure.fwd_pwr;
+	if (result) {
+		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
+			SCPI_ParamToInt32(context, &param, &intval);
+
+			if ((1 << intval) & rf_channels_get_mask()) {
+				ch = rf_channel_get(intval);
+				SCPI_ResultDouble(context, ch->measure.fwd_pwr);
+				return SCPI_RES_OK;
 			} else {
-				data[i] = 0;
+				return SCPI_RES_ERR;
+			}
+
+		} else {
+			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
+			if (intval) {
+				for (int i = 0; i < 8; i++) {
+					ch = rf_channel_get(i);
+					if (ch->enabled) {
+						data[i] = ch->measure.fwd_pwr;
+					} else {
+						data[i] = 0;
+					}
+				}
+
+				SCPI_ResultArrayDouble(context, data, 8, SCPI_FORMAT_ASCII);
+				return SCPI_RES_OK;
 			}
 		}
-		SCPI_ResultArrayDouble(context, data, 8, SCPI_FORMAT_ASCII);
-		return SCPI_RES_OK;
-	}
-
-	if (channel < 8) {
-		ch = rf_channel_get(channel);
-		SCPI_ResultDouble(context, ch->measure.fwd_pwr);
-		return SCPI_RES_OK;
-	} else {
-		return SCPI_RES_ERR;
 	}
 
 	return SCPI_RES_OK;
@@ -390,38 +404,51 @@ static scpi_result_t CHANNEL_OutputPower(scpi_t * context)
 
 static scpi_result_t CHANNEL_ReversePower(scpi_t * context)
 {
-	uint32_t channel;
-	uint8_t ch_mask = rf_channels_get_mask();
+	scpi_bool_t result;
+	scpi_parameter_t param;
+	int32_t intval = 0;
 	channel_t * ch;
 	double data[8] = { 0 };
 
-	if (!SCPI_ParamUInt32(context, &channel, false)) {
-		channel = ch_mask;
-	}
+	scpi_choice_def_t bool_options[] = {
+		{"ALL", 1},
+		SCPI_CHOICE_LIST_END /* termination of option list */
+	};
 
+	result = SCPI_Parameter(context, &param, true);
+
+	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
 		return SCPI_RES_ERR;
 	}
 
-	if (channel == ch_mask) {
-		for (int i = 0; i < 8; i++) {
-			ch = rf_channel_get(i);
-			if (ch->enabled) {
-				data[i] = ch->measure.rfl_pwr;
+	if (result) {
+		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
+			SCPI_ParamToInt32(context, &param, &intval);
+
+			if ((1 << intval) & rf_channels_get_mask()) {
+				ch = rf_channel_get(intval);
+				SCPI_ResultDouble(context, ch->measure.rfl_pwr);
+				return SCPI_RES_OK;
 			} else {
-				data[i] = 0;
+				return SCPI_RES_ERR;
+			}
+		} else {
+			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
+			if (intval) {
+				for (int i = 0; i < 8; i++) {
+					ch = rf_channel_get(i);
+					if (ch->enabled) {
+						data[i] = ch->measure.rfl_pwr;
+					} else {
+						data[i] = 0;
+					}
+				}
+
+				SCPI_ResultArrayDouble(context, data, 8, SCPI_FORMAT_ASCII);
+				return SCPI_RES_OK;
 			}
 		}
-		SCPI_ResultArrayDouble(context, data, 8, SCPI_FORMAT_ASCII);
-		return SCPI_RES_OK;
-	}
-
-	if (channel < 8) {
-		ch = rf_channel_get(channel);
-		SCPI_ResultDouble(context, ch->measure.rfl_pwr);
-		return SCPI_RES_OK;
-	} else {
-		return SCPI_RES_ERR;
 	}
 
 	return SCPI_RES_OK;
@@ -464,6 +491,8 @@ static scpi_result_t Interlock_Clear(scpi_t * context)
 				rf_channels_sigon(channel_mask, true);
 				led_bar_or(rf_channels_read_sigon(), 0, 0);
 				led_bar_and(0x00, (1 << channel), 0x00);
+
+				return SCPI_RES_OK;
 			} else
 				return SCPI_RES_ERR;
 		} else {
@@ -544,7 +573,7 @@ static scpi_result_t Interlock_OverloadQ(scpi_t * context)
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
 
-			if (intval < 8) {
+			if ((1 << intval) & rf_channels_get_mask()) {
 				ch = rf_channel_get(intval);
 				if (ch->input_interlock || ch->output_interlock) {
 					SCPI_ResultBool(context, true);
@@ -598,7 +627,7 @@ static scpi_result_t Interlock_ErrorQ(scpi_t * context)
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
 
-			if (intval < 8) {
+			if ((1 << intval) & rf_channels_get_mask()) {
 				ch = rf_channel_get(intval);
 				if (ch->error) {
 					SCPI_ResultBool(context, true);
