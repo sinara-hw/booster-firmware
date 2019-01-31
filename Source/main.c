@@ -71,9 +71,6 @@ static void prvSetupHardware(void)
 	RCC_ClocksTypeDef RCC_ClockFreq;
 	RCC_GetClocksFreq(&RCC_ClockFreq);
 
-	hw_rev = GPIO_ReadInputDataBit(GPIOF, GPIO_Pin_2) << 2 | GPIO_ReadInputDataBit(GPIOF, GPIO_Pin_1) << 1 |GPIO_ReadInputDataBit(GPIOF, GPIO_Pin_0);
-	ucli_log(UCLI_LOG_INFO, "hardware revision %d\r\n", hw_rev);
-
 	if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) != RESET) {
 		// watchdog reset occurred
 		ucli_log(UCLI_LOG_WARN, "watchdog reset occurred!\r\n");
