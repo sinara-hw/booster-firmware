@@ -9,7 +9,7 @@
 #include <stdarg.h>
 
 #define UCLI_ENABLE_DYNAMIC_SETTINGS    1
-#define UCLI_ENABLE_VT100_SUPPORT       1
+#define UCLI_ENABLE_VT100_SUPPORT       0
 #define UCLI_ENABLE_HISTORY             1
 #define UCLI_ENABLE_LOGSTASH            1
 #define UCLI_ENABLE_LOG_PRINT			0
