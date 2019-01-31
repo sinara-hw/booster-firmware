@@ -238,6 +238,7 @@ static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 	if (channel < 8) {
 		ch = rf_channel_get(channel);
 		double value = log(ch->cal_values.output_dac_cal_value) * ch->cal_values.hw_int_scale + ch->cal_values.hw_int_offset;
+		value = round(value); // round to full digit
 		SCPI_ResultDouble(context, value);
 		return SCPI_RES_OK;
 	} else {
