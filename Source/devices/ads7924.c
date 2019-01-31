@@ -34,8 +34,8 @@ void ads7924_get_threshholds(uint8_t ch, uint8_t * upper, uint8_t * lower)
 	uint8_t u_addr = upper_thresholds[ch];
 	uint8_t l_addr = lower_thresholds[ch];
 
-	*upper = i2c_read(ADS7924_I2C, ADS7924_ADDRESS, u_addr);
-	*lower = i2c_read(ADS7924_I2C, ADS7924_ADDRESS, l_addr);
+	i2c_read(ADS7924_I2C, ADS7924_ADDRESS, u_addr, upper);
+	i2c_read(ADS7924_I2C, ADS7924_ADDRESS, l_addr, lower);
 }
 
 void ads7924_set_mode(uint8_t mode)
@@ -54,7 +54,9 @@ uint8_t ads7924_get_alarm(void)
 {
 	// returns  XXXX  -  XXXX
 	// 		   status - enable
-	return i2c_read(ADS7924_I2C, ADS7924_ADDRESS, INTCNTRL_REG);
+	uint8_t alarm;
+	i2c_read(ADS7924_I2C, ADS7924_ADDRESS, INTCNTRL_REG, &alarm);
+	return alarm;
 }
 
 uint16_t ads7924_get_channel_data(uint8_t ch)
@@ -62,8 +64,9 @@ uint16_t ads7924_get_channel_data(uint8_t ch)
 	if (ch > 3) return 0;
 	uint8_t base_addr = data_channels[ch];
 
-	uint8_t msb = i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr);
-	uint8_t lsb = i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr + 1);
+	uint8_t msb, lsb = 0;
+	i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr, &msb);
+	i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr + 1, &lsb);
 
 	return ((msb << 8) | lsb) >> 4;
 }
@@ -73,8 +76,9 @@ double ads7924_get_channel_voltage(uint8_t ch)
 	if (ch > 3) return 0;
 	uint8_t base_addr = data_channels[ch];
 
-	uint8_t msb = i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr);
-	uint8_t lsb = i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr + 1);
+	uint8_t msb, lsb = 0;
+	i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr, &msb);
+	i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr + 1, &lsb);
 
 	uint16_t raw = ((msb << 8) | lsb) >> 4;
 	return (double) ((raw * 2.50f) / 4095);
@@ -91,8 +95,8 @@ void ads7924_get_data(uint16_t * data)
 	i2c_start(ADS7924_I2C, ADS7924_ADDRESS, I2C_Direction_Receiver, 0);
 	for (int i = 0; i < 8; i++)
 	{
-		ub = i2c_read_byte_ack(ADS7924_I2C);
-		lb = (i == 7 ? i2c_read_byte_nack(ADS7924_I2C) : i2c_read_byte_ack(ADS7924_I2C));
+		i2c_read_byte_ack(ADS7924_I2C, &ub);
+		i == 7 ? i2c_read_byte_nack(ADS7924_I2C, &lb) : i2c_read_byte_ack(ADS7924_I2C, &lb);
 		*data++ = ((ub << 8) | lb) >> 4;
 	}
 
@@ -101,7 +105,8 @@ void ads7924_get_data(uint16_t * data)
 
 void ads7924_init(void)
 {
-	uint8_t id = i2c_read(I2C1, ADS7924_ADDRESS, 0x16);
+	uint8_t id = 0;
+	i2c_read(I2C1, ADS7924_ADDRESS, 0x16, &id);
 	printf("ADS7924 ID: %d==25 | %s\n", id, id == 25 ? "PASS" : "FAIL");
 
 	ads7924_reset();
@@ -133,7 +138,9 @@ void ads7924_disable_alert(void)
 
 uint8_t ads7924_clear_alert(void)
 {
-	return i2c_read(I2C1, ADS7924_ADDRESS, 0x01);
+	uint8_t alert = 0;
+	i2c_read(I2C1, ADS7924_ADDRESS, 0x01, &alert);
+	return alert;
 }
 
 void ads7924_stop(void)

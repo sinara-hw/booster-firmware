@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include "math.h"
 #include "scpi/scpi.h"
 #include "scpi-def.h"
 
@@ -47,6 +48,42 @@
 #include "locks.h"
 #include "i2c.h"
 #include "eeprom.h"
+
+static scpi_result_t TestNumOrStrQ(scpi_t * context)
+{
+	scpi_bool_t result;
+	scpi_parameter_t param;
+	int32_t intval = 0;
+
+	scpi_choice_def_t bool_options[] = {
+		{"ALL", 1},
+		SCPI_CHOICE_LIST_END /* termination of option list */
+	};
+
+	result = SCPI_Parameter(context, &param, true);
+
+	// throw error if excess parameter is present
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
+	if (result) {
+		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
+			SCPI_ParamToInt32(context, &param, &intval);
+
+			// enable X channel
+			printf("ENABLING %d CHANNEL\r\n", intval);
+		} else {
+			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
+			if (intval) {
+				// enable all channels
+				printf("ENABLING ALL CHANNELS\r\n");
+			}
+		}
+	}
+
+	return SCPI_RES_OK;
+}
 
 /**
  * Reimplement IEEE488.2 *TST?
@@ -183,7 +220,8 @@ static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 
 	if (channel < 8) {
 		ch = rf_channel_get(channel);
-		SCPI_ResultDouble(context, 0.0);
+		double value = log(ch->cal_values.output_dac_cal_value * ch->cal_values.hw_int_scale) + ch->cal_values.hw_int_offset;
+		SCPI_ResultDouble(context, value);
 		return SCPI_RES_OK;
 
 	} else {
@@ -574,6 +612,7 @@ const scpi_command_t scpi_commands[] = {
 
 	/* Channel control */
 	{.pattern = "CHANnel:ENABle", .callback = CHANNEL_Enable,},
+	{.pattern = "CHANnel:TEST", .callback = TestNumOrStrQ,},
 	{.pattern = "CHANnel:DISABle", .callback = CHANNEL_Disable,},
 	{.pattern = "CHANnel:ENABle?", .callback = CHANNEL_EnableQ,},
 

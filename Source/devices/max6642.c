@@ -21,8 +21,9 @@ void max6642_init(void)
 float max6642_get_local_temp(void)
 {
 	float total = 0.0;
-	uint8_t temp = i2c_read(I2C1, TEMP_SENS_I2C_ADDR, TEMP_SENS_LOCAL_TEMP_H);
-	uint8_t temp_ext = i2c_read(I2C1, TEMP_SENS_I2C_ADDR, TEMP_SENS_LOCAL_TEMP_L);
+	uint8_t temp, temp_ext = 0;
+	i2c_read(I2C1, TEMP_SENS_I2C_ADDR, TEMP_SENS_LOCAL_TEMP_H, &temp);
+	i2c_read(I2C1, TEMP_SENS_I2C_ADDR, TEMP_SENS_LOCAL_TEMP_L, &temp_ext);
 
 	total = (float) temp;
 	if (temp_ext & 0x40) total += 0.250;
@@ -35,8 +36,9 @@ float max6642_get_local_temp(void)
 float max6642_get_remote_temp(void)
 {
 	float total = 0.0;
-	uint8_t temp = i2c_read(I2C1, TEMP_SENS_I2C_ADDR, TEMP_SENS_REMOTE_TEMP_H);
-	uint8_t temp_ext = i2c_read(I2C1, TEMP_SENS_I2C_ADDR, TEMP_SENS_REMOTE_TEMP_L);
+	uint8_t temp, temp_ext = 0;
+	i2c_read(I2C1, TEMP_SENS_I2C_ADDR, TEMP_SENS_REMOTE_TEMP_H, &temp);
+	i2c_read(I2C1, TEMP_SENS_I2C_ADDR, TEMP_SENS_REMOTE_TEMP_L, &temp_ext);
 
 	total = (float) temp;
 	if (temp_ext & 0x40) total += 0.250;
