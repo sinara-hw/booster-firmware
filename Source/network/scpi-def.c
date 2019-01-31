@@ -429,40 +429,50 @@ static scpi_result_t CHANNEL_ReversePower(scpi_t * context)
 
 static scpi_result_t Interlock_Clear(scpi_t * context)
 {
-	uint32_t channel;
-	uint8_t ch_mask = rf_channels_get_mask();
+	scpi_bool_t result;
+	scpi_parameter_t param;
+	int32_t intval = 0;
 	channel_t * ch;
+	uint8_t ch_mask = rf_channels_get_mask();
 
-	if (!SCPI_ParamUInt32(context, &channel, false)) {
-		channel = ch_mask;
-	}
+	scpi_choice_def_t bool_options[] = {
+		{"ALL", 1},
+		SCPI_CHOICE_LIST_END /* termination of option list */
+	};
 
+	result = SCPI_Parameter(context, &param, true);
+
+	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
 		return SCPI_RES_ERR;
 	}
 
-	if (channel == ch_mask) {
-		rf_clear_interlock();
-		return SCPI_RES_OK;
-	}
+	if (result) {
+		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
+			SCPI_ParamToInt32(context, &param, &intval);
+			if ((1 << intval) & ch_mask) {
+				uint8_t channel = intval;
+				ch = rf_channel_get(channel);
+				ch->input_interlock = false;
+				ch->output_interlock = false;
 
-	if (channel < 8) {
-		ch = rf_channel_get(channel);
-		ch->input_interlock = false;
-		ch->output_interlock = false;
-		ch->soft_interlock = false;
+				vTaskDelay(10);
 
-		vTaskDelay(10);
+				uint8_t chan = rf_channels_read_enabled() & (1 << channel);
+				uint8_t channel_mask = rf_channels_get_mask() & chan;
 
-		uint8_t chan = rf_channels_read_enabled() & (1 << channel);
-		uint8_t channel_mask = rf_channels_get_mask() & chan;
-
-		rf_channels_sigon(channel_mask, true);
-		led_bar_or(rf_channels_read_sigon(), 0, 0);
-		led_bar_and(0x00, (1 << channel), 0x00);
-		return SCPI_RES_OK;
-	} else {
-		return SCPI_RES_ERR;
+				rf_channels_sigon(channel_mask, true);
+				led_bar_or(rf_channels_read_sigon(), 0, 0);
+				led_bar_and(0x00, (1 << channel), 0x00);
+			} else
+				return SCPI_RES_ERR;
+		} else {
+			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
+			if (intval) {
+				rf_clear_interlock();
+				return SCPI_RES_OK;
+			}
+		}
 	}
 
 	return SCPI_RES_OK;
