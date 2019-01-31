@@ -61,7 +61,6 @@ static scpi_result_t TestNumOrStrQ(scpi_t * context)
 	};
 
 	result = SCPI_Parameter(context, &param, true);
-
 	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
 		return SCPI_RES_ERR;
@@ -106,31 +105,38 @@ static scpi_result_t My_CoreTstQ(scpi_t * context) {
 
 static scpi_result_t CHANNEL_Enable(scpi_t * context)
 {
-	uint32_t channel;
-	char text[3] = { 0 };
+	scpi_bool_t result;
+	scpi_parameter_t param;
+	int32_t intval = 0;
 	uint8_t ch_mask = rf_channels_get_mask();
 
-	if (!SCPI_ParamUInt32(context, &channel, false)) {
-		channel = ch_mask;
-		printf("No channel\n");
-	}
+	scpi_choice_def_t bool_options[] = {
+		{"ALL", 1},
+		SCPI_CHOICE_LIST_END /* termination of option list */
+	};
 
+	result = SCPI_Parameter(context, &param, true);
+
+	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
 		return SCPI_RES_ERR;
 	}
 
-	printf("GOT %d\r\n", channel);
+	if (result) {
+		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
+			SCPI_ParamToInt32(context, &param, &intval);
 
-	if (channel == ch_mask) {
-		rf_channels_enable(channel);
-		return SCPI_RES_OK;
-	}
+			if ((1 << intval) & ch_mask)
+				rf_channels_enable(1 << intval);
+			else
+				return SCPI_RES_ERR;
 
-	if (channel < 8) {
-		rf_channels_enable(1 << channel);
-		return SCPI_RES_OK;
-	} else {
-		return SCPI_RES_ERR;
+		} else {
+			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
+			if (intval) {
+				rf_channels_enable(ch_mask);
+			}
+		}
 	}
 
 	return SCPI_RES_OK;
@@ -138,27 +144,38 @@ static scpi_result_t CHANNEL_Enable(scpi_t * context)
 
 static scpi_result_t CHANNEL_Disable(scpi_t * context)
 {
-	uint32_t channel;
+	scpi_bool_t result;
+	scpi_parameter_t param;
+	int32_t intval = 0;
 	uint8_t ch_mask = rf_channels_get_mask();
 
-	if (!SCPI_ParamUInt32(context, &channel, false)) {
-		channel = ch_mask;
-	}
+	scpi_choice_def_t bool_options[] = {
+		{"ALL", 1},
+		SCPI_CHOICE_LIST_END /* termination of option list */
+	};
 
+	result = SCPI_Parameter(context, &param, true);
+
+	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
 		return SCPI_RES_ERR;
 	}
 
-	if (channel == ch_mask) {
-		rf_channels_disable(channel);
-		return SCPI_RES_OK;
-	}
+	if (result) {
+		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
+			SCPI_ParamToInt32(context, &param, &intval);
 
-	if (channel < 8) {
-		rf_channels_disable(1 << channel);
-		return SCPI_RES_OK;
-	} else {
-		return SCPI_RES_ERR;
+			if ((1 << intval) & ch_mask)
+				rf_channels_disable(1 << intval);
+			else
+				return SCPI_RES_ERR;
+
+		} else {
+			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
+			if (intval) {
+				rf_channels_disable(ch_mask);
+			}
+		}
 	}
 
 	return SCPI_RES_OK;
@@ -186,7 +203,6 @@ static scpi_result_t INTERLOCK_Power(scpi_t * context)
 		if (interlock >= 0 && interlock <= 38.0) {
 			ch = rf_channel_get(channel);
 			uint16_t dac_value = (uint16_t) (exp((interlock - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
-			printf("Calculated value for pwr %0.2f = %d\n", interlock, dac_value);
 			ch->cal_values.output_dac_cal_value = dac_value;
 
 			if (lock_take(I2C_LOCK, portMAX_DELAY))
@@ -198,6 +214,7 @@ static scpi_result_t INTERLOCK_Power(scpi_t * context)
 				}
 				lock_free(I2C_LOCK);
 			}
+
 			return SCPI_RES_OK;
 		}
 	}
@@ -220,10 +237,9 @@ static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 
 	if (channel < 8) {
 		ch = rf_channel_get(channel);
-		double value = log(ch->cal_values.output_dac_cal_value * ch->cal_values.hw_int_scale) + ch->cal_values.hw_int_offset;
+		double value = log(ch->cal_values.output_dac_cal_value) * ch->cal_values.hw_int_scale + ch->cal_values.hw_int_offset;
 		SCPI_ResultDouble(context, value);
 		return SCPI_RES_OK;
-
 	} else {
 		return SCPI_RES_ERR;
 	}
