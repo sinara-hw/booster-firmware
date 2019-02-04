@@ -25,7 +25,6 @@ void max6639_init(void)
 		addr = address_list[i];
 
 		if (!max6639_test(addr)) {
-			printf("[dbg] Device signature failed\n");
 			return;
 		}
 

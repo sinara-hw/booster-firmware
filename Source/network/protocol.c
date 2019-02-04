@@ -58,11 +58,11 @@ int SCPI_Error(scpi_t * context, int_fast16_t err) {
 scpi_result_t SCPI_Control(scpi_t * context, scpi_ctrl_name_t ctrl, scpi_reg_val_t val) {
     char b[16];
 
-    if (SCPI_CTRL_SRQ == ctrl) {
-        printf("[scpi] **SRQ: 0x%X (%d)\r\n", val, val);
-    } else {
-        printf("[scpi] **CTRL %02x: 0x%X (%d)\r\n", ctrl, val, val);
-    }
+//    if (SCPI_CTRL_SRQ == ctrl) {
+//        printf("[scpi] **SRQ: 0x%X (%d)\r\n", val, val);
+//    } else {
+//        printf("[scpi] **CTRL %02x: 0x%X (%d)\r\n", ctrl, val, val);
+//    }
 
 //    if (context->user_context != NULL) {
 //        user_data_t * u = (user_data_t *) (context->user_context);

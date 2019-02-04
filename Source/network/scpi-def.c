@@ -251,11 +251,98 @@ static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 
 static scpi_result_t CHANNEL_EnableQ(scpi_t * context)
 {
+	scpi_bool_t result;
+	scpi_parameter_t param;
+	int32_t intval = 0;
+	channel_t * ch;
+	uint8_t mask = 0;
+
+	scpi_choice_def_t bool_options[] = {
+		{"ALL", 1},
+		SCPI_CHOICE_LIST_END /* termination of option list */
+	};
+
+	result = SCPI_Parameter(context, &param, true);
+
+	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
 		return SCPI_RES_ERR;
 	}
 
-	SCPI_ResultUInt8(context, rf_channels_read_enabled());
+	if (result) {
+		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
+			SCPI_ParamToInt32(context, &param, &intval);
+
+			if ((1 << intval) & rf_channels_get_mask()) {
+				ch = rf_channel_get(intval);
+				SCPI_ResultBool(context, ch->enabled);
+				return SCPI_RES_OK;
+			} else {
+				return SCPI_RES_ERR;
+			}
+		} else {
+			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
+			if (intval) {
+				for (int i = 0; i < 8; i++) {
+					ch = rf_channel_get(i);
+					if (ch->enabled) {
+						mask |= 1UL << i;
+					}
+				}
+				SCPI_ResultUInt8(context, mask);
+				return SCPI_RES_OK;
+			}
+		}
+	}
+
+	return SCPI_RES_OK;
+}
+
+static scpi_result_t CHANNEL_DetectQ(scpi_t * context)
+{
+	scpi_bool_t result;
+	scpi_parameter_t param;
+	int32_t intval = 0;
+	channel_t * ch;
+	uint8_t mask = 0;
+
+	scpi_choice_def_t bool_options[] = {
+		{"ALL", 1},
+		SCPI_CHOICE_LIST_END /* termination of option list */
+	};
+
+	result = SCPI_Parameter(context, &param, true);
+
+	// throw error if excess parameter is present
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
+	if (result) {
+		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
+			SCPI_ParamToInt32(context, &param, &intval);
+
+			if ((1 << intval) & rf_channels_get_mask()) {
+				ch = rf_channel_get(intval);
+				SCPI_ResultBool(context, ch->detected);
+				return SCPI_RES_OK;
+			} else {
+				return SCPI_RES_ERR;
+			}
+		} else {
+			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
+			if (intval) {
+				for (int i = 0; i < 8; i++) {
+					ch = rf_channel_get(i);
+					if (ch->detected) {
+						mask |= 1UL << i;
+					}
+				}
+				SCPI_ResultUInt8(context, mask);
+				return SCPI_RES_OK;
+			}
+		}
+	}
 
 	return SCPI_RES_OK;
 }
@@ -722,6 +809,7 @@ const scpi_command_t scpi_commands[] = {
 	{.pattern = "CHANnel:TEST", .callback = TestNumOrStrQ,},
 	{.pattern = "CHANnel:DISABle", .callback = CHANNEL_Disable,},
 	{.pattern = "CHANnel:ENABle?", .callback = CHANNEL_EnableQ,},
+	{.pattern = "CHANnel:DETect?", .callback = CHANNEL_DetectQ,},
 
 	/* Data gathering */
 	{.pattern = "MEASure:CURRent?", .callback = CHANNEL_Current,},

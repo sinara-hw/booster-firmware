@@ -333,7 +333,7 @@ void ldhcp_ip_assign(void)
 
 	/* Network initialization */
 	net_conf(&glWIZNETINFO);
-	display_net_conf();
+//	display_net_conf();
 	ucli_log(UCLI_LOG_INFO, "DHCP lease time: %ld s\n", getDHCPLeasetime());
 
 	prvRestartServerTask();
