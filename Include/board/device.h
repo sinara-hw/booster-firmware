@@ -10,5 +10,13 @@
 
 #include "config.h"
 
+typedef struct {
+	uint8_t hw_rev;
+	double p30_current_sense;
+	double sw_ovc_current_value;
+} device_t;
+
+void device_read_revision(void);
+device_t * device_get_config(void);
 
 #endif /* BOARD_DEVICE_H_ */

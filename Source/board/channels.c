@@ -17,6 +17,7 @@
 #include "eeprom.h"
 #include "tasks.h"
 #include "ucli.h"
+#include "device.h"
 
 #define SW_EEPROM_VERSION			2
 
@@ -266,10 +267,10 @@ bool rf_channel_enable_procedure(uint8_t channel)
 		lock_free(I2C_LOCK);
 	}
 
-//	rf_channels_sigon(bitmask, true);
-//	vTaskDelay(5);
-//	rf_channels_sigon(bitmask, false);
-//	vTaskDelay(5);
+	rf_channels_sigon(bitmask, true);
+	vTaskDelay(5);
+	rf_channels_sigon(bitmask, false);
+	vTaskDelay(5);
 	rf_channels_sigon(bitmask, true);
 
 	vTaskDelay(50);
@@ -277,8 +278,8 @@ bool rf_channel_enable_procedure(uint8_t channel)
 	if (lock_take(I2C_LOCK, portMAX_DELAY))
 	{
 		i2c_mux_select(channel);
-//		ads7924_enable_alert();
-//		ads7924_clear_alert();
+		ads7924_enable_alert();
+		ads7924_clear_alert();
 		lock_free(I2C_LOCK);
 	}
 
@@ -433,7 +434,7 @@ void rf_channels_interlock_task(void *pvParameters)
 //					}
 //				}
 
-				if (channels[i].enabled && (channel_alert >> i))
+				if (channels[i].enabled && ((rf_channels_read_alert() >> i) & 0x01))
 				{
 					err_cnt++;
 					if (err_cnt > 64)
@@ -462,6 +463,9 @@ void rf_channels_interlock_task(void *pvParameters)
 
 void rf_channels_measure_task(void *pvParameters)
 {
+	device_t * dev;
+	dev = device_get_config();
+
 	for (;;)
 	{
 		for (int i = 0; i < 8; i++) {
@@ -474,7 +478,7 @@ void rf_channels_measure_task(void *pvParameters)
 					channels[i].measure.fwd_pwr = (double) (channels[i].measure.adc_raw_ch1 - channels[i].cal_values.fwd_pwr_offset) / (double) channels[i].cal_values.fwd_pwr_scale;
 					channels[i].measure.rfl_pwr = (double) (channels[i].measure.adc_raw_ch1 - channels[i].cal_values.rfl_pwr_offset) / (double) channels[i].cal_values.rfl_pwr_scale;
 
-					channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / 50) / 0.091f;
+					channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / 50) / dev->p30_current_sense;
 					channels[i].measure.i60 = (ads7924_get_channel_voltage(1) / 50) / 0.1f;
 					channels[i].measure.in80 = (ads7924_get_channel_voltage(2) / 50) / 4.7f;
 
@@ -992,6 +996,7 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 	uint8_t count = 0;
 	uint16_t value;
 	double avg_current = 0.0f;
+	device_t * dev = device_get_config();
 
 	if (channel < 8)
 	{
@@ -1026,7 +1031,7 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 				i2c_mux_select(channel);
 				for (int i = 0; i < 32; i++)
 				{
-					avg_current += (((ads7924_get_channel_voltage(0) / 50) / 0.091f) * 1000);
+					avg_current += (((ads7924_get_channel_voltage(0) / 50) / dev->p30_current_sense) * 1000);
 					vTaskDelay(20);
 				}
 				lock_free(I2C_LOCK);

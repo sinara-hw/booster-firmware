@@ -36,11 +36,10 @@
 #include "temp_mgt.h"
 #include "gpio.h"
 #include "ucli.h"
+#include "device.h"
 
 // usb
 #include "usb.h"
-
-static volatile uint8_t hw_rev = 0;
 
 static void watchdog_init(void)
 {
@@ -67,6 +66,8 @@ static void prvSetupHardware(void)
 	max6639_init();
 	led_bar_init();
 	scpi_init();
+
+	device_read_revision();
 
 	RCC_ClocksTypeDef RCC_ClockFreq;
 	RCC_GetClocksFreq(&RCC_ClockFreq);

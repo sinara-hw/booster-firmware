@@ -7,6 +7,7 @@
 
 #include "i2c.h"
 #include "ads7924.h"
+#include "device.h"
 
 static uint8_t data_channels[] = {DATA0_REG, DATA1_REG, DATA2_REG, DATA3_REG};
 static uint8_t upper_thresholds[] = {UT0_REG, UT1_REG, UT2_REG, UT3_REG};
@@ -118,10 +119,11 @@ void ads7924_init(void)
 //	i2c_write(I2C1, ADS7924_ADDRESS, 0x13, 0b00000010);
 //	i2c_write(I2C1, ADS7924_ADDRESS, 0x14, 0b00011111);
 
+	device_t *dev = device_get_config();
 	// set alert for i30 at 600mA
 	// 1 bit = AVDD/256
 	// upper limit 600mA
-	ads7924_set_threshholds(0, 160, 0);
+	ads7924_set_threshholds(0, dev->sw_ovc_current_value, 0);
 }
 
 void ads7924_enable_alert(void)
