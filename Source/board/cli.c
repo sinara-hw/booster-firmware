@@ -270,7 +270,7 @@ static void fh_intcal(void * a_data)
 	pwr_cal = (uint8_t) pwr_cal;
 
 	uint16_t retval = 0;
-	uint16_t dacval = 1500;
+	uint16_t dacval = 0;
 
 	if (channel < 8) {
 
@@ -279,21 +279,21 @@ static void fh_intcal(void * a_data)
 		uint16_t old_dac2 = ch->cal_values.output_dac_cal_value;
 
 		printf("[intcal] Calibrating output interlock ch %d\r\n", channel);
-		retval = rf_channel_calibrate_output_interlock(channel, dacval, 100);
+		retval = rf_channel_calibrate_output_interlock_v3(channel, dacval, 100);
 		if (retval == 0) retval = 100;
 		printf("[intcal] Calibration step = 100 completed = %d\n", retval);
 
 		vTaskDelay(500);
 
-		retval *= 1.3;
-		retval = rf_channel_calibrate_output_interlock(channel, retval, 10);
+		retval /= 1.2;
+		retval = rf_channel_calibrate_output_interlock_v3(channel, retval, 10);
 		if (retval == 0) retval = 10;
 
 		vTaskDelay(500);
 
 		printf("[intcal] Calibration step = 10 completed = %d\n", retval);
-		retval *= 1.1;
-		retval = rf_channel_calibrate_output_interlock(channel, retval, 1);
+		retval /= 1.05;
+		retval = rf_channel_calibrate_output_interlock_v3(channel, retval, 1);
 
 		if (retval != 0) {
 			printf("[intcal] Calibration step = 1 completed = %d\n", retval);
@@ -345,7 +345,6 @@ static void fh_intcal(void * a_data)
 		printf("[intcal] Wrong channel number\r\n");
 }
 
-
 static void fh_cal(void * a_data)
 {
 	int channel = 0;
@@ -358,28 +357,28 @@ static void fh_cal(void * a_data)
 	channel = (uint8_t) channel;
 	type = (uint8_t) type;
 
-	uint16_t dacval = 1500;
+	uint16_t dacval = 0;
 	uint16_t retval = 0;
 
 	if (channel < 8)
 	{
 		if (type == 0) {
 			printf("[cal] Calibrating input interlock\n");
-			retval = rf_channel_calibrate_input_interlock(channel, dacval, 100);
+			retval = rf_channel_calibrate_input_interlock_v3(channel, dacval, 100);
 			if (retval == 0) retval = 100;
 			printf("[cal] Calibration step = 100 completed = %d\n", retval);
 
 			vTaskDelay(500);
 
-			retval *= 1.3;
-			retval = rf_channel_calibrate_input_interlock(channel, retval, 10);
+			retval /= 1.2;
+			retval = rf_channel_calibrate_input_interlock_v3(channel, retval, 10);
 			if (retval == 0) retval = 10;
 
 			vTaskDelay(500);
 
 			printf("[cal] Calibration step = 10 completed = %d\n", retval);
-			retval *= 1.5;
-			retval = rf_channel_calibrate_input_interlock(channel, retval, 1);
+			retval /= 1.05;
+			retval = rf_channel_calibrate_input_interlock_v3(channel, retval, 1);
 			if (retval != 0) {
 				printf("[cal] done, value = %d\n", retval);
 
@@ -396,23 +395,56 @@ static void fh_cal(void * a_data)
 			}
 		}
 
+//		if (type == 0) {
+//			printf("[cal] Calibrating input interlock\n");
+//			retval = rf_channel_calibrate_input_interlock(channel, dacval, 100);
+//			if (retval == 0) retval = 100;
+//			printf("[cal] Calibration step = 100 completed = %d\n", retval);
+//
+//			vTaskDelay(500);
+//
+//			retval /= 1.2;
+//			retval = rf_channel_calibrate_input_interlock(channel, retval, 10);
+//			if (retval == 0) retval = 10;
+//
+//			vTaskDelay(500);
+//
+//			printf("[cal] Calibration step = 10 completed = %d\n", retval);
+//			retval /= 1.02;
+//			retval = rf_channel_calibrate_input_interlock(channel, retval, 1);
+//			if (retval != 0) {
+//				printf("[cal] done, value = %d\n", retval);
+//
+//				ch = rf_channel_get(channel);
+//				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+//					i2c_mux_select(channel);
+//
+//					ch->cal_values.input_dac_cal_value = retval;
+//					eeprom_write16(DAC1_EEPROM_ADDRESS, retval);
+//					lock_free(I2C_LOCK);
+//				}
+//			} else {
+//				printf("[cal] error, failed\n");
+//			}
+//		}
+
 		if (type == 1) {
 			printf("[cal] Calibrating output interlock\n");
-			retval = rf_channel_calibrate_output_interlock(channel, dacval, 100);
+			retval = rf_channel_calibrate_output_interlock_v3(channel, dacval, 100);
 			if (retval == 0) retval = 100;
 			printf("[cal] Calibration step = 100 completed = %d\n", retval);
 
 			vTaskDelay(500);
 
-			retval *= 1.3;
-			retval = rf_channel_calibrate_output_interlock(channel, retval, 10);
+			retval /= 1.2;
+			retval = rf_channel_calibrate_output_interlock_v3(channel, retval, 10);
 			if (retval == 0) retval = 10;
 
 			vTaskDelay(500);
 
 			printf("[cal] Calibration step = 10 completed = %d\n", retval);
-			retval *= 1.1;
-			retval = rf_channel_calibrate_output_interlock(channel, retval, 1);
+			retval /= 1.02;
+			retval = rf_channel_calibrate_output_interlock_v3(channel, retval, 1);
 			if (retval != 0) {
 				printf("[cal] done, value = %d\n", retval);
 
@@ -429,6 +461,40 @@ static void fh_cal(void * a_data)
 				printf("[cal] Calibration failed\n");
 			}
 		}
+
+//		if (type == 1) {
+//				printf("[cal] Calibrating output interlock\n");
+//				retval = rf_channel_calibrate_output_interlock_v3(channel, dacval, 100);
+//				if (retval == 0) retval = 100;
+//				printf("[cal] Calibration step = 100 completed = %d\n", retval);
+//
+//				vTaskDelay(500);
+//
+//				retval *= 1.3;
+//				retval = rf_channel_calibrate_output_interlock_v3(channel, retval, 10);
+//				if (retval == 0) retval = 10;
+//
+//				vTaskDelay(500);
+//
+//				printf("[cal] Calibration step = 10 completed = %d\n", retval);
+//				retval *= 1.1;
+//				retval = rf_channel_calibrate_output_interlock_v3(channel, retval, 1);
+//				if (retval != 0) {
+//					printf("[cal] done, value = %d\n", retval);
+//
+//					ch = rf_channel_get(channel);
+//					if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+//						i2c_mux_select(channel);
+//
+//						ch->cal_values.output_dac_cal_value = retval;
+//						eeprom_write16(DAC2_EEPROM_ADDRESS, retval);
+//						lock_free(I2C_LOCK);
+//					}
+//
+//				} else {
+//					printf("[cal] Calibration failed\n");
+//				}
+//			}
 	} else
 		printf("[cal] Wrong channel number\r\n");
 }

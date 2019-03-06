@@ -45,7 +45,7 @@ static void watchdog_init(void)
 {
 	IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);
 	IWDG_SetPrescaler(IWDG_Prescaler_32); // 1024 Hz clock
-	IWDG_SetReload(0x7ff); // 2 second reset timeout
+	IWDG_SetReload(0x1400); // 2 second reset timeout
 	IWDG_ReloadCounter();
 	IWDG_Enable();
 }
