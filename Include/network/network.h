@@ -11,7 +11,7 @@
 #include "wizchip_conf.h"
 
 #define DHCP_SOCKET				7
-#define DHCP_MAX_RETRIES		3
+#define DHCP_MAX_RETRIES		32
 
 #define STM_GetUniqueID(x)		((x >= 0 && x < 12) ? (*(uint8_t *) (0x1FFF7A10 + (x))) : 0)
 
