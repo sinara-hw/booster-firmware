@@ -92,33 +92,42 @@ void prvTempMgtTask(void *pvParameters)
 
 	for (;;)
 	{
-		for (int i = 0; i < 8; i++) {
-			channel_t * ch = rf_channel_get(i);
-
-			if (ch->measure.remote_temp > maxTemp)
-				maxTemp = ch->measure.remote_temp;
+		if (rf_channels_read_enabled() > 0)
+		{
+			set_fan_speed(30);
+		} else {
+			set_fan_speed(0);
 		}
 
-		chTemp = maxTemp;
-		fAvg = moving_avg(chTemp);
-		th = abs(fTemp - fAvg);
+		vTaskDelay(1000);
 
-		// guard for NaN values
-		if (isnan(fAvg)) fAvg = maxTemp;
-
-		if (th > THRESHOLD) {
-			fTemp = fAvg;
-
-			if (fTemp > MIN_TEMP) {
-				speed = fan_speed(fTemp);
-				set_fan_speed(speed);
-				ucli_log(UCLI_LOG_INFO, "[tempmgt] Temp %f -> Fan %d\n", fTemp, speed);
-			} else {
-				set_fan_speed(0);
-			}
-		}
-
-		maxTemp = 0.0f;
-		vTaskDelay(100);
+//		for (int i = 0; i < 8; i++) {
+//			channel_t * ch = rf_channel_get(i);
+//
+//			if (ch->measure.remote_temp > maxTemp)
+//				maxTemp = ch->measure.remote_temp;
+//		}
+//
+//		chTemp = maxTemp;
+//		fAvg = moving_avg(chTemp);
+//		th = abs(fTemp - fAvg);
+//
+//		// guard for NaN values
+//		if (isnan(fAvg)) fAvg = maxTemp;
+//
+//		if (th > THRESHOLD) {
+//			fTemp = fAvg;
+//
+//			if (fTemp > MIN_TEMP) {
+//				speed = fan_speed(fTemp);
+//				set_fan_speed(speed);
+//				ucli_log(UCLI_LOG_INFO, "[tempmgt] Temp %f -> Fan %d\n", fTemp, speed);
+//			} else {
+//				set_fan_speed(0);
+//			}
+//		}
+//
+//		maxTemp = 0.0f;
+//		vTaskDelay(100);
 	}
 }

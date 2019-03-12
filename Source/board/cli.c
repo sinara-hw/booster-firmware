@@ -311,8 +311,11 @@ static void fh_intcal(void * a_data)
 			}
 
 			if (int_cal_val_s && int_cal_val_e) {
-				float a = (int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e));
-				float b = (int_cal_pwr_s - ((int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e))) * log(int_cal_val_s));
+				float a = ((int_cal_val_s - int_cal_val_e) / (int_cal_pwr_s - int_cal_pwr_e));
+				float b = (int_cal_val_s - ((int_cal_val_s - int_cal_val_e) / (int_cal_pwr_s - int_cal_pwr_e)) * int_cal_pwr_s);
+
+//				float a = (int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e));
+//				float b = (int_cal_pwr_s - ((int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e))) * log(int_cal_val_s));
 
 				printf("[intcal] done, got power factors a=%0.2f b=%0.2f\n", a, b);
 				ch->cal_values.hw_int_scale = a;
@@ -448,14 +451,14 @@ static void fh_cal(void * a_data)
 			if (retval != 0) {
 				printf("[cal] done, value = %d\n", retval);
 
-				ch = rf_channel_get(channel);
-				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
-					i2c_mux_select(channel);
-
-					ch->cal_values.output_dac_cal_value = retval;
-					eeprom_write16(DAC2_EEPROM_ADDRESS, retval);
-					lock_free(I2C_LOCK);
-				}
+//				ch = rf_channel_get(channel);
+//				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+//					i2c_mux_select(channel);
+//
+//					ch->cal_values.output_dac_cal_value = retval;
+//					eeprom_write16(DAC2_EEPROM_ADDRESS, retval);
+//					lock_free(I2C_LOCK);
+//				}
 
 			} else {
 				printf("[cal] Calibration failed\n");
@@ -576,7 +579,8 @@ static void fh_intval(void * a_data)
 
 	if ((uint8_t) channel < 8) {
 		ch = rf_channel_get(channel);
-		uint16_t dac_value = (uint16_t) (exp((value - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
+		uint16_t dac_value = (uint16_t) ((ch->cal_values.hw_int_scale * value) + ch->cal_values.hw_int_offset);
+//		uint16_t dac_value = (uint16_t) (exp((value - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
 		ch->cal_values.output_dac_cal_value = dac_value;
 
 		if (lock_take(I2C_LOCK, portMAX_DELAY))

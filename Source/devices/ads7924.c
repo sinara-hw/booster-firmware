@@ -112,7 +112,7 @@ void ads7924_init(void)
 	ads7924_reset();
 	for (int i = 0; i < 84000; i++) {}; // wait for power-up sequence to end
 
-	ads7924_set_mode(MODE_AUTO_SCAN_SLEEP);
+	ads7924_set_mode(MODE_AUTO_SCAN);
 	i2c_write(I2C1, ADS7924_ADDRESS, 0x12, 0b11100010);
 
 	// sleep to 10ms per measurement

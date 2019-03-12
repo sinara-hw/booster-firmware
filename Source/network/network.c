@@ -386,12 +386,14 @@ void prvDHCPTask(void *pvParameters)
 				case DHCP_FAILED:
 					if (++ldhcp_retry_count > DHCP_MAX_RETRIES)
 					{
-						ucli_log(UCLI_LOG_ERROR, "DHCP failed after %d retries\r\n", ldhcp_retry_count);
-						net_conf(&gWIZNETINFO_default);
+						reset_DHCP_timeout();
 						ldhcp_retry_count = 0;
-						ucli_log(UCLI_LOG_INFO, "Loaded static IP settings\r\n");
-						display_net_conf();
-						prvDHCPTaskStop();
+//						ucli_log(UCLI_LOG_ERROR, "DHCP failed after %d retries\r\n", ldhcp_retry_count);
+//						net_conf(&gWIZNETINFO_default);
+//						ldhcp_retry_count = 0;
+//						ucli_log(UCLI_LOG_INFO, "Loaded static IP settings\r\n");
+//						display_net_conf();
+//						prvDHCPTaskStop();
 					}
 					break;
 				default:

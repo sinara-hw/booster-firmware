@@ -591,20 +591,7 @@ static scpi_result_t Interlock_Clear(scpi_t * context)
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
 			if ((1 << intval) & ch_mask) {
-				uint8_t channel = intval;
-				ch = rf_channel_get(channel);
-				ch->input_interlock = false;
-				ch->output_interlock = false;
-
-				vTaskDelay(10);
-
-				uint8_t chan = rf_channels_read_enabled() & (1 << channel);
-				uint8_t channel_mask = rf_channels_get_mask() & chan;
-
-				rf_channels_sigon(channel_mask, true);
-				led_bar_or(rf_channels_read_sigon(), 0, 0);
-				led_bar_and(0x00, (1 << channel), 0x00);
-
+				rf_channel_clear_interlock(intval);
 				return SCPI_RES_OK;
 			} else
 				return SCPI_RES_ERR;

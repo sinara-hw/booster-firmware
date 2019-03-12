@@ -61,7 +61,7 @@ static void prvSetupHardware(void)
 	spi_init();
 	ext_init();
 	lock_init();
-	watchdog_init();
+//	watchdog_init();
 
 	max6639_init();
 	led_bar_init();
@@ -72,11 +72,11 @@ static void prvSetupHardware(void)
 	RCC_ClocksTypeDef RCC_ClockFreq;
 	RCC_GetClocksFreq(&RCC_ClockFreq);
 
-	if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) != RESET) {
-		// watchdog reset occurred
-		ucli_log(UCLI_LOG_WARN, "watchdog reset occurred!\r\n");
-		RCC_ClearFlag();
-	}
+//	if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) != RESET) {
+//		// watchdog reset occurred
+//		ucli_log(UCLI_LOG_WARN, "watchdog reset occurred!\r\n");
+//		RCC_ClearFlag();
+//	}
 
 	ucli_log(UCLI_LOG_INFO, "device boot\r\n");
 	ucli_log(UCLI_LOG_INFO, "SYSCLK frequency: %lu\r\n", RCC_ClockFreq.SYSCLK_Frequency);
@@ -102,10 +102,37 @@ typedef struct {
 	int dir;
 } temp_pid_t;
 
-void prvLEDTask(void * pvParameters)
-{
-
-}
+//void prvLEDTask(void * pvParameters)
+//{
+//  // CURRENT TESTING
+//	device_t * dev;
+//	dev = device_get_config();
+//
+//	if (lock_take(I2C_LOCK, portMAX_DELAY))
+//	{
+//		i2c_mux_select(0);
+//		ads7924_init();
+//
+//		lock_free(I2C_LOCK);
+//	}
+//
+//	for (;;)
+//	{
+//		if (lock_take(I2C_LOCK, portMAX_DELAY))
+//		{
+//			i2c_mux_select(0);
+//
+//			uint32_t raw = ads7924_get_channel_data(0);
+//			float i30 = (ads7924_get_channel_voltage(0) / 50) / dev->p30_current_sense;
+//			float mp50 = ads7924_get_channel_voltage(3) * 2.5f;
+//
+//			printf("CH0 raw %d i30 %0.3f %0.2f\r\n", raw, i30, mp50);
+//			lock_free(I2C_LOCK);
+//		}
+//
+//		vTaskDelay(1000);
+//	}
+//}
 
 int main(void)
 {
@@ -114,6 +141,8 @@ int main(void)
 	uint16_t val = adc_autotest();
 	ucli_log(UCLI_LOG_INFO, "ADC: %s | raw: %d | VrefInt %.2f V\r\n", val == 0 ? "ERROR" : "OK", val, (float) ((val * 2.5) / 4096));
 	ucli_log(UCLI_LOG_INFO, "PGOOD: %s\r\n", GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4) ? "OK" : "ERROR");
+
+//	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
 
 	xTaskCreate(prvTempMgtTask, "FAN", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY, NULL);
 	xTaskCreate(prvADCTask, "ADC", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 3, NULL);
