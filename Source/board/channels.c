@@ -325,7 +325,7 @@ void rf_channel_disable_procedure(uint8_t channel)
 	if (lock_take(I2C_LOCK, portMAX_DELAY)) {
 		i2c_mux_select(channel);
 		i2c_dac_set(4095);
-		i2c_dual_dac_set_val(0.0f, 0.0f);
+//		i2c_dual_dac_set_val(0.0f, 0.0f);
 
 		ads7924_disable_alert();
 
@@ -391,7 +391,30 @@ void rf_channels_interlock_task(void *pvParameters)
 					led_bar_or(0x00, (1UL << i), 0x00);
 				}
 
-				if (channels[i].enabled && (channels[i].measure.remote_temp > 80.0f || channels[i].measure.remote_temp < 5.0f))
+				// software interlock fix for flip-flop reacting only on rising edge
+				if ((channels[i].sigon && channels[i].enabled)) {
+
+					// trip when difference between
+					if (abs(channels[i].measure.adc_raw_ch1 - channels[i].cal_values.output_dac_cal_value) < 100)
+					{
+						rf_channels_sigon(1 << i, false);
+						channels[i].output_interlock = true;
+
+						ucli_log(UCLI_LOG_ERROR, "Interlock tripped on channel %d, i=%d o=%d\r\n", i, channels[i].input_interlock, channels[i].output_interlock);
+
+						if (lock_take(I2C_LOCK, portMAX_DELAY))
+						{
+							i2c_mux_select(i);
+							i2c_dac_set(4095);
+							lock_free(I2C_LOCK);
+						}
+
+						led_bar_and((1UL << i), 0x00, 0x00);
+						led_bar_or(0x00, (1UL << i), 0x00);
+					}
+				}
+
+				if (channels[i].enabled && (channels[i].measure.remote_temp > 60.0f || channels[i].measure.remote_temp < 5.0f))
 				{
 					// avoid one-type glitches on other channels
 					if (err_cnt++ > 32) {
@@ -414,7 +437,7 @@ void rf_channels_interlock_task(void *pvParameters)
 //						if (lock_take(I2C_LOCK, portMAX_DELAY))
 //						{
 //							i2c_mux_select(i);
-//							i2c_dac_set(0);
+//							i2c_dac_set(4095);
 //							lock_free(I2C_LOCK);
 //						}
 //
@@ -474,6 +497,7 @@ void rf_channels_measure_task(void *pvParameters)
 	for (;;)
 	{
 		for (int i = 0; i < 8; i++) {
+
 			if ((1 << i) & channel_mask) {
 
 				if (lock_take(I2C_LOCK, portMAX_DELAY))
