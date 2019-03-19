@@ -201,20 +201,8 @@ static scpi_result_t INTERLOCK_Power(scpi_t * context)
 
 	if (channel < 8) {
 		if (interlock >= 0 && interlock <= 38.0) {
-			ch = rf_channel_get(channel);
-			uint16_t dac_value = (uint16_t) (exp((interlock - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
-			ch->cal_values.output_dac_cal_value = dac_value;
 
-			if (lock_take(I2C_LOCK, portMAX_DELAY))
-			{
-				eeprom_write16(DAC2_EEPROM_ADDRESS, dac_value);
-				if (ch->enabled) {
-					i2c_mux_select(channel);
-					i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
-				}
-				lock_free(I2C_LOCK);
-			}
-
+			rf_channel_interlock_set(channel, interlock);
 			return SCPI_RES_OK;
 		}
 	}
@@ -225,7 +213,6 @@ static scpi_result_t INTERLOCK_Power(scpi_t * context)
 static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 {
 	uint32_t channel;
-	channel_t * ch;
 
 	if (!SCPI_ParamUInt32(context, &channel, true)) {
 		return SCPI_RES_ERR;
@@ -236,9 +223,7 @@ static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 	}
 
 	if (channel < 8) {
-		ch = rf_channel_get(channel);
-		double value = log(ch->cal_values.output_dac_cal_value) * ch->cal_values.hw_int_scale + ch->cal_values.hw_int_offset;
-		value = round(value); // round to full digit
+		double value = rf_channel_interlock_get(channel);
 		SCPI_ResultDouble(context, value);
 
 		return SCPI_RES_OK;

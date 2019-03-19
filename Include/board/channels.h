@@ -95,6 +95,9 @@ uint8_t rf_channels_get_mask(void);
 void rf_channels_soft_interlock_set(uint8_t channel, double value);
 void rf_channels_hwint_override(uint8_t channel, double int_value);
 
+bool rf_channel_interlock_set(uint8_t channel, double value);
+double rf_channel_interlock_get(uint8_t channel);
+
 /* tasks */
 void rf_channels_interlock_task(void *pvParameters);
 void rf_channels_measure_task(void *pvParameters);

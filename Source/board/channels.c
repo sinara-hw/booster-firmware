@@ -563,6 +563,61 @@ void rf_clear_interlock(void)
 	}
 }
 
+bool rf_channel_interlock_set(uint8_t channel, double value)
+{
+	device_t * dev;
+	channel_t * ch;
+	dev = device_get_config();
+	uint16_t dac_value = 0;
+
+	if (channel < 8) {
+		ch = rf_channel_get(channel);
+		if (dev->hw_rev == 3)
+			dac_value = (uint16_t) ((ch->cal_values.hw_int_scale * value) + ch->cal_values.hw_int_offset);
+		else
+			dac_value = (uint16_t) (exp((value - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
+
+		ch->cal_values.output_dac_cal_value = dac_value;
+
+		if (lock_take(I2C_LOCK, portMAX_DELAY))
+		{
+			i2c_mux_select((uint8_t) channel);
+			eeprom_write16(DAC2_EEPROM_ADDRESS, dac_value);
+			if (ch->enabled) {
+				i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
+			}
+			lock_free(I2C_LOCK);
+			printf("[intv] Interlock value for %0.2f = %d\r\n", value, ch->cal_values.output_dac_cal_value);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+double rf_channel_interlock_get(uint8_t channel)
+{
+	device_t * dev;
+	channel_t * ch;
+	dev = device_get_config();
+
+	if (channel < 8) {
+		ch = rf_channel_get(channel);
+		if (dev->hw_rev == 3) {
+			double value = (double) (ch->cal_values.output_dac_cal_value - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale;
+			value = round(value);
+			return value;
+		} else {
+			double value = log(ch->cal_values.output_dac_cal_value) * ch->cal_values.hw_int_scale + ch->cal_values.hw_int_offset;
+			value = round(value);
+			return value;
+		}
+	}
+
+	return 0.0f;
+}
+
 bool rf_channel_clear_interlock(uint8_t channel)
 {
 	channel_t * ch;
@@ -1122,6 +1177,14 @@ uint16_t rf_channel_calibrate_output_interlock_v3(uint8_t channel, int16_t start
 	if (channel < 8)
 	{
 		channels[channel].cal_values.output_dac_cal_value = dacval;
+
+		if (lock_take(I2C_LOCK, portMAX_DELAY))
+		{
+			i2c_mux_select(channel);
+			i2c_dual_dac_set(1, 0);
+
+			lock_free(I2C_LOCK);
+		}
 
 		vTaskSuspend(task_rf_interlock);
 		vTaskDelay(100);
