@@ -349,6 +349,7 @@ void rf_channels_interlock_task(void *pvParameters)
 	uint8_t err_cnt = 0;
 	uint8_t err_cnt2 = 0;
 	uint8_t pwr_diff = 0;
+	uint8_t err_clear = 0;
 
 	rf_channels_init();
 	rf_channels_detect();
@@ -391,28 +392,28 @@ void rf_channels_interlock_task(void *pvParameters)
 					led_bar_or(0x00, (1UL << i), 0x00);
 				}
 
-				// software interlock fix for flip-flop reacting only on rising edge
-				if ((channels[i].sigon && channels[i].enabled)) {
-
-					// trip when difference between
-					if (abs(channels[i].measure.adc_raw_ch1 - channels[i].cal_values.output_dac_cal_value) < 100)
-					{
-						rf_channels_sigon(1 << i, false);
-						channels[i].output_interlock = true;
-
-						ucli_log(UCLI_LOG_ERROR, "Interlock tripped on channel %d, i=%d o=%d\r\n", i, channels[i].input_interlock, channels[i].output_interlock);
-
-						if (lock_take(I2C_LOCK, portMAX_DELAY))
-						{
-							i2c_mux_select(i);
-							i2c_dac_set(4095);
-							lock_free(I2C_LOCK);
-						}
-
-						led_bar_and((1UL << i), 0x00, 0x00);
-						led_bar_or(0x00, (1UL << i), 0x00);
-					}
-				}
+//				// software interlock fix for flip-flop reacting only on rising edge
+//				if ((channels[i].sigon && channels[i].enabled)) {
+//
+//					// trip when difference between
+//					if (abs(channels[i].measure.adc_raw_ch1 - channels[i].cal_values.output_dac_cal_value) < 100)
+//					{
+//						rf_channels_sigon(1 << i, false);
+//						channels[i].output_interlock = true;
+//
+//						ucli_log(UCLI_LOG_ERROR, "Interlock tripped on channel %d, i=%d o=%d\r\n", i, channels[i].input_interlock, channels[i].output_interlock);
+//
+//						if (lock_take(I2C_LOCK, portMAX_DELAY))
+//						{
+//							i2c_mux_select(i);
+//							i2c_dac_set(4095);
+//							lock_free(I2C_LOCK);
+//						}
+//
+//						led_bar_and((1UL << i), 0x00, 0x00);
+//						led_bar_or(0x00, (1UL << i), 0x00);
+//					}
+//				}
 
 				if (channels[i].enabled && (channels[i].measure.remote_temp > 60.0f || channels[i].measure.remote_temp < 5.0f))
 				{
@@ -465,8 +466,11 @@ void rf_channels_interlock_task(void *pvParameters)
 				if (channels[i].enabled && ((rf_channels_read_alert() >> i) & 0x01))
 				{
 					err_cnt++;
-					if (err_cnt > 64)
+					if (err_cnt > 16)
 					{
+						// prevent from clearing error counter
+						err_clear = 0;
+
 						ucli_log(UCLI_LOG_ERROR, "OVC on channel %d, current %0.2f\r\n", i, channels[i].measure.i30);
 						rf_channel_disable_procedure(i);
 						led_bar_and((1UL << i), 0x00, 0x00);
@@ -474,6 +478,11 @@ void rf_channels_interlock_task(void *pvParameters)
 						channels[i].error = 1;
 						channels[i].overcurrent = 1;
 					} else {
+//						ucli_log(UCLI_LOG_ERROR, "OVC TRY on channel %d, current %0.2f try %d\r\n", i, channels[i].measure.i30, err_cnt);
+
+						// prevent from clearing error counter
+						err_clear = 0;
+
 						if (lock_take(I2C_LOCK, portMAX_DELAY))
 						{
 							i2c_mux_select(i);
@@ -481,6 +490,13 @@ void rf_channels_interlock_task(void *pvParameters)
 							lock_free(I2C_LOCK);
 						}
 					}
+				}
+
+				// clear OVC single numbered errors after 2s
+				if (err_clear++ > 200)
+				{
+					err_cnt = 0;
+					err_clear = 0;
 				}
 			}
 		}

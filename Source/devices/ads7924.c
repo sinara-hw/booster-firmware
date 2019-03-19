@@ -112,12 +112,12 @@ void ads7924_init(void)
 	ads7924_reset();
 	for (int i = 0; i < 84000; i++) {}; // wait for power-up sequence to end
 
-	ads7924_set_mode(MODE_AUTO_SCAN);
+	ads7924_set_mode(MODE_AUTO_SCAN_SLEEP);
 	i2c_write(I2C1, ADS7924_ADDRESS, 0x12, 0b11100010);
 
 	// sleep to 10ms per measurement
-//	i2c_write(I2C1, ADS7924_ADDRESS, 0x13, 0b00000010);
-//	i2c_write(I2C1, ADS7924_ADDRESS, 0x14, 0b00011111);
+	i2c_write(I2C1, ADS7924_ADDRESS, 0x13, 0b00000010);
+	i2c_write(I2C1, ADS7924_ADDRESS, 0x14, 0b00011111);
 
 	device_t *dev = device_get_config();
 	// set alert for i30 at 600mA
