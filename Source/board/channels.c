@@ -351,6 +351,11 @@ void rf_channels_interlock_task(void *pvParameters)
 	uint8_t pwr_diff = 0;
 	uint8_t err_clear = 0;
 
+	// since it's most crucial task,
+	// we can feed the dog inside to avoid interrupts
+	// because CPU get's really busy with VCP and SCPI
+	IWDG_ReloadCounter();
+
 	rf_channels_init();
 	rf_channels_detect();
 

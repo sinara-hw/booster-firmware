@@ -61,7 +61,7 @@ static void prvSetupHardware(void)
 	spi_init();
 	ext_init();
 	lock_init();
-//	watchdog_init();
+	watchdog_init();
 
 	max6639_init();
 	led_bar_init();
