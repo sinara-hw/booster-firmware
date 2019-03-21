@@ -600,6 +600,42 @@ static void fh_intval(void * a_data)
 		printf("[intv] Wrong channel number\r\n");
 }
 
+static void fh_intparams(void * a_data)
+{
+	int channel = 0;
+	float a = 0;
+	float b = 0;
+	channel_t *ch = NULL;
+
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_float(2, &a);
+	ucli_param_get_float(3, &b);
+
+	if ((uint8_t) channel < 8) {
+		ch = rf_channel_get(channel);
+
+		ch->cal_values.hw_int_scale = a;
+		ch->cal_values.hw_int_offset = b;
+
+		if (lock_take(I2C_LOCK, portMAX_DELAY))
+		{
+			i2c_mux_select(channel);
+
+			uint32_t u32_scale = 0x00;
+			uint32_t u32_offset = 0x00;
+			memcpy(&u32_scale, &a, sizeof(float));
+			memcpy(&u32_offset, &b, sizeof(float));
+			eeprom_write32(HW_INT_SCALE, u32_scale);
+			eeprom_write32(HW_INT_OFFSET, u32_offset);
+
+			lock_free(I2C_LOCK);
+		}
+
+		printf("[intparams] Interlock params for ch %d, a = %0.2f, b = %0.2f\r\n", channel, a, b);
+	} else
+		printf("[intparams] Wrong channel number\r\n");
+}
+
 static void fh_intget(void * a_data)
 {
 	int channel = 0;
@@ -996,6 +1032,7 @@ static ucli_cmd_t g_cmds[] = {
 	{ "calpwr", fh_calpwr, 0x03 },
 	{ "intcal", fh_intcal, 0x03 },
 	{ "intg", fh_intget, 0x01 },
+	{ "intparams", fh_intparams, 0x03 },
 	{ "cal", fh_cal, 0x02 },
 	{ "biascal", fh_biascal, 0x02 },
 	{ "clearcal", fh_clearcal, 0x02 },
