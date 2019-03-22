@@ -278,16 +278,6 @@ bool rf_channel_enable_procedure(uint8_t channel)
 	vTaskDelay(5);
 	rf_channels_sigon(bitmask, true);
 
-	vTaskDelay(50);
-
-	if (lock_take(I2C_LOCK, portMAX_DELAY))
-	{
-		i2c_mux_select(channel);
-		ads7924_enable_alert();
-		ads7924_clear_alert();
-		lock_free(I2C_LOCK);
-	}
-
 	return true;
 }
 
@@ -326,8 +316,6 @@ void rf_channel_disable_procedure(uint8_t channel)
 		i2c_mux_select(channel);
 		i2c_dac_set(4095);
 //		i2c_dual_dac_set_val(0.0f, 0.0f);
-
-		ads7924_disable_alert();
 
 		lock_free(I2C_LOCK);
 	}
@@ -423,6 +411,7 @@ void rf_channels_interlock_task(void *pvParameters)
 				if (channels[i].enabled && (channels[i].measure.remote_temp > 60.0f || channels[i].measure.remote_temp < 5.0f))
 				{
 					// avoid one-type glitches on other channels
+					err_clear = 0;
 					if (err_cnt++ > 32) {
 						rf_channel_disable_procedure(i);
 						led_bar_and((1UL << i), 0x00, 0x00);
@@ -454,50 +443,6 @@ void rf_channels_interlock_task(void *pvParameters)
 //					}
 //				}
 
-				// fully software version
-//				if (channels[i].enabled && channels[i].measure.i30 > 0.6) {
-//					err_cnt++;
-//
-//					if (err_cnt > 16)
-//					{
-//						ucli_log(UCLI_LOG_ERROR, "OVC on channel %d, current %0.2f\r\n", i, channels[i].measure.i30);
-//						rf_channel_disable_procedure(i);
-//						led_bar_and((1UL << i), 0x00, 0x00);
-//						led_bar_or(0, 0, (1UL << i));
-//						channels[i].error = 1;
-//					}
-//				}
-
-//				if (channels[i].enabled && ((rf_channels_read_alert() >> i) & 0x01))
-//				{
-//					err_cnt++;
-//					if (err_cnt > 16)
-//					{
-//						// prevent from clearing error counter
-//						err_clear = 0;
-//
-//						ucli_log(UCLI_LOG_ERROR, "OVC on channel %d, current %0.2f\r\n", i, channels[i].measure.i30);
-//						rf_channel_disable_procedure(i);
-//						led_bar_and((1UL << i), 0x00, 0x00);
-//						led_bar_or(0, 0, (1UL << i));
-//						channels[i].error = 1;
-//						channels[i].overcurrent = 1;
-//					} else {
-//						ucli_log(UCLI_LOG_ERROR, "OVC TRY on channel %d, current %0.2f try %d\r\n", i, channels[i].measure.i30, err_cnt);
-//
-//						// prevent from clearing error counter
-//						err_clear = 0;
-//
-//						if (lock_take(I2C_LOCK, portMAX_DELAY))
-//						{
-//							i2c_mux_select(i);
-//							ads7924_clear_alert();
-//							lock_free(I2C_LOCK);
-//						}
-//					}
-//				}
-
-				// clear OVC single numbered errors after 2s
 				if (err_clear++ > 200)
 				{
 					err_cnt = 0;
@@ -734,7 +679,7 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[6].measure.adc_ch2,
 																						channels[7].measure.adc_ch2);
 
-		printf("TXPWR [dB]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.fwd_pwr,
+		printf("TXPWR [dBm]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.fwd_pwr,
 																						channels[1].measure.fwd_pwr,
 																						channels[2].measure.fwd_pwr,
 																						channels[3].measure.fwd_pwr,
@@ -743,7 +688,7 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[6].measure.fwd_pwr,
 																						channels[7].measure.fwd_pwr);
 
-		printf("RFLPWR [dB]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.rfl_pwr,
+		printf("RFLPWR [dBm]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.rfl_pwr,
 																						channels[1].measure.rfl_pwr,
 																						channels[2].measure.rfl_pwr,
 																						channels[3].measure.rfl_pwr,
@@ -1113,12 +1058,12 @@ uint16_t rf_channel_calibrate_input_interlock_v3(uint8_t channel, int16_t start_
 		}
 
 		vTaskSuspend(task_rf_interlock);
-		vTaskDelay(100);
+		vTaskDelay(200);
 		rf_channel_enable_procedure(channel);
-		vTaskDelay(100);
+		vTaskDelay(200);
 		rf_clear_interlock();
 
-		while (dacval < 4095) {
+		while (dacval > 0) {
 			if (lock_take(I2C_LOCK, portMAX_DELAY))
 			{
 				i2c_mux_select(channel);
@@ -1130,7 +1075,7 @@ uint16_t rf_channel_calibrate_input_interlock_v3(uint8_t channel, int16_t start_
 //			if (dacval == 1500 || dacval == start_value) {
 //				// clear the issue of interlock popping
 //				// straight up after setting first value
-//				vTaskDelay(200);
+//				vTaskDelay(100);
 //				rf_clear_interlock();
 //			}
 
@@ -1158,7 +1103,7 @@ uint16_t rf_channel_calibrate_input_interlock_v3(uint8_t channel, int16_t start_
 			}
 
 			vTaskDelay(200);
-			dacval += step;
+			dacval -= step;
 		}
 
 		rf_channel_disable_procedure(channel);
@@ -1197,7 +1142,7 @@ uint16_t rf_channel_calibrate_output_interlock_v3(uint8_t channel, int16_t start
 		vTaskDelay(100);
 		rf_clear_interlock();
 
-		while (dacval < 4095) {
+		while (dacval > 0) {
 			if (lock_take(I2C_LOCK, portMAX_DELAY))
 			{
 				i2c_mux_select(channel);
@@ -1236,7 +1181,7 @@ uint16_t rf_channel_calibrate_output_interlock_v3(uint8_t channel, int16_t start
 			}
 
 			vTaskDelay(200);
-			dacval += step;
+			dacval -= step;
 		}
 
 		rf_channel_disable_procedure(channel);
@@ -1244,7 +1189,7 @@ uint16_t rf_channel_calibrate_output_interlock_v3(uint8_t channel, int16_t start
 		vTaskResume(task_rf_interlock);
 		led_bar_and((1 << channel), 0, 0);
 
-//		printf("[ointcal] error, interlock value not found\n");
+		printf("[ointcal] error, interlock value not found\n");
 	}
 
 	return (uint16_t) dacval;
@@ -1266,13 +1211,6 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 		rf_channels_sigon((1 << channel), false); // disable sigon
 
 		vTaskDelay(100);
-
-		if (lock_take(I2C_LOCK, portMAX_DELAY))
-		{
-			i2c_mux_select(channel);
-			ads7924_disable_alert();
-			lock_free(I2C_LOCK);
-		}
 
 		while (dacval > 0)
 		{

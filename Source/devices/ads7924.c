@@ -126,23 +126,23 @@ void ads7924_init(void)
 	ads7924_set_threshholds(0, dev->sw_ovc_current_value, 0);
 }
 
-void ads7924_enable_alert(void)
-{
-	// enable alarm for channel 0 (30V current)
-	i2c_write(I2C1, ADS7924_ADDRESS, 0x01, 0b00000001);
-}
-
-void ads7924_disable_alert(void)
-{
-	i2c_write(I2C1, ADS7924_ADDRESS, 0x01, 0b00000000);
-}
-
-uint8_t ads7924_clear_alert(void)
-{
-	uint8_t alert = 0;
-	i2c_read(I2C1, ADS7924_ADDRESS, 0x01, &alert);
-	return alert;
-}
+//void ads7924_enable_alert(void)
+//{
+//	// enable alarm for channel 0 (30V current)
+//	i2c_write(I2C1, ADS7924_ADDRESS, 0x01, 0b00000001);
+//}
+//
+//void ads7924_disable_alert(void)
+//{
+//	i2c_write(I2C1, ADS7924_ADDRESS, 0x01, 0b00000000);
+//}
+//
+//uint8_t ads7924_clear_alert(void)
+//{
+//	uint8_t alert = 0;
+//	i2c_read(I2C1, ADS7924_ADDRESS, 0x01, &alert);
+//	return alert;
+//}
 
 void ads7924_stop(void)
 {
