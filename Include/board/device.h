@@ -13,7 +13,7 @@
 typedef struct {
 	uint8_t hw_rev;
 	double p30_current_sense;
-	double sw_ovc_current_value;
+	uint8_t macaddr[6];
 } device_t;
 
 void device_read_revision(void);

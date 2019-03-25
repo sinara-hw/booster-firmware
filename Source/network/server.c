@@ -57,8 +57,9 @@ void EXTI9_5_IRQHandler(void)
 
 	if (EXTI_GetITStatus(EXTI_Line6) != RESET)
 	{
-		GPIO_ToggleBits(BOARD_LED1);
+		GPIO_SetBits(BOARD_LED1);
 		xSemaphoreGiveFromISR(xUDPMessageAvailable, &xHigherPriorityTaskWoken);
+
     	EXTI_ClearITPendingBit(EXTI_Line6);
     	NVIC_DisableIRQ(EXTI9_5_IRQn);
     }
@@ -147,13 +148,15 @@ void prvUDPServerTask(void *pvParameters)
 		if (xSemaphoreTake(xUDPMessageAvailable, portMAX_DELAY))
 		{
 			if (lock_take(ETH_LOCK, portMAX_DELAY)) {
+				GPIO_ResetBits(BOARD_LED1);
+
 				ctlwizchip(CW_GET_INTERRUPT, &ir);
 				if (ir & IK_SOCK_0)
 				{
 					switch (getSn_SR(0))
 					{
 						case SOCK_ESTABLISHED:
-							if(getSn_IR(sn) & Sn_IR_CON)
+							if (getSn_IR(sn) & Sn_IR_CON)
 							{
 								getSn_DIPR(sn, destip);
 								destport = getSn_DPORT(sn);
@@ -161,16 +164,16 @@ void prvUDPServerTask(void *pvParameters)
 								ucli_log(UCLI_LOG_INFO, "network client %d.%d.%d.%d connected\r\n", destip[0], destip[1], destip[2], destip[3]);
 							}
 
-							GPIO_SetBits(BOARD_LED1);
 							len = getSn_RX_RSR(0);
 							if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
 
 							recv(sn, rx_buffer, len);
 							rx_buffer[len] = '\0';
-							GPIO_ResetBits(BOARD_LED1);
+
 
 //							ucli_log(UCLI_LOG_DEBUG, "network debug received %s\r\n", rx_buffer);
 
+							GPIO_SetBits(BOARD_LED2);
 							if (scpi_context.user_context != NULL) {
 								user_data_t * u = (user_data_t *) (scpi_context.user_context);
 								memcpy(u->ipsrc, destip, 4);
@@ -178,6 +181,8 @@ void prvUDPServerTask(void *pvParameters)
 							}
 
 							SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
+
+							GPIO_ResetBits(BOARD_LED2);
 							break;
 						case SOCK_CLOSE_WAIT:
 						case SOCK_CLOSED:

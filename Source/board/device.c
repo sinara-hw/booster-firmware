@@ -19,13 +19,16 @@ void device_read_revision(void)
 	// set appropriate resistor values for hardware revision
 	if (booster.hw_rev == 1 || booster.hw_rev == 3) {
 		booster.p30_current_sense = 0.091f;
-		booster.sw_ovc_current_value = 232;
 		// since 2.275V on ADC == 0.5 A current on P30V
 	} else {
 		booster.p30_current_sense = 0.02f;
-		booster.sw_ovc_current_value = 51;
 		// since 0.5V on ADC == 0.5 A current on P30V
 	}
+}
+
+void device_read_mac_eeprom(void)
+{
+
 }
 
 device_t * device_get_config(void)
