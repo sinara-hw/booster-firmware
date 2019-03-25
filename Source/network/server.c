@@ -16,7 +16,7 @@ extern scpi_t scpi_context;
 
 #define MAX_RX_LENGTH 1024
 
-SemaphoreHandle_t xUDPMessageAvailable;
+xQueueHandle xTCPServerIRQ;
 
 static void udp_int_init(void)
 {
@@ -53,15 +53,14 @@ static void udp_int_init(void)
 void EXTI9_5_IRQHandler(void)
 {
 	static long xHigherPriorityTaskWoken;
-	xHigherPriorityTaskWoken = pdFALSE;
+	xHigherPriorityTaskWoken = pdTRUE;
+	uint8_t trg = 0x01;
 
 	if (EXTI_GetITStatus(EXTI_Line6) != RESET)
 	{
-		GPIO_SetBits(BOARD_LED1);
-		xSemaphoreGiveFromISR(xUDPMessageAvailable, &xHigherPriorityTaskWoken);
-
+		GPIO_ToggleBits(BOARD_LED1);
+		xQueueSendFromISR(xTCPServerIRQ, &trg, false);
     	EXTI_ClearITPendingBit(EXTI_Line6);
-    	NVIC_DisableIRQ(EXTI9_5_IRQn);
     }
 
 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
@@ -69,9 +68,8 @@ void EXTI9_5_IRQHandler(void)
 
 static void prvSetupUDPServer(void)
 {
-	// init RECV semaphore
-	vSemaphoreCreateBinary(xUDPMessageAvailable);
-	xSemaphoreTake(xUDPMessageAvailable, 0);
+	// init RECV queue
+	xTCPServerIRQ = xQueueCreate(16, sizeof(uint8_t));
 
 	// create sockets
 	uint8_t ret = socket(0, Sn_MR_TCP, 5000, 0x00);
@@ -89,11 +87,12 @@ static void prvSetupUDPServer(void)
 
 void prvUDPServerTask(void *pvParameters)
 {
-	uint32_t ir;
-	int32_t  len;
-	uint8_t  destip[4];
-	uint16_t destport;
-	uint8_t rx_buffer[MAX_RX_LENGTH];
+	uint32_t 	ir;
+	int32_t  	len;
+	uint8_t  	destip[4];
+	uint16_t 	destport;
+	uint8_t 	rx_buffer[MAX_RX_LENGTH];
+	uint8_t 	trg = 0x00;
 
 	uint8_t sn = 0;
 
@@ -145,12 +144,12 @@ void prvUDPServerTask(void *pvParameters)
 
 	for (;;)
 	{
-		if (xSemaphoreTake(xUDPMessageAvailable, portMAX_DELAY))
+		if (xQueueReceive(xTCPServerIRQ, &trg, portMAX_DELAY))
 		{
 			if (lock_take(ETH_LOCK, portMAX_DELAY)) {
-				GPIO_ResetBits(BOARD_LED1);
 
 				ctlwizchip(CW_GET_INTERRUPT, &ir);
+
 				if (ir & IK_SOCK_0)
 				{
 					switch (getSn_SR(0))
@@ -169,7 +168,6 @@ void prvUDPServerTask(void *pvParameters)
 
 							recv(sn, rx_buffer, len);
 							rx_buffer[len] = '\0';
-
 
 //							ucli_log(UCLI_LOG_DEBUG, "network debug received %s\r\n", rx_buffer);
 
@@ -195,12 +193,10 @@ void prvUDPServerTask(void *pvParameters)
 							ucli_log(UCLI_LOG_ERROR, "Unhandled network socket event %d\r\n", getSn_SR(0));
 							break;
 					}
-
-					setSn_IR(0, 15);
-					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_0);
-					NVIC_EnableIRQ(EXTI9_5_IRQn);
 				}
 
+				setSn_IR(0, 15);
+				ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_0);
 				lock_free(ETH_LOCK);
 			}
 		}

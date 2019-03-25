@@ -388,21 +388,15 @@ void prvDHCPTask(void *pvParameters)
 					{
 						reset_DHCP_timeout();
 						ldhcp_retry_count = 0;
-//						ucli_log(UCLI_LOG_ERROR, "DHCP failed after %d retries\r\n", ldhcp_retry_count);
-//						net_conf(&gWIZNETINFO_default);
-//						ldhcp_retry_count = 0;
-//						ucli_log(UCLI_LOG_INFO, "Loaded static IP settings\r\n");
-//						display_net_conf();
-//						prvDHCPTaskStop();
 					}
 					break;
 				default:
 					break;
 			}
-
-			vTaskDelay(configTICK_RATE_HZ / 5);
 			lock_free(ETH_LOCK);
 		}
+
+		vTaskDelay(configTICK_RATE_HZ / 5);
 	}
 }
 
