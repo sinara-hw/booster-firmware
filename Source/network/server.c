@@ -83,6 +83,9 @@ static void prvSetupUDPServer(void)
 	uint8_t state = getSn_SR(0);
 	if (state == SOCK_INIT)
 		ucli_log(UCLI_LOG_INFO, "network socket state %X\r\n", state);
+
+	socket(1, Sn_MR_TCP, 5000, 0x00);
+	setSn_IMR(1, 15); // set RECV interrupt mask
 }
 
 void prvUDPServerTask(void *pvParameters)
@@ -131,12 +134,13 @@ void prvUDPServerTask(void *pvParameters)
 	{
 		prvSetupUDPServer();
 
-		uint16_t imr = IK_SOCK_0;
+		uint16_t imr = IK_SOCK_0 | IK_SOCK_1;
 		if (ctlwizchip(CW_SET_INTRMASK, &imr) == -1) {
 			ucli_log(UCLI_LOG_ERROR, "network error, cannot set imr\r\n");
 		}
 
 		uint8_t ret = listen(0);
+		listen(1);
 		ucli_log(UCLI_LOG_INFO, "network socket (on port %d) listen %s\r\n", 5000, ret ? "OK" : "ERROR");
 
 		lock_free(ETH_LOCK);
@@ -153,60 +157,65 @@ void prvUDPServerTask(void *pvParameters)
 				if (ir & IK_SOCK_0) {
 					sn = 0;
 					printf("irq sock 0\r\n");
+				} else if (ir & IK_SOCK_1) {
+					sn = 1;
+					printf("irq sock 1\r\n");
 				}
 
-				if (ir & IK_SOCK_0)
+				switch (getSn_SR(sn))
 				{
-					switch (getSn_SR(sn))
-					{
-						case SOCK_ESTABLISHED:
-							if (getSn_IR(sn) & Sn_IR_CON)
-							{
-								getSn_DIPR(sn, destip);
-								destport = getSn_DPORT(sn);
-								setSn_IR(sn, Sn_IR_CON);
-								ucli_log(UCLI_LOG_INFO, "network client %d.%d.%d.%d connected\r\n", destip[0], destip[1], destip[2], destip[3]);
+					case SOCK_ESTABLISHED:
+						if (getSn_IR(sn) & Sn_IR_CON)
+						{
+							getSn_DIPR(sn, destip);
+							destport = getSn_DPORT(sn);
+							setSn_IR(sn, Sn_IR_CON);
+							ucli_log(UCLI_LOG_INFO, "network client %d.%d.%d.%d connected\r\n", destip[0], destip[1], destip[2], destip[3]);
 
-								// set user context ip address and port
-								if (scpi_context.user_context != NULL) {
-									user_data_t * u = (user_data_t *) (scpi_context.user_context);
-									u->socket = sn;
-									memcpy(u->ipsrc[sn], destip, 4);
-									u->ipsrc_port[sn] = destport;
-								}
-							}
-
-							GPIO_SetBits(BOARD_LED2);
-							len = getSn_RX_RSR(sn);
-							if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
-
-							recv(sn, rx_buffer, len);
-							rx_buffer[len] = '\0';
-
+							// set user context ip address and port
 							if (scpi_context.user_context != NULL) {
 								user_data_t * u = (user_data_t *) (scpi_context.user_context);
 								u->socket = sn;
+								memcpy(u->ipsrc[sn], destip, 4);
+								u->ipsrc_port[sn] = destport;
 							}
+						}
+
+						GPIO_SetBits(BOARD_LED2);
+						len = getSn_RX_RSR(sn);
+						if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
+
+						recv(sn, rx_buffer, len);
+						rx_buffer[len] = '\0';
+
+						if (scpi_context.user_context != NULL) {
+							user_data_t * u = (user_data_t *) (scpi_context.user_context);
+							u->socket = sn;
+						}
 
 //							ucli_log(UCLI_LOG_DEBUG, "network debug received %s\r\n", rx_buffer);
-							SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
-							GPIO_ResetBits(BOARD_LED2);
-							break;
-						case SOCK_CLOSE_WAIT:
-						case SOCK_CLOSED:
-							ucli_log(UCLI_LOG_INFO, "network client disconnected\r\n");
-							disconnect(sn);
-							socket(sn, Sn_MR_TCP, 5000, 0x00);
-							listen(sn);
-							break;
-						default:
-							ucli_log(UCLI_LOG_ERROR, "Unhandled network socket event %d\r\n", getSn_SR(sn));
-							break;
-					}
+						SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
+						GPIO_ResetBits(BOARD_LED2);
+						break;
+					case SOCK_CLOSE_WAIT:
+					case SOCK_CLOSED:
+						ucli_log(UCLI_LOG_INFO, "network client disconnected\r\n");
+						disconnect(sn);
+						socket(sn, Sn_MR_TCP, 5000, 0x00);
+						listen(sn);
+						break;
+					default:
+						ucli_log(UCLI_LOG_ERROR, "Unhandled network socket event %d\r\n", getSn_SR(sn));
+						break;
 				}
 
 				setSn_IR(sn, 15);
-				ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_0);
+
+				if (sn == 0)
+					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_0);
+				else if (sn == 1)
+					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_1);
+
 				lock_free(ETH_LOCK);
 			}
 		}
