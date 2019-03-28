@@ -21,7 +21,6 @@ size_t SCPI_Write(scpi_t * context, const char * data, size_t len)
 
 		user_data_t * u = (user_data_t *) (context->user_context);
 		if (u->ipsrc[u->socket]) {
-			printf("sending to socket %d\r\n", u->socket);
 			return send(u->socket, (uint8_t *) data, len);
 		}
 	}
@@ -58,7 +57,7 @@ int SCPI_Error(scpi_t * context, int_fast16_t err) {
 
 
 scpi_result_t SCPI_Control(scpi_t * context, scpi_ctrl_name_t ctrl, scpi_reg_val_t val) {
-    char b[16];
+//    char b[16];
 
 //    if (SCPI_CTRL_SRQ == ctrl) {
 //        printf("[scpi] **SRQ: 0x%X (%d)\r\n", val, val);
