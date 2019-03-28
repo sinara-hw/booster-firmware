@@ -20,11 +20,10 @@ size_t SCPI_Write(scpi_t * context, const char * data, size_t len)
 	if (context->user_context != NULL) {
 
 		user_data_t * u = (user_data_t *) (context->user_context);
-		if (u->ipsrc) {
-			printf("Sending to socket %d\r\n", u->socket);
-			return send(0, (uint8_t *) data, len);
+		if (u->ipsrc[u->socket]) {
+			printf("sending to socket %d\r\n", u->socket);
+			return send(u->socket, (uint8_t *) data, len);
 		}
-
 	}
 	return 0;
 }
@@ -43,7 +42,7 @@ int SCPI_Error(scpi_t * context, int_fast16_t err) {
 
     if (err != 0) {
     	user_data_t * u = (user_data_t *) (context->user_context);
-    	if (u->ipsrc) send(0, (uint8_t *) errmsg, len);
+    	if (u->ipsrc[u->socket]) send(u->socket, (uint8_t *) errmsg, len);
         /* New error */
         /* Beep */
         /* Error LED ON */

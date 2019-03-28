@@ -14,7 +14,7 @@
 #include "scpi/scpi.h"
 extern scpi_t scpi_context;
 
-#define MAX_RX_LENGTH 1024
+#define MAX_RX_LENGTH 640
 
 xQueueHandle xTCPServerIRQ;
 
@@ -171,8 +171,8 @@ void prvUDPServerTask(void *pvParameters)
 								if (scpi_context.user_context != NULL) {
 									user_data_t * u = (user_data_t *) (scpi_context.user_context);
 									u->socket = sn;
-									memcpy(u->ipsrc, destip, 4);
-									u->ipsrc_port = destport;
+									memcpy(u->ipsrc[sn], destip, 4);
+									u->ipsrc_port[sn] = destport;
 								}
 							}
 
@@ -182,6 +182,11 @@ void prvUDPServerTask(void *pvParameters)
 
 							recv(sn, rx_buffer, len);
 							rx_buffer[len] = '\0';
+
+							if (scpi_context.user_context != NULL) {
+								user_data_t * u = (user_data_t *) (scpi_context.user_context);
+								u->socket = sn;
+							}
 
 //							ucli_log(UCLI_LOG_DEBUG, "network debug received %s\r\n", rx_buffer);
 							SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
