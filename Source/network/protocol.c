@@ -20,7 +20,10 @@ size_t SCPI_Write(scpi_t * context, const char * data, size_t len)
 	if (context->user_context != NULL) {
 
 		user_data_t * u = (user_data_t *) (context->user_context);
-		if (u->ipsrc) return send(0, (uint8_t *) data, len);
+		if (u->ipsrc) {
+			printf("Sending to socket %d\r\n", u->socket);
+			return send(0, (uint8_t *) data, len);
+		}
 
 	}
 	return 0;

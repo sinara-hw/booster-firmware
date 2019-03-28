@@ -150,9 +150,14 @@ void prvUDPServerTask(void *pvParameters)
 
 				ctlwizchip(CW_GET_INTERRUPT, &ir);
 
+				if (ir & IK_SOCK_0) {
+					sn = 0;
+					printf("irq sock 0\r\n");
+				}
+
 				if (ir & IK_SOCK_0)
 				{
-					switch (getSn_SR(0))
+					switch (getSn_SR(sn))
 					{
 						case SOCK_ESTABLISHED:
 							if (getSn_IR(sn) & Sn_IR_CON)
@@ -161,41 +166,41 @@ void prvUDPServerTask(void *pvParameters)
 								destport = getSn_DPORT(sn);
 								setSn_IR(sn, Sn_IR_CON);
 								ucli_log(UCLI_LOG_INFO, "network client %d.%d.%d.%d connected\r\n", destip[0], destip[1], destip[2], destip[3]);
+
+								// set user context ip address and port
+								if (scpi_context.user_context != NULL) {
+									user_data_t * u = (user_data_t *) (scpi_context.user_context);
+									u->socket = sn;
+									memcpy(u->ipsrc, destip, 4);
+									u->ipsrc_port = destport;
+								}
 							}
 
-							len = getSn_RX_RSR(0);
+							GPIO_SetBits(BOARD_LED2);
+							len = getSn_RX_RSR(sn);
 							if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
 
 							recv(sn, rx_buffer, len);
 							rx_buffer[len] = '\0';
 
 //							ucli_log(UCLI_LOG_DEBUG, "network debug received %s\r\n", rx_buffer);
-
-							GPIO_SetBits(BOARD_LED2);
-							if (scpi_context.user_context != NULL) {
-								user_data_t * u = (user_data_t *) (scpi_context.user_context);
-								memcpy(u->ipsrc, destip, 4);
-								u->ipsrc_port = destport;
-							}
-
 							SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
-
 							GPIO_ResetBits(BOARD_LED2);
 							break;
 						case SOCK_CLOSE_WAIT:
 						case SOCK_CLOSED:
 							ucli_log(UCLI_LOG_INFO, "network client disconnected\r\n");
 							disconnect(sn);
-							socket(0, Sn_MR_TCP, 5000, 0x00);
-							listen(0);
+							socket(sn, Sn_MR_TCP, 5000, 0x00);
+							listen(sn);
 							break;
 						default:
-							ucli_log(UCLI_LOG_ERROR, "Unhandled network socket event %d\r\n", getSn_SR(0));
+							ucli_log(UCLI_LOG_ERROR, "Unhandled network socket event %d\r\n", getSn_SR(sn));
 							break;
 					}
 				}
 
-				setSn_IR(0, 15);
+				setSn_IR(sn, 15);
 				ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_0);
 				lock_free(ETH_LOCK);
 			}
