@@ -20,8 +20,16 @@ size_t SCPI_Write(scpi_t * context, const char * data, size_t len)
 	if (context->user_context != NULL) {
 
 		user_data_t * u = (user_data_t *) (context->user_context);
-		if (u->ipsrc) return send(0, (uint8_t *) data, len);
+		if (u->ipsrc) {
+			int ret = send(0, (uint8_t *) data, len);
 
+			if (ret < 0)
+			{
+				printf("err %d\r\n", ret);
+			}
+
+			return ret;
+		}
 	}
 	return 0;
 }

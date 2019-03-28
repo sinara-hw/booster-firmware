@@ -91,13 +91,13 @@ void prvTempMgtTask(void *pvParameters)
 	double maxTemp = 0.0f;
 	fTemp = (MIN_TEMP - 2);
 
-	// auto enable procedure after power-up
-	vTaskDelay(2000);
-	rf_channels_enable(rf_channels_get_mask());
-
-	// ensure that channel LED's are light on
-	vTaskDelay(100);
-	led_bar_or(rf_channels_read_sigon(), 0, 0);
+//	// auto enable procedure after power-up
+//	vTaskDelay(2000);
+//	rf_channels_enable(rf_channels_get_mask());
+//
+//	// ensure that channel LED's are light on
+//	vTaskDelay(100);
+//	led_bar_or(rf_channels_read_sigon(), 0, 0);
 
 	for (;;)
 	{

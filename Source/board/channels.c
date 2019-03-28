@@ -288,7 +288,9 @@ void rf_channels_enable(uint8_t mask)
 		if ((1 << i) & mask) {
 			if (rf_channel_enable_procedure(i)) {
 				// dont light up led when interlock trips during poweron
-				if (channels[i].sigon) led_bar_or(1UL << i, 0, 0);
+				vTaskDelay(100);
+				if (channels[i].sigon)
+					led_bar_or(1UL << i, 0, 0);
 			}
 		}
 	}
@@ -315,7 +317,6 @@ void rf_channel_disable_procedure(uint8_t channel)
 	if (lock_take(I2C_LOCK, portMAX_DELAY)) {
 		i2c_mux_select(channel);
 		i2c_dac_set(4095);
-//		i2c_dual_dac_set_val(0.0f, 0.0f);
 
 		lock_free(I2C_LOCK);
 	}
@@ -384,29 +385,6 @@ void rf_channels_interlock_task(void *pvParameters)
 					led_bar_and((1UL << i), 0x00, 0x00);
 					led_bar_or(0x00, (1UL << i), 0x00);
 				}
-
-//				// software interlock fix for flip-flop reacting only on rising edge
-//				if ((channels[i].sigon && channels[i].enabled)) {
-//
-//					// trip when difference between
-//					if (abs(channels[i].measure.adc_raw_ch1 - channels[i].cal_values.output_dac_cal_value) < 100)
-//					{
-//						rf_channels_sigon(1 << i, false);
-//						channels[i].output_interlock = true;
-//
-//						ucli_log(UCLI_LOG_ERROR, "Interlock tripped on channel %d, i=%d o=%d\r\n", i, channels[i].input_interlock, channels[i].output_interlock);
-//
-//						if (lock_take(I2C_LOCK, portMAX_DELAY))
-//						{
-//							i2c_mux_select(i);
-//							i2c_dac_set(4095);
-//							lock_free(I2C_LOCK);
-//						}
-//
-//						led_bar_and((1UL << i), 0x00, 0x00);
-//						led_bar_or(0x00, (1UL << i), 0x00);
-//					}
-//				}
 
 				if (channels[i].enabled && (channels[i].measure.remote_temp > 60.0f || channels[i].measure.remote_temp < 5.0f))
 				{
@@ -642,6 +620,15 @@ void rf_channels_info_task(void *pvParameters)
 																channels[5].detected,
 																channels[6].detected,
 																channels[7].detected);
+//
+//		printf("I2C ERR\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", i2c_get_channel_errors(0),
+//																i2c_get_channel_errors(1),
+//																i2c_get_channel_errors(2),
+//																i2c_get_channel_errors(3),
+//																i2c_get_channel_errors(4),
+//																i2c_get_channel_errors(5),
+//																i2c_get_channel_errors(6),
+//																i2c_get_channel_errors(7));
 
 		printf("HWID\t\t%02X:%02X\t%02X:%02X\t%02X:%02X\t%02X:%02X\t%02X:%02X\t%02X:%02X\t%02X:%02X\t%02X:%02X\t\n",
 																channels[0].hwid[4],
@@ -1272,7 +1259,7 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 				return true;
 			}
 
-			dacval -= diff > 10 ? (diff * 2) : 15;
+			dacval -= diff > 10 ? (diff * 2) : 10;
 		}
 	}
 

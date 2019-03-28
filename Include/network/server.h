@@ -13,6 +13,7 @@
 typedef struct {
 	uint8_t 	ipsrc[4];
 	uint16_t 	ipsrc_port;
+	uint8_t 	socket;
 } user_data_t;
 
 void prvUDPServerTask(void *pvParameters);

@@ -14,7 +14,7 @@
 #include "scpi/scpi.h"
 extern scpi_t scpi_context;
 
-#define MAX_RX_LENGTH 1024
+#define MAX_RX_LENGTH 640
 
 xQueueHandle xTCPServerIRQ;
 
@@ -146,6 +146,11 @@ void prvUDPServerTask(void *pvParameters)
 	{
 		if (xQueueReceive(xTCPServerIRQ, &trg, portMAX_DELAY))
 		{
+			// since it's most crucial task,
+			// we can feed the dog inside to avoid interrupts
+			// because CPU get's really busy with VCP and SCPI
+			IWDG_ReloadCounter();
+
 			if (lock_take(ETH_LOCK, portMAX_DELAY)) {
 
 				ctlwizchip(CW_GET_INTERRUPT, &ir);
@@ -179,8 +184,10 @@ void prvUDPServerTask(void *pvParameters)
 							}
 
 							SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
-
 							GPIO_ResetBits(BOARD_LED2);
+							break;
+						case 0x10:
+							printf("sock send ok still working\r\n");
 							break;
 						case SOCK_CLOSE_WAIT:
 						case SOCK_CLOSED:
@@ -195,7 +202,7 @@ void prvUDPServerTask(void *pvParameters)
 					}
 				}
 
-				setSn_IR(0, 15);
+				setSn_IR(0, 31);
 				ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_0);
 				lock_free(ETH_LOCK);
 			}

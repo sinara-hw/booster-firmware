@@ -539,6 +539,19 @@ static void fh_chanid(void * a_data)
 		printf("[chanid] Wrong channel number\r\n");
 }
 
+static void fh_i2cerr(void * a_data)
+{
+	printf("\t\t#0\t#1\t#2\t#3\t#4\t#5\t#6\t#7\n");
+	printf("I2C ERR\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", i2c_get_channel_errors(0),
+															i2c_get_channel_errors(1),
+															i2c_get_channel_errors(2),
+															i2c_get_channel_errors(3),
+															i2c_get_channel_errors(4),
+															i2c_get_channel_errors(5),
+															i2c_get_channel_errors(6),
+															i2c_get_channel_errors(7));
+}
+
 
 static void fh_int(void * a_data)
 {
@@ -909,6 +922,23 @@ static void fh_macconfig(void * a_data)
 		printf("[macconfig] Wrong MAC address specified\r\n");
 }
 
+static void fh_ethdbg(void * a_data)
+{
+	if (lock_take(ETH_LOCK, portMAX_DELAY))
+	{
+		printf("getSn_SR %d\r\n", getSn_SR(0));
+		printf("getSn_MR %d\r\n", getSn_MR(0));
+		printf("getSn_RX_RSR %d\r\n", getSn_RX_RSR(0));
+		printf("getSn_CR %d\r\n", getSn_CR(0));
+		printf("getSn_IR %d\r\n", getSn_IR(0));
+		printf("getSn_RXBUF_SIZE %d\r\n", getSn_RXBUF_SIZE(0));
+
+		lock_free(ETH_LOCK);
+	} else {
+		printf("[ethdbg] Failed to acquire Ethernet lock\r\n");
+	}
+}
+
 static void fh_wdtest(void * a_data)
 {
 	printf("Waiting for watchdog reset\r\n");
@@ -971,6 +1001,8 @@ static ucli_cmd_t g_cmds[] = {
 	{ "cal", fh_cal, 0x02 },
 	{ "biascal", fh_biascal, 0x02 },
 	{ "clearcal", fh_clearcal, 0x02 },
+	{ "i2cerr", fh_i2cerr, 0x00 },
+	{ "ethdbg", fh_ethdbg, 0x00 },
 
     // null
     { 0x00, 0x00, 0x00  }
