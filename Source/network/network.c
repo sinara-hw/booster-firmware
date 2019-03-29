@@ -61,9 +61,12 @@ void net_init(void)
 
 	// set default network settings
 	wiz_NetInfo glWIZNETINFO;
+	memset(&glWIZNETINFO, 0x00, sizeof(wiz_NetInfo));
 
 	device_load_network_conf();
 	device_load_wiznet_conf(&glWIZNETINFO);
+	ucli_log(UCLI_LOG_INFO, "MACADDR %d:%d:%d:%d:%d:%d\r\n", glWIZNETINFO.mac[0], glWIZNETINFO.mac[1], glWIZNETINFO.mac[2],
+														 glWIZNETINFO.mac[3], glWIZNETINFO.mac[4], glWIZNETINFO.mac[5]);
 
 	ctlnetwork(CN_SET_NETINFO, &glWIZNETINFO);
 

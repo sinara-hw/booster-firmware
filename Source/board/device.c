@@ -35,8 +35,15 @@ void device_load_network_conf(void)
 	{
 		ucli_log(UCLI_LOG_INFO, "Found mainboard EEPROM, loading values\r\n");
 
+		// if eeprom is empty, it will return 0xFF
 		booster.ipsel = eeprom_read_mb(IP_METHOD);
+		if (booster.ipsel == 0xFF)
+			booster.ipsel = NETINFO_DHCP;
+
 		booster.macsel = eeprom_read_mb(MAC_ADDRESS_SELECT);
+		if (booster.macsel == 0xFF)
+			booster.macsel = 0;
+
 		for (int i = 0; i < 4; i++) booster.ipaddr[i] = eeprom_read_mb(IP_ADDRESS + i);
 		for (int i = 0; i < 4; i++) booster.gwaddr[i] = eeprom_read_mb(IP_ADDRESS_GW + i);
 		for (int i = 0; i < 4; i++) booster.netmask[i] = eeprom_read_mb(IP_ADDRESS_NETMASK + i);
@@ -45,25 +52,22 @@ void device_load_network_conf(void)
 			for (int i = 0; i < 6; i++)
 				booster.macaddr[i] = eeprom_read_mb(MAC_ADDRESS + i);
 		} else {
-			for (int i = 6; i < 12; i++)
-				booster.macaddr[i] = STM_GetUniqueID(i);
+			for (int i = 0; i < 6; i++) {
+				booster.macaddr[i] = STM_GetUniqueID(6 + i);
+			}
 		}
 	} else {
 		ucli_log(UCLI_LOG_INFO, "Mainboard EEPROM not found, loading default values\r\n");
 		booster.ipsel = NETINFO_DHCP;
-		for (int i = 6; i < 12; i++)
-			booster.macaddr[i] = STM_GetUniqueID(i);
-	}
-
-	for (int i = 0, j = 0xFA; i < 6; i++, j++)
-	{
-		ucli_log(UCLI_LOG_INFO, "MAC %d %02X\r\n", i, eeprom_read_mb(j));
+		for (int i = 0; i < 6; i++) {
+			booster.macaddr[i] = STM_GetUniqueID(6 + i);
+		}
 	}
 }
 
 void device_load_wiznet_conf(wiz_NetInfo * conf)
 {
-	memcpy(conf->mac, booster.macaddr, 6);
+	memcpy(conf->mac, &booster.macaddr, 6);
 
 	if (booster.ipsel == NETINFO_STATIC) {
 		conf->dhcp = NETINFO_STATIC;

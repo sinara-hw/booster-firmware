@@ -278,6 +278,8 @@ bool rf_channel_enable_procedure(uint8_t channel)
 	vTaskDelay(5);
 	rf_channels_sigon(bitmask, true);
 
+	vTaskDelay(50);
+
 	return true;
 }
 
@@ -288,7 +290,6 @@ void rf_channels_enable(uint8_t mask)
 		if ((1 << i) & mask) {
 			if (rf_channel_enable_procedure(i)) {
 				// dont light up led when interlock trips during poweron
-				vTaskDelay(100);
 				if (channels[i].sigon)
 					led_bar_or(1UL << i, 0, 0);
 			}
