@@ -53,7 +53,7 @@ void device_load_network_conf(void)
 				booster.macaddr[i] = eeprom_read_mb(MAC_ADDRESS + i);
 		} else {
 			for (int i = 0; i < 6; i++) {
-				booster.macaddr[i] = STM_GetUniqueID(6 + i);
+				booster.macaddr[i] = eeprom_read_mb(0xFA + i);
 			}
 		}
 	} else {

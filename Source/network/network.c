@@ -65,8 +65,9 @@ void net_init(void)
 
 	device_load_network_conf();
 	device_load_wiznet_conf(&glWIZNETINFO);
-	ucli_log(UCLI_LOG_INFO, "MACADDR %d:%d:%d:%d:%d:%d\r\n", glWIZNETINFO.mac[0], glWIZNETINFO.mac[1], glWIZNETINFO.mac[2],
-														 glWIZNETINFO.mac[3], glWIZNETINFO.mac[4], glWIZNETINFO.mac[5]);
+	ucli_log(UCLI_LOG_INFO, "MACADDR %02X:%02X:%02X:%02X:%02X:%02X\r\n",
+			glWIZNETINFO.mac[0], glWIZNETINFO.mac[1], glWIZNETINFO.mac[2],
+			glWIZNETINFO.mac[3], glWIZNETINFO.mac[4], glWIZNETINFO.mac[5]);
 
 	ctlnetwork(CN_SET_NETINFO, &glWIZNETINFO);
 
