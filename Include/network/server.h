@@ -11,8 +11,8 @@
 #include "config.h"
 
 typedef struct {
-	uint8_t 	ipsrc[4];
-	uint16_t 	ipsrc_port;
+	uint8_t 	ipsrc[4][4];
+	uint16_t 	ipsrc_port[4];
 	uint8_t 	socket;
 } user_data_t;
 

@@ -10,27 +10,18 @@
 #include "server.h"
 #include "socket.h"
 
-user_data_t user_data = {
-    .ipsrc = 0,
-    .ipsrc_port = 0,
-};
+user_data_t user_data;
 
 size_t SCPI_Write(scpi_t * context, const char * data, size_t len)
 {
 	if (context->user_context != NULL) {
 
 		user_data_t * u = (user_data_t *) (context->user_context);
-		if (u->ipsrc) {
-			int ret = send(0, (uint8_t *) data, len);
-
-			if (ret < 0)
-			{
-				printf("err %d\r\n", ret);
-			}
-
-			return ret;
+		if (u->ipsrc[u->socket]) {
+			return send(u->socket, (uint8_t *) data, len);
 		}
 	}
+
 	return 0;
 }
 
@@ -48,7 +39,7 @@ int SCPI_Error(scpi_t * context, int_fast16_t err) {
 
     if (err != 0) {
     	user_data_t * u = (user_data_t *) (context->user_context);
-    	if (u->ipsrc) send(0, (uint8_t *) errmsg, len);
+    	if (u->ipsrc[u->socket]) send(u->socket, (uint8_t *) errmsg, len);
         /* New error */
         /* Beep */
         /* Error LED ON */
@@ -63,22 +54,8 @@ int SCPI_Error(scpi_t * context, int_fast16_t err) {
 }
 
 
-scpi_result_t SCPI_Control(scpi_t * context, scpi_ctrl_name_t ctrl, scpi_reg_val_t val) {
-    char b[16];
-
-//    if (SCPI_CTRL_SRQ == ctrl) {
-//        printf("[scpi] **SRQ: 0x%X (%d)\r\n", val, val);
-//    } else {
-//        printf("[scpi] **CTRL %02x: 0x%X (%d)\r\n", ctrl, val, val);
-//    }
-
-//    if (context->user_context != NULL) {
-//        user_data_t * u = (user_data_t *) (context->user_context);
-//        if (u->ipsrc) {
-//            snprintf(b, sizeof (b), "SRQ%d\r\n", val);
-//            return sendto(0, (uint8_t *) b, strlen(b), u->ipsrc, u->ipsrc_port);
-//        }
-//    }
+scpi_result_t SCPI_Control(scpi_t * context, scpi_ctrl_name_t ctrl, scpi_reg_val_t val)
+{
     return SCPI_RES_OK;
 }
 
@@ -99,5 +76,6 @@ void scpi_init(void)
 			  scpi_input_buffer, SCPI_INPUT_BUFFER_LENGTH,
 			  scpi_error_queue_data, SCPI_ERROR_QUEUE_SIZE);
 
+	memset(&user_data, 0x00, sizeof(user_data_t));
 	scpi_context.user_context = &user_data;
 }
