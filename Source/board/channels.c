@@ -1046,9 +1046,9 @@ uint16_t rf_channel_calibrate_input_interlock_v3(uint8_t channel, int16_t start_
 		}
 
 		vTaskSuspend(task_rf_interlock);
-		vTaskDelay(200);
+		vTaskDelay(100);
 		rf_channel_enable_procedure(channel);
-		vTaskDelay(200);
+		vTaskDelay(100);
 		rf_clear_interlock();
 
 		while (dacval > 0) {
@@ -1082,7 +1082,7 @@ uint16_t rf_channel_calibrate_input_interlock_v3(uint8_t channel, int16_t start_
 				printf("[iintcal] done interlock value = %d\r\n", dacval);
 
 				rf_channel_disable_procedure(channel);
-				vTaskDelay(100);
+				vTaskDelay(200);
 				vTaskResume(task_rf_interlock);
 				led_bar_and((1 << channel), 0, 0);
 

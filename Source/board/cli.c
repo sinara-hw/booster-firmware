@@ -310,8 +310,8 @@ static void fh_intcal(void * a_data)
 			}
 
 			if (int_cal_val_s && int_cal_val_e) {
-				float a = ((int_cal_val_s - int_cal_val_e) / (int_cal_pwr_s - int_cal_pwr_e));
-				float b = (int_cal_val_s - ((int_cal_val_s - int_cal_val_e) / (int_cal_pwr_s - int_cal_pwr_e)) * int_cal_pwr_s);
+				float a = ((float)(int_cal_val_s - int_cal_val_e) / (float)(int_cal_pwr_s - int_cal_pwr_e));
+				float b = ((float) int_cal_val_s - ((float)(int_cal_val_s - int_cal_val_e) / (float)(int_cal_pwr_s - int_cal_pwr_e)) * (float) int_cal_pwr_s);
 
 //				float a = (int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e));
 //				float b = (int_cal_pwr_s - ((int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e))) * log(int_cal_val_s));
@@ -379,7 +379,7 @@ static void fh_cal(void * a_data)
 			vTaskDelay(500);
 
 			printf("[cal] Calibration step = 10 completed = %d\n", retval);
-			retval *= 1.05;
+			retval *= 1.08;
 			retval = rf_channel_calibrate_input_interlock_v3(channel, retval, 1);
 			if (retval != 0) {
 				printf("[cal] done, value = %d\n", retval);
