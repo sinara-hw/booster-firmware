@@ -270,10 +270,9 @@ static void fh_intcal(void * a_data)
 	pwr_cal = (uint8_t) pwr_cal;
 
 	uint16_t retval = 0;
-	uint16_t dacval = 0;
+	uint16_t dacval = 4095;
 
 	if (channel < 8) {
-
 		ch = rf_channel_get(channel);
 		uint16_t old_dac1 = ch->cal_values.input_dac_cal_value;
 		uint16_t old_dac2 = ch->cal_values.output_dac_cal_value;
@@ -285,14 +284,14 @@ static void fh_intcal(void * a_data)
 
 		vTaskDelay(500);
 
-		retval /= 1.2;
+		retval *= 1.05;
 		retval = rf_channel_calibrate_output_interlock_v3(channel, retval, 10);
 		if (retval == 0) retval = 10;
 
 		vTaskDelay(500);
 
 		printf("[intcal] Calibration step = 10 completed = %d\n", retval);
-		retval /= 1.05;
+		retval *= 1.02;
 		retval = rf_channel_calibrate_output_interlock_v3(channel, retval, 1);
 
 		if (retval != 0) {
@@ -311,8 +310,8 @@ static void fh_intcal(void * a_data)
 			}
 
 			if (int_cal_val_s && int_cal_val_e) {
-				float a = ((int_cal_val_s - int_cal_val_e) / (int_cal_pwr_s - int_cal_pwr_e));
-				float b = (int_cal_val_s - ((int_cal_val_s - int_cal_val_e) / (int_cal_pwr_s - int_cal_pwr_e)) * int_cal_pwr_s);
+				float a = ((float)(int_cal_val_s - int_cal_val_e) / (float)(int_cal_pwr_s - int_cal_pwr_e));
+				float b = ((float) int_cal_val_s - ((float)(int_cal_val_s - int_cal_val_e) / (float)(int_cal_pwr_s - int_cal_pwr_e)) * (float) int_cal_pwr_s);
 
 //				float a = (int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e));
 //				float b = (int_cal_pwr_s - ((int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e))) * log(int_cal_val_s));
@@ -360,7 +359,7 @@ static void fh_cal(void * a_data)
 	channel = (uint8_t) channel;
 	type = (uint8_t) type;
 
-	uint16_t dacval = 0;
+	uint16_t dacval = 4095;
 	uint16_t retval = 0;
 
 	if (channel < 8)
@@ -373,26 +372,26 @@ static void fh_cal(void * a_data)
 
 			vTaskDelay(500);
 
-			retval /= 1.2;
+			retval *= 1.10;
 			retval = rf_channel_calibrate_input_interlock_v3(channel, retval, 10);
 			if (retval == 0) retval = 10;
 
 			vTaskDelay(500);
 
 			printf("[cal] Calibration step = 10 completed = %d\n", retval);
-			retval /= 1.05;
+			retval *= 1.08;
 			retval = rf_channel_calibrate_input_interlock_v3(channel, retval, 1);
 			if (retval != 0) {
 				printf("[cal] done, value = %d\n", retval);
 
-				ch = rf_channel_get(channel);
-				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
-					i2c_mux_select(channel);
-
-					ch->cal_values.input_dac_cal_value = retval;
-					eeprom_write16(DAC1_EEPROM_ADDRESS, retval);
-					lock_free(I2C_LOCK);
-				}
+//				ch = rf_channel_get(channel);
+//				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+//					i2c_mux_select(channel);
+//
+//					ch->cal_values.input_dac_cal_value = retval;
+//					eeprom_write16(DAC1_EEPROM_ADDRESS, retval);
+//					lock_free(I2C_LOCK);
+//				}
 			} else {
 				printf("[cal] error, failed\n");
 			}
@@ -439,14 +438,14 @@ static void fh_cal(void * a_data)
 
 			vTaskDelay(500);
 
-			retval /= 1.2;
+			retval *= 1.1;
 			retval = rf_channel_calibrate_output_interlock_v3(channel, retval, 10);
 			if (retval == 0) retval = 10;
 
 			vTaskDelay(500);
 
 			printf("[cal] Calibration step = 10 completed = %d\n", retval);
-			retval /= 1.02;
+			retval *= 1.02;
 			retval = rf_channel_calibrate_output_interlock_v3(channel, retval, 1);
 			if (retval != 0) {
 				printf("[cal] done, value = %d\n", retval);
@@ -540,6 +539,19 @@ static void fh_chanid(void * a_data)
 		printf("[chanid] Wrong channel number\r\n");
 }
 
+static void fh_i2cerr(void * a_data)
+{
+	printf("\t\t#0\t#1\t#2\t#3\t#4\t#5\t#6\t#7\n");
+	printf("I2C ERR\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", i2c_get_channel_errors(0),
+															i2c_get_channel_errors(1),
+															i2c_get_channel_errors(2),
+															i2c_get_channel_errors(3),
+															i2c_get_channel_errors(4),
+															i2c_get_channel_errors(5),
+															i2c_get_channel_errors(6),
+															i2c_get_channel_errors(7));
+}
+
 
 static void fh_int(void * a_data)
 {
@@ -578,25 +590,77 @@ static void fh_intval(void * a_data)
 	ucli_param_get_float(2, &value);
 
 	if ((uint8_t) channel < 8) {
-		ch = rf_channel_get(channel);
-		uint16_t dac_value = (uint16_t) ((ch->cal_values.hw_int_scale * value) + ch->cal_values.hw_int_offset);
-//		uint16_t dac_value = (uint16_t) (exp((value - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
-		ch->cal_values.output_dac_cal_value = dac_value;
+		rf_channel_interlock_set(channel, value);
+//		ch = rf_channel_get(channel);
+//		uint16_t dac_value = (uint16_t) ((ch->cal_values.hw_int_scale * value) + ch->cal_values.hw_int_offset);
+////		uint16_t dac_value = (uint16_t) (exp((value - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
+//		ch->cal_values.output_dac_cal_value = dac_value;
+//
+//		if (lock_take(I2C_LOCK, portMAX_DELAY))
+//		{
+//			i2c_mux_select((uint8_t) channel);
+//			eeprom_write16(DAC2_EEPROM_ADDRESS, dac_value);
+//			if (ch->enabled) {
+//				i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
+//			}
+//			lock_free(I2C_LOCK);
+//			printf("[intv] Interlock value for %0.2f = %d\r\n", value, ch->cal_values.output_dac_cal_value);
+//		}
 
-		if (lock_take(I2C_LOCK, portMAX_DELAY))
-		{
-			i2c_mux_select((uint8_t) channel);
-			eeprom_write16(DAC2_EEPROM_ADDRESS, dac_value);
-			if (ch->enabled) {
-				i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
-			}
-			lock_free(I2C_LOCK);
-			printf("[intv] Interlock value for %0.2f = %d\r\n", value, ch->cal_values.output_dac_cal_value);
-		}
+
 	} else
 		printf("[intv] Wrong channel number\r\n");
 }
 
+static void fh_intparams(void * a_data)
+{
+	int channel = 0;
+	float a = 0;
+	float b = 0;
+	channel_t *ch = NULL;
+
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_float(2, &a);
+	ucli_param_get_float(3, &b);
+
+	if ((uint8_t) channel < 8) {
+		ch = rf_channel_get(channel);
+
+		ch->cal_values.hw_int_scale = a;
+		ch->cal_values.hw_int_offset = b;
+
+		if (lock_take(I2C_LOCK, portMAX_DELAY))
+		{
+			i2c_mux_select(channel);
+
+			uint32_t u32_scale = 0x00;
+			uint32_t u32_offset = 0x00;
+			memcpy(&u32_scale, &a, sizeof(float));
+			memcpy(&u32_offset, &b, sizeof(float));
+			eeprom_write32(HW_INT_SCALE, u32_scale);
+			eeprom_write32(HW_INT_OFFSET, u32_offset);
+
+			lock_free(I2C_LOCK);
+		}
+
+		printf("[intparams] Interlock params for ch %d, a = %0.2f, b = %0.2f\r\n", channel, a, b);
+	} else
+		printf("[intparams] Wrong channel number\r\n");
+}
+
+static void fh_intget(void * a_data)
+{
+	int channel = 0;
+	float value = 0;
+
+	ucli_param_get_int(1, &channel);
+
+	if ((uint8_t) channel < 8) {
+		double value = rf_channel_interlock_get(channel);
+		printf("[intv] Interlock value for ch %d = %0.2f\r\n", channel, value);
+	} else
+		printf("[intv] Wrong channel number\r\n");
+}
 
 static void fh_enable(void * a_data)
 {
@@ -740,31 +804,6 @@ static void fh_eepromw(void * a_data)
 	}
 }
 
-static void fh_ovc(void * a_data)
-{
-	int channel = 0;
-	int value = 0;
-
-	ucli_param_get_int(1, &channel);
-	ucli_param_get_int(2, &value);
-
-	if ((uint8_t) channel < 8)
-	{
-		if (lock_take(I2C_LOCK, portMAX_DELAY))
-		{
-			i2c_mux_select((uint8_t) channel);
-			ads7924_set_threshholds(0, (uint8_t) value, 0);
-			vTaskDelay(5);
-			ads7924_enable_alert();
-			vTaskDelay(5);
-
-			lock_free(I2C_LOCK);
-		}
-	} else {
-		printf("[ovc] Wrong channel number\r\n");
-	}
-}
-
 
 static void fh_i2cw(void * a_data)
 {
@@ -815,27 +854,6 @@ static void fh_i2cr(void * a_data)
 		}
 	} else {
 		printf("[i2cw] Wrong channel number\r\n");
-	}
-}
-
-
-static void fh_ovclear(void * a_data)
-{
-	int channel = 0;
-
-	ucli_param_get_int(1, &channel);
-
-	if ((uint8_t) channel < 8)
-	{
-		if (lock_take(I2C_LOCK, portMAX_DELAY))
-		{
-			i2c_mux_select((uint8_t) channel);
-			ads7924_clear_alert();
-
-			lock_free(I2C_LOCK);
-		}
-	} else {
-		printf("[ovclear] Wrong channel number\r\n");
 	}
 }
 
@@ -898,10 +916,32 @@ static void fh_macconfig(void * a_data)
 	if (prvCheckValidMACAddress(a_ctx->argv[1], macdata) != 6) check = 0;
 
 	if (check) {
-		printf("[macconfig] MAC address %s set\r\n", a_ctx->argv[1]);
+		printf("[macconfig] MAC address %02X:%02X:%02X:%02X:%02X:%02X set\r\n", macdata[0],
+																				macdata[1],
+																				macdata[2],
+																				macdata[3],
+																				macdata[4],
+																				macdata[5]);
 		set_mac_address(macdata);
 	} else
 		printf("[macconfig] Wrong MAC address specified\r\n");
+}
+
+static void fh_ethdbg(void * a_data)
+{
+	if (lock_take(ETH_LOCK, portMAX_DELAY))
+	{
+		printf("getSn_SR %d\r\n", getSn_SR(0));
+		printf("getSn_MR %d\r\n", getSn_MR(0));
+		printf("getSn_RX_RSR %d\r\n", getSn_RX_RSR(0));
+		printf("getSn_CR %d\r\n", getSn_CR(0));
+		printf("getSn_IR %d\r\n", getSn_IR(0));
+		printf("getSn_RXBUF_SIZE %d\r\n", getSn_RXBUF_SIZE(0));
+
+		lock_free(ETH_LOCK);
+	} else {
+		printf("[ethdbg] Failed to acquire Ethernet lock\r\n");
+	}
 }
 
 static void fh_wdtest(void * a_data)
@@ -959,13 +999,15 @@ static ucli_cmd_t g_cmds[] = {
 
 	// "hidden" commands not for end-user
 	{ "wdtest", fh_wdtest, 0x00 },
-	{ "ovc", fh_ovc, 0x02 },
-	{ "ovclear", fh_ovclear, 0x01 },
 	{ "calpwr", fh_calpwr, 0x03 },
 	{ "intcal", fh_intcal, 0x03 },
+	{ "intg", fh_intget, 0x01 },
+	{ "intparams", fh_intparams, 0x03 },
 	{ "cal", fh_cal, 0x02 },
 	{ "biascal", fh_biascal, 0x02 },
 	{ "clearcal", fh_clearcal, 0x02 },
+	{ "i2cerr", fh_i2cerr, 0x00 },
+	{ "ethdbg", fh_ethdbg, 0x00 },
 
     // null
     { 0x00, 0x00, 0x00  }

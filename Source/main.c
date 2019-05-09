@@ -102,38 +102,6 @@ typedef struct {
 	int dir;
 } temp_pid_t;
 
-//void prvLEDTask(void * pvParameters)
-//{
-//  // CURRENT TESTING
-//	device_t * dev;
-//	dev = device_get_config();
-//
-//	if (lock_take(I2C_LOCK, portMAX_DELAY))
-//	{
-//		i2c_mux_select(0);
-//		ads7924_init();
-//
-//		lock_free(I2C_LOCK);
-//	}
-//
-//	for (;;)
-//	{
-//		if (lock_take(I2C_LOCK, portMAX_DELAY))
-//		{
-//			i2c_mux_select(0);
-//
-//			uint32_t raw = ads7924_get_channel_data(0);
-//			float i30 = (ads7924_get_channel_voltage(0) / 50) / dev->p30_current_sense;
-//			float mp50 = ads7924_get_channel_voltage(3) * 2.5f;
-//
-//			printf("CH0 raw %d i30 %0.3f %0.2f\r\n", raw, i30, mp50);
-//			lock_free(I2C_LOCK);
-//		}
-//
-//		vTaskDelay(1000);
-//	}
-//}
-
 int main(void)
 {
 	prvSetupHardware();
@@ -147,7 +115,7 @@ int main(void)
 	xTaskCreate(prvTempMgtTask, "FAN", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY, NULL);
 	xTaskCreate(prvADCTask, "ADC", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 3, NULL);
 	xTaskCreate(prvDHCPTask, "DHCP", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, &xDHCPTask);
-	xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 2048UL, NULL, tskIDLE_PRIORITY + 2, &xUDPServerTask);
+	xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 2048UL, NULL, tskIDLE_PRIORITY + 3, &xUDPServerTask);
 	xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 1, NULL );
 	xTaskCreate(prvExtTask, "Ext", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL );
 	xTaskCreate(rf_channels_interlock_task, "RF Interlock", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 4, &task_rf_interlock );

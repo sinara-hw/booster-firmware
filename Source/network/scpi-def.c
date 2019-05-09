@@ -201,20 +201,8 @@ static scpi_result_t INTERLOCK_Power(scpi_t * context)
 
 	if (channel < 8) {
 		if (interlock >= 0 && interlock <= 38.0) {
-			ch = rf_channel_get(channel);
-			uint16_t dac_value = (uint16_t) (exp((interlock - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
-			ch->cal_values.output_dac_cal_value = dac_value;
 
-			if (lock_take(I2C_LOCK, portMAX_DELAY))
-			{
-				eeprom_write16(DAC2_EEPROM_ADDRESS, dac_value);
-				if (ch->enabled) {
-					i2c_mux_select(channel);
-					i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
-				}
-				lock_free(I2C_LOCK);
-			}
-
+			rf_channel_interlock_set(channel, interlock);
 			return SCPI_RES_OK;
 		}
 	}
@@ -225,7 +213,6 @@ static scpi_result_t INTERLOCK_Power(scpi_t * context)
 static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 {
 	uint32_t channel;
-	channel_t * ch;
 
 	if (!SCPI_ParamUInt32(context, &channel, true)) {
 		return SCPI_RES_ERR;
@@ -236,9 +223,7 @@ static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 	}
 
 	if (channel < 8) {
-		ch = rf_channel_get(channel);
-		double value = log(ch->cal_values.output_dac_cal_value) * ch->cal_values.hw_int_scale + ch->cal_values.hw_int_offset;
-		value = round(value); // round to full digit
+		double value = rf_channel_interlock_get(channel);
 		SCPI_ResultDouble(context, value);
 
 		return SCPI_RES_OK;
@@ -609,41 +594,90 @@ static scpi_result_t Interlock_Clear(scpi_t * context)
 
 static scpi_result_t Interlock_StatusQ(scpi_t * context)
 {
-	uint32_t channel;
-	uint8_t ch_mask = rf_channels_get_mask();
+	scpi_bool_t result;
+	scpi_parameter_t param;
+	int32_t intval = 0;
 	channel_t * ch;
 	uint8_t mask = 0;
 
-	if (!SCPI_ParamUInt32(context, &channel, false)) {
-		channel = ch_mask;
-	}
+	scpi_choice_def_t bool_options[] = {
+		{"ALL", 1},
+		SCPI_CHOICE_LIST_END /* termination of option list */
+	};
 
+	result = SCPI_Parameter(context, &param, true);
+
+	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
 		return SCPI_RES_ERR;
 	}
 
-	if (channel == ch_mask) {
-		for (int i = 0; i < 8; i++) {
-			ch = rf_channel_get(i);
-			if (ch->input_interlock || ch->output_interlock) {
-				mask |= 1UL << i;
+	if (result) {
+		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
+			SCPI_ParamToInt32(context, &param, &intval);
+			if (intval < 8)
+			{
+				ch = rf_channel_get(intval);
+				if (ch->input_interlock || ch->output_interlock) {
+					SCPI_ResultBool(context, true);
+					return SCPI_RES_OK;
+				} else {
+					SCPI_ResultBool(context, false);
+					return SCPI_RES_OK;
+				}
+			}
+			return SCPI_RES_ERR;
+		} else {
+			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
+			if (intval) {
+				for (int i = 0; i < 8; i++) {
+					ch = rf_channel_get(i);
+					if (ch->input_interlock || ch->output_interlock) {
+						mask |= 1UL << i;
+					}
+				}
+				SCPI_ResultUInt8(context, mask);
+				return SCPI_RES_OK;
 			}
 		}
-		SCPI_ResultUInt8(context, mask);
-		return SCPI_RES_OK;
 	}
 
-	if (channel < 8) {
-		ch = rf_channel_get(channel);
-		if (ch->input_interlock || ch->output_interlock) {
-			SCPI_ResultBool(context, true);
-			return SCPI_RES_OK;
-		} else {
-			SCPI_ResultBool(context, false);
-			return SCPI_RES_OK;
-		}
-	} else {
+	return SCPI_RES_OK;
+}
+
+static scpi_result_t Interlock_DiagQ(scpi_t * context)
+{
+	int32_t intval = 0;
+	channel_t * ch;
+
+	if (!SCPI_ParamUInt32(context, &intval, false)) {
 		return SCPI_RES_ERR;
+	}
+
+	// throw error if excess parameter is present
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
+	double results[12] = { 0x00 };
+	if (intval < 8)
+	{
+		ch = rf_channel_get(intval);
+
+		results[0] = ch->detected;
+		results[1] = ch->enabled;
+		results[2] = ch->output_interlock;
+		results[3] = ch->input_interlock;
+		results[4] = ch->measure.adc_pwr_ch1;
+		results[5] = ch->measure.adc_pwr_ch2;
+		results[6] = ch->measure.i30;
+		results[7] = ch->measure.i60;
+		results[8] = ch->measure.p5v0mp;
+		results[9] = ch->measure.remote_temp;
+		results[10] = ch->measure.fwd_pwr;
+		results[11] = ch->measure.rfl_pwr;
+
+		SCPI_ResultArrayDouble(context, results, 12, SCPI_FORMAT_ASCII);
 	}
 
 	return SCPI_RES_OK;
@@ -675,7 +709,7 @@ static scpi_result_t Interlock_OverloadQ(scpi_t * context)
 
 			if ((1 << intval) & rf_channels_get_mask()) {
 				ch = rf_channel_get(intval);
-				if (ch->input_interlock || ch->output_interlock) {
+				if (ch->output_interlock) {
 					SCPI_ResultBool(context, true);
 					return SCPI_RES_OK;
 				} else {
@@ -797,6 +831,7 @@ const scpi_command_t scpi_commands[] = {
 	{.pattern = "CHANnel:DISABle", .callback = CHANNEL_Disable,},
 	{.pattern = "CHANnel:ENABle?", .callback = CHANNEL_EnableQ,},
 	{.pattern = "CHANnel:DETect?", .callback = CHANNEL_DetectQ,},
+	{.pattern = "CHANnel:DIAGnostics?", .callback = Interlock_DiagQ,},
 
 	/* Data gathering */
 	{.pattern = "MEASure:CURRent?", .callback = CHANNEL_Current,},

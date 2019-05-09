@@ -14,9 +14,9 @@
 #include "scpi/scpi.h"
 extern scpi_t scpi_context;
 
-#define MAX_RX_LENGTH 1024
+#define MAX_RX_LENGTH 640
 
-SemaphoreHandle_t xUDPMessageAvailable;
+xQueueHandle xTCPServerIRQ;
 
 static void udp_int_init(void)
 {
@@ -53,14 +53,14 @@ static void udp_int_init(void)
 void EXTI9_5_IRQHandler(void)
 {
 	static long xHigherPriorityTaskWoken;
-	xHigherPriorityTaskWoken = pdFALSE;
+	xHigherPriorityTaskWoken = pdTRUE;
+	uint8_t trg = 0x01;
 
 	if (EXTI_GetITStatus(EXTI_Line6) != RESET)
 	{
 		GPIO_ToggleBits(BOARD_LED1);
-		xSemaphoreGiveFromISR(xUDPMessageAvailable, &xHigherPriorityTaskWoken);
+		xQueueSendFromISR(xTCPServerIRQ, &trg, false);
     	EXTI_ClearITPendingBit(EXTI_Line6);
-    	NVIC_DisableIRQ(EXTI9_5_IRQn);
     }
 
 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
@@ -68,31 +68,38 @@ void EXTI9_5_IRQHandler(void)
 
 static void prvSetupUDPServer(void)
 {
-	// init RECV semaphore
-	vSemaphoreCreateBinary(xUDPMessageAvailable);
-	xSemaphoreTake(xUDPMessageAvailable, 0);
+	// init RECV queue
+	xTCPServerIRQ = xQueueCreate(16, sizeof(uint8_t));
 
-	// create sockets
-	uint8_t ret = socket(0, Sn_MR_TCP, 5000, 0x00);
-	if (ret != 0)
-		ucli_log(UCLI_LOG_ERROR, "TCP Server initialization fail, status %d\r\n", ret);
+	uint8_t result = 0;
+	uint8_t state = 0;
+
+	for (int i = 0; i < 4; i++)
+	{
+		uint8_t ret = socket(i, Sn_MR_TCP, 5000, 0x00);
+		result |= ( ret == i ? 0 : 1 ) << i; 	// set 1 if error occurred
+		setSn_IMR(i, 15); 						// set RECV interrupt mask
+
+		uint8_t sock_state = getSn_SR(0);
+		result |= ( sock_state == SOCK_INIT ? 0 : 1 ) << i;
+	}
+
+	if (result != 0)
+		ucli_log(UCLI_LOG_ERROR, "TCP Server initialization fail, status %d\r\n", result);
 	else
 		ucli_log(UCLI_LOG_INFO, "TCP Server initialization complete\r\n");
 
-	setSn_IMR(0, 15); // set RECV interrupt mask
-
-	uint8_t state = getSn_SR(0);
-	if (state == SOCK_INIT)
-		ucli_log(UCLI_LOG_INFO, "network socket state %X\r\n", state);
+	ucli_log(UCLI_LOG_INFO, "network socket state %s\r\n", !state ? "OK" : "ERR");
 }
 
 void prvUDPServerTask(void *pvParameters)
 {
-	uint32_t ir;
-	int32_t  len;
-	uint8_t  destip[4];
-	uint16_t destport;
-	uint8_t rx_buffer[MAX_RX_LENGTH];
+	uint32_t 	ir;
+	int32_t  	len;
+	uint8_t  	destip[4];
+	uint16_t 	destport;
+	uint8_t 	rx_buffer[MAX_RX_LENGTH];
+	uint8_t 	trg = 0x00;
 
 	uint8_t sn = 0;
 
@@ -131,70 +138,103 @@ void prvUDPServerTask(void *pvParameters)
 	{
 		prvSetupUDPServer();
 
-		uint16_t imr = IK_SOCK_0;
+		uint16_t imr = IK_SOCK_0 | IK_SOCK_1 | IK_SOCK_2 | IK_SOCK_3;
 		if (ctlwizchip(CW_SET_INTRMASK, &imr) == -1) {
 			ucli_log(UCLI_LOG_ERROR, "network error, cannot set imr\r\n");
 		}
 
-		uint8_t ret = listen(0);
-		ucli_log(UCLI_LOG_INFO, "network socket (on port %d) listen %s\r\n", 5000, ret ? "OK" : "ERROR");
+		uint8_t ret = 0;
+		for (int i = 0; i < 4; i++)
+		{
+			uint8_t listen_ret = listen(i);
+			ret |= ( listen_ret != 1 ? 1 : 0) << i;
+		}
+		ucli_log(UCLI_LOG_INFO, "network socket (on port %d) listen %s\r\n", 5000, !ret ? "OK" : "ERROR");
 
 		lock_free(ETH_LOCK);
 	}
 
 	for (;;)
 	{
-		if (xSemaphoreTake(xUDPMessageAvailable, portMAX_DELAY))
+		if (xQueueReceive(xTCPServerIRQ, &trg, portMAX_DELAY))
 		{
+			// since it's most crucial task,
+			// we can feed the dog inside to avoid interrupts
+			// because CPU get's really busy with VCP and SCPI
+			IWDG_ReloadCounter();
+
 			if (lock_take(ETH_LOCK, portMAX_DELAY)) {
+
 				ctlwizchip(CW_GET_INTERRUPT, &ir);
-				if (ir & IK_SOCK_0)
+
+				if (ir & IK_SOCK_0) {
+					sn = 0;
+				} else if (ir & IK_SOCK_1) {
+					sn = 1;
+				} else if (ir & IK_SOCK_2) {
+					sn = 2;
+				} else if (ir & IK_SOCK_3) {
+					sn = 3;
+				}
+
+				switch (getSn_SR(sn))
 				{
-					switch (getSn_SR(0))
-					{
-						case SOCK_ESTABLISHED:
-							if(getSn_IR(sn) & Sn_IR_CON)
-							{
-								getSn_DIPR(sn, destip);
-								destport = getSn_DPORT(sn);
-								setSn_IR(sn, Sn_IR_CON);
-								ucli_log(UCLI_LOG_INFO, "network client %d.%d.%d.%d connected\r\n", destip[0], destip[1], destip[2], destip[3]);
-							}
+					case SOCK_ESTABLISHED:
+						if (getSn_IR(sn) & Sn_IR_CON)
+						{
+							getSn_DIPR(sn, destip);
+							destport = getSn_DPORT(sn);
+							setSn_IR(sn, Sn_IR_CON);
+							ucli_log(UCLI_LOG_INFO, "network client %d.%d.%d.%d connected\r\n", destip[0], destip[1], destip[2], destip[3]);
 
-							GPIO_SetBits(BOARD_LED1);
-							len = getSn_RX_RSR(0);
-							if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
-
-							recv(sn, rx_buffer, len);
-							rx_buffer[len] = '\0';
-							GPIO_ResetBits(BOARD_LED1);
-
-//							ucli_log(UCLI_LOG_DEBUG, "network debug received %s\r\n", rx_buffer);
-
+							// set user context ip address and port
 							if (scpi_context.user_context != NULL) {
 								user_data_t * u = (user_data_t *) (scpi_context.user_context);
-								memcpy(u->ipsrc, destip, 4);
-								u->ipsrc_port = destport;
+								u->socket = sn;
+								memcpy(u->ipsrc[sn], destip, 4);
+								u->ipsrc_port[sn] = destport;
 							}
+						}
 
-							SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
-							break;
-						case SOCK_CLOSE_WAIT:
-						case SOCK_CLOSED:
-							ucli_log(UCLI_LOG_INFO, "network client disconnected\r\n");
-							disconnect(sn);
-							socket(0, Sn_MR_TCP, 5000, 0x00);
-							listen(0);
-							break;
-						default:
-							ucli_log(UCLI_LOG_ERROR, "Unhandled network socket event %d\r\n", getSn_SR(0));
-							break;
-					}
+						GPIO_SetBits(BOARD_LED2);
+						len = getSn_RX_RSR(sn);
+						if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
 
-					setSn_IR(0, 15);
-					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_0);
-					NVIC_EnableIRQ(EXTI9_5_IRQn);
+						recv(sn, rx_buffer, len);
+						rx_buffer[len] = '\0';
+
+						if (scpi_context.user_context != NULL) {
+							user_data_t * u = (user_data_t *) (scpi_context.user_context);
+							u->socket = sn;
+						}
+
+//						ucli_log(UCLI_LOG_DEBUG, "network debug received %s\r\n", rx_buffer);
+						SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
+						GPIO_ResetBits(BOARD_LED2);
+						break;
+					case SOCK_CLOSE_WAIT:
+					case SOCK_CLOSED:
+						ucli_log(UCLI_LOG_INFO, "network client disconnected\r\n");
+						disconnect(sn);
+						socket(sn, Sn_MR_TCP, 5000, 0x00);
+						listen(sn);
+						break;
+					default:
+						ucli_log(UCLI_LOG_ERROR, "Unhandled network socket event %d\r\n", getSn_SR(sn));
+						break;
 				}
+
+				// clear socket interrupt
+				setSn_IR(sn, 15);
+
+				if (sn == 0)
+					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_0);
+				else if (sn == 1)
+					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_1);
+				else if (sn == 2)
+					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_2);
+				else if (sn == 3)
+					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_3);
 
 				lock_free(ETH_LOCK);
 			}

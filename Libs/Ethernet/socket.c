@@ -378,7 +378,7 @@ int32_t send(uint8_t sn, uint8_t * buf, uint16_t len)
    sock_is_sending |= (1 << sn);
    //M20150409 : Explicit Type Casting
    //return len;
-   return (int32_t)len;
+   return (int32_t) len;
 }
 
 

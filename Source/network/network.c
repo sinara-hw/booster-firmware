@@ -17,22 +17,7 @@
 #include "locks.h"
 #include "eeprom.h"
 #include "ucli.h"
-
-wiz_NetInfo gWIZNETINFO_default = { .mac = {0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef},
-									.ip = {192, 168, 1, 10},
-									.sn = {255, 255, 255, 0},
-									.gw = {192, 168, 1, 1},
-									.dns = {0, 0, 0, 0},
-									.dhcp = NETINFO_STATIC
-						          };
-
-wiz_NetInfo gWIZNETINFO = { .mac = {0x00, 0x08, 0xdc, 0xab, 0xcd, 0xef},
-                            .ip = {192, 168, 1, 10},
-                            .sn = {255, 255, 255, 0},
-                            .gw = {192, 168, 1, 1},
-                            .dns = {0, 0, 0, 0},
-                            .dhcp = NETINFO_DHCP
-						  };
+#include "device.h"
 
 TaskHandle_t xDHCPTask;
 TaskHandle_t xUDPServerTask;
@@ -59,56 +44,6 @@ uint8_t wizchip_read()
 	return spi_receive_byte();
 }
 
-void load_network_values(wiz_NetInfo *glWIZNETINFO)
-{
-	uint8_t ipaddr[4] = { 0 };
-	uint8_t ipaddrgw[4] = { 0 };
-	uint8_t ipaddrsn[4] = { 0 };
-	uint8_t macaddr[6] = { 0 };
-	uint8_t ipsel = 0;
-	uint8_t macsel = 0;
-
-	if (i2c_device_connected(I2C2, EEPROM_ADDR))
-	{
-		ucli_log(UCLI_LOG_INFO, "Found mainboard EEPROM, loading values\r\n");
-
-		ipsel = eeprom_read_mb(IP_METHOD);
-		macsel = eeprom_read_mb(MAC_ADDRESS_SELECT);
-		for (int i = 0; i < 4; i++) ipaddr[i] = eeprom_read_mb(IP_ADDRESS + i);
-		for (int i = 0; i < 4; i++) ipaddrgw[i] = eeprom_read_mb(IP_ADDRESS_GW + i);
-		for (int i = 0; i < 4; i++) ipaddrsn[i] = eeprom_read_mb(IP_ADDRESS_NETMASK + i);
-		for (int i = 0; i < 6; i++) macaddr[i] = eeprom_read_mb(MAC_ADDRESS + i);
-
-		if (ipsel == NETINFO_STATIC) {
-			memcpy(glWIZNETINFO->ip, ipaddr, 4);
-			memcpy(glWIZNETINFO->gw, ipaddrgw, 4);
-			memcpy(glWIZNETINFO->sn, ipaddrsn, 4);
-			glWIZNETINFO->dhcp = NETINFO_STATIC;
-		} else {
-			glWIZNETINFO->dhcp = NETINFO_DHCP;
-		}
-
-		if (macsel == 1) {
-			memcpy(glWIZNETINFO->mac, macaddr, 6);
-		} else {
-			glWIZNETINFO->mac[0] = STM_GetUniqueID(6);
-			glWIZNETINFO->mac[1] = STM_GetUniqueID(7);
-			glWIZNETINFO->mac[2] = STM_GetUniqueID(8);
-			glWIZNETINFO->mac[3] = STM_GetUniqueID(9);
-			glWIZNETINFO->mac[4] = STM_GetUniqueID(10);
-			glWIZNETINFO->mac[5] = STM_GetUniqueID(11);
-		}
-	} else {
-		glWIZNETINFO->dhcp = NETINFO_DHCP;
-		glWIZNETINFO->mac[0] = STM_GetUniqueID(6);
-		glWIZNETINFO->mac[1] = STM_GetUniqueID(7);
-		glWIZNETINFO->mac[2] = STM_GetUniqueID(8);
-		glWIZNETINFO->mac[3] = STM_GetUniqueID(9);
-		glWIZNETINFO->mac[4] = STM_GetUniqueID(10);
-		glWIZNETINFO->mac[5] = STM_GetUniqueID(11);
-	}
-}
-
 void net_init(void)
 {
 	uint8_t memsize[2][8] = {{2,2,2,2,2,2,2,2}, {2,2,2,2,2,2,2,2}};
@@ -126,7 +61,14 @@ void net_init(void)
 
 	// set default network settings
 	wiz_NetInfo glWIZNETINFO;
-	load_network_values(&glWIZNETINFO);
+	memset(&glWIZNETINFO, 0x00, sizeof(wiz_NetInfo));
+
+	device_load_network_conf();
+	device_load_wiznet_conf(&glWIZNETINFO);
+	ucli_log(UCLI_LOG_INFO, "MACADDR %02X:%02X:%02X:%02X:%02X:%02X\r\n",
+			glWIZNETINFO.mac[0], glWIZNETINFO.mac[1], glWIZNETINFO.mac[2],
+			glWIZNETINFO.mac[3], glWIZNETINFO.mac[4], glWIZNETINFO.mac[5]);
+
 	ctlnetwork(CN_SET_NETINFO, &glWIZNETINFO);
 
 	if (glWIZNETINFO.dhcp == NETINFO_STATIC) {
@@ -289,7 +231,7 @@ void display_net_conf(void)
 
 	ctlnetwork(CN_GET_NETINFO, (void*) &glWIZNETINFO);
 	// Display Network Information
-	ctlwizchip(CW_GET_ID,(void*)tmpstr);
+	ctlwizchip(CW_GET_ID,(void*) tmpstr);
 
 	if(glWIZNETINFO.dhcp == NETINFO_DHCP)
 		printf("[log] ===== %s NET CONF : DHCP =====\r\n",(char*)tmpstr);
@@ -388,21 +330,15 @@ void prvDHCPTask(void *pvParameters)
 					{
 						reset_DHCP_timeout();
 						ldhcp_retry_count = 0;
-//						ucli_log(UCLI_LOG_ERROR, "DHCP failed after %d retries\r\n", ldhcp_retry_count);
-//						net_conf(&gWIZNETINFO_default);
-//						ldhcp_retry_count = 0;
-//						ucli_log(UCLI_LOG_INFO, "Loaded static IP settings\r\n");
-//						display_net_conf();
-//						prvDHCPTaskStop();
 					}
 					break;
 				default:
 					break;
 			}
-
-			vTaskDelay(configTICK_RATE_HZ / 5);
 			lock_free(ETH_LOCK);
 		}
+
+		vTaskDelay(configTICK_RATE_HZ / 5);
 	}
 }
 
@@ -424,7 +360,6 @@ uint8_t prvCheckValidIPAddress(char * ipstr, uint8_t * result)
 
 	return lParameterCount;
 }
-
 
 uint8_t prvCheckValidMACAddress(char * ipstr, uint8_t * result)
 {

@@ -262,7 +262,7 @@ void wiz_send_data(uint8_t sn, uint8_t *wizdata, uint16_t len)
    //addrsel = (ptr << 8) + (WIZCHIP_TXBUF_BLOCK(sn) << 3);
    addrsel = ((uint32_t)ptr << 8) + (WIZCHIP_TXBUF_BLOCK(sn) << 3);
    //
-   WIZCHIP_WRITE_BUF(addrsel,wizdata, len);
+   WIZCHIP_WRITE_BUF(addrsel, wizdata, len);
    
    ptr += len;
    setSn_TX_WR(sn,ptr);
