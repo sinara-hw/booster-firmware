@@ -916,7 +916,12 @@ static void fh_macconfig(void * a_data)
 	if (prvCheckValidMACAddress(a_ctx->argv[1], macdata) != 6) check = 0;
 
 	if (check) {
-		printf("[macconfig] MAC address %s set\r\n", a_ctx->argv[1]);
+		printf("[macconfig] MAC address %02X:%02X:%02X:%02X:%02X:%02X set\r\n", macdata[0],
+																				macdata[1],
+																				macdata[2],
+																				macdata[3],
+																				macdata[4],
+																				macdata[5]);
 		set_mac_address(macdata);
 	} else
 		printf("[macconfig] Wrong MAC address specified\r\n");
