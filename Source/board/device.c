@@ -22,11 +22,7 @@ void device_read_revision(void)
 	ucli_log(UCLI_LOG_INFO, "hardware revision %d\r\n", hw_rev);
 
 	// set appropriate resistor values for hardware revision
-	if (booster.hw_rev == 1 || booster.hw_rev == 3) {
-		booster.p30_current_sense = 0.091f;
-	} else {
-		booster.p30_current_sense = 0.02f;
-	}
+	booster.p30_current_sense = 0.091f;
 }
 
 void device_load_network_conf(void)

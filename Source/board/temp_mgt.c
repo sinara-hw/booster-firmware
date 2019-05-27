@@ -14,12 +14,6 @@
 #include "ucli.h"
 #include "led_bar.h"
 
-#define THRESHOLD 					1.0f
-#define MIN_TEMP 					34
-#define MAX_TEMP 					80
-#define MAX_SPEED 					100
-#define MIN_SPEED 					30
-
 static volatile double fTemp, fAvg, chTemp = 0.0f;
 static volatile uint8_t f_speed = 0;
 
@@ -31,18 +25,39 @@ static double moving_avg(float temp)
 
     fSmp++;
     weight = 4.0f / fSmp;
-    fAve = (weight * temp) + ((1 - weight) * fAve);
+    fAve = (weight * (double) temp) + ((1 - weight) * fAve);
 
     return fAve;
 }
 
-static int fan_speed(float temp)
-{
-	int a = ((MAX_SPEED - MIN_SPEED) / (MAX_TEMP - MIN_SPEED));
-	int b = ((MIN_SPEED * MAX_SPEED - MAX_SPEED * MIN_TEMP) / (MAX_TEMP - MIN_TEMP));
-	int duty = a * temp + b;
+// linear coefficients
+// 32 degree -> 20% FAN
+// 50 degree -> 50% FAN
+// 68 degree -> 80% FAN
 
-	return duty;
+#define MIN_TEMP 					40
+#define MAX_TEMP 					60
+#define MAX_SPEED 					100
+#define MIN_SPEED 					0
+
+static int fan_speed(float temp, uint8_t min_speed, uint8_t threshold)
+{
+	float a = ((MAX_SPEED - MIN_SPEED) / (MAX_TEMP - MIN_TEMP));
+	float b = ((MIN_SPEED * MAX_SPEED - MAX_SPEED * MIN_TEMP) / (MAX_TEMP - MIN_TEMP));
+	float duty = a * temp + b;
+
+	if (duty < min_speed) {
+		duty = min_speed;
+	} else if (duty > MAX_SPEED) {
+		duty = MAX_SPEED;
+	}
+
+	// cut off fans on selected threshold
+	// to avoid 'clicking' fans
+	if (duty <= threshold)
+		duty = 0;
+
+	return (int) duty;
 }
 
 void set_fan_speed(uint8_t value)
@@ -68,6 +83,25 @@ void set_fan_speed(uint8_t value)
 	}
 }
 
+void fan_speed_control(float temp)
+{
+	uint8_t min_fan_speed = 0;
+
+	if (rf_channels_read_enabled() > 0)
+		min_fan_speed = 20;
+	else
+		min_fan_speed = 0;
+
+	uint8_t duty_cycle = fan_speed(temp, min_fan_speed, 15);
+	uint8_t fan_delta = abs(duty_cycle - f_speed);
+//	printf("Current %d Fan duty %d delta %d temp avg %.2f\r\n", f_speed, duty_cycle, fan_delta, temp);
+
+	if (fan_delta > 5) {
+		set_fan_speed(duty_cycle);
+		ucli_log(UCLI_LOG_INFO, "[tempmgt] Temp %f (d %d) -> Fan %d\n", temp, fan_delta, duty_cycle);
+	}
+}
+
 double temp_mgt_get_avg_temp(void)
 {
 	return fAvg;
@@ -85,58 +119,36 @@ uint8_t temp_mgt_get_fanspeed(void)
 
 void prvTempMgtTask(void *pvParameters)
 {
-	double th = 0.0f;
-	//float chTemp = 0.0f;
-	uint8_t speed = 0;
 	double maxTemp = 0.0f;
 	fTemp = (MIN_TEMP - 2);
 
 //	// auto enable procedure after power-up
 //	vTaskDelay(2000);
 //	rf_channels_enable(rf_channels_get_mask());
-//
+
 //	// ensure that channel LED's are light on
 //	vTaskDelay(100);
 //	led_bar_or(rf_channels_read_sigon(), 0, 0);
 
 	for (;;)
 	{
-		if (rf_channels_read_enabled() > 0)
-		{
-			set_fan_speed(30);
-		} else {
-			set_fan_speed(0);
+		for (int i = 0; i < 8; i++) {
+			channel_t * ch = rf_channel_get(i);
+
+			if (ch->measure.remote_temp > maxTemp)
+				maxTemp = ch->measure.remote_temp;
+
+			vTaskDelay(10);
 		}
 
-		vTaskDelay(1000);
+		chTemp = maxTemp;
+		fAvg = moving_avg(maxTemp);
 
-//		for (int i = 0; i < 8; i++) {
-//			channel_t * ch = rf_channel_get(i);
-//
-//			if (ch->measure.remote_temp > maxTemp)
-//				maxTemp = ch->measure.remote_temp;
-//		}
-//
-//		chTemp = maxTemp;
-//		fAvg = moving_avg(chTemp);
-//		th = abs(fTemp - fAvg);
-//
-//		// guard for NaN values
-//		if (isnan(fAvg)) fAvg = maxTemp;
-//
-//		if (th > THRESHOLD) {
-//			fTemp = fAvg;
-//
-//			if (fTemp > MIN_TEMP) {
-//				speed = fan_speed(fTemp);
-//				set_fan_speed(speed);
-//				ucli_log(UCLI_LOG_INFO, "[tempmgt] Temp %f -> Fan %d\n", fTemp, speed);
-//			} else {
-//				set_fan_speed(0);
-//			}
-//		}
-//
-//		maxTemp = 0.0f;
-//		vTaskDelay(100);
+		// guard for NaN values
+		if (isnan(fAvg)) fAvg = maxTemp;
+		fan_speed_control(fAvg);
+
+		maxTemp = 0.0f;
+		vTaskDelay(100);
 	}
 }
