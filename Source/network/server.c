@@ -158,7 +158,6 @@ void prvUDPServerTask(void *pvParameters)
 	{
 		if (xQueueReceive(xTCPServerIRQ, &trg, portMAX_DELAY))
 		{
-			// since it's most crucial task,
 			// we can feed the dog inside to avoid interrupts
 			// because CPU get's really busy with VCP and SCPI
 			IWDG_ReloadCounter();
@@ -237,6 +236,8 @@ void prvUDPServerTask(void *pvParameters)
 					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_3);
 
 				lock_free(ETH_LOCK);
+
+				vTaskDelay((int)(rand() % (4) + 5));
 			}
 		}
 	}

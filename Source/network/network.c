@@ -245,21 +245,6 @@ void display_net_conf(void)
 	printf("[log] =======================================\r\n");
 }
 
-void prvRestartServerTask(void)
-{
-//	if (xUDPServerTask == NULL) {
-//		// create server task
-//		printf("[log] created udp server task\n");
-//		printf("task stat %d\n", xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 2048UL, NULL, tskIDLE_PRIORITY + 2, &xUDPServerTask));
-//	} else {
-//		// restart server task
-//		printf("[log] restarted udp server task\n");
-//		vTaskDelete(xUDPServerTask);
-//		xUDPServerTask = NULL;
-//		xTaskCreate(prvUDPServerTask, "UDPServer", configMINIMAL_STACK_SIZE + 2048UL, NULL, tskIDLE_PRIORITY + 2, &xUDPServerTask);
-//	}
-}
-
 void ldhcp_ip_assign(void)
 {
 	wiz_NetInfo glWIZNETINFO;
@@ -277,8 +262,6 @@ void ldhcp_ip_assign(void)
 	net_conf(&glWIZNETINFO);
 //	display_net_conf();
 	ucli_log(UCLI_LOG_INFO, "DHCP lease time: %ld s\n", getDHCPLeasetime());
-
-	prvRestartServerTask();
 }
 
 void ldhcp_ip_conflict(void)
@@ -353,7 +336,6 @@ uint8_t prvCheckValidIPAddress(char * ipstr, uint8_t * result)
 		num = atoi(ch);
 		if (num >= 0 && num <= 255 && lParameterCount < 4) {
 			result[lParameterCount++] = num;
-//			printf("IP [%d] = %d\n", lParameterCount, num);
 		}
 		ch = strtok(NULL, ".");
 	}
@@ -372,7 +354,6 @@ uint8_t prvCheckValidMACAddress(char * ipstr, uint8_t * result)
 		num = strtol(ch, NULL, 16);
 		if (num >= 0 && num <= 255 && lParameterCount < 6) {
 			result[lParameterCount++] = num;
-//			printf("MAC [%d] = %d\n", lParameterCount, num);
 		}
 		ch = strtok(NULL, ":");
 	}

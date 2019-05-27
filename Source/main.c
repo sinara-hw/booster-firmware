@@ -61,7 +61,7 @@ static void prvSetupHardware(void)
 	spi_init();
 	ext_init();
 	lock_init();
-//	watchdog_init();
+	watchdog_init();
 
 	max6639_init();
 	led_bar_init();
@@ -72,35 +72,17 @@ static void prvSetupHardware(void)
 	RCC_ClocksTypeDef RCC_ClockFreq;
 	RCC_GetClocksFreq(&RCC_ClockFreq);
 
-//	if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) != RESET) {
-//		// watchdog reset occurred
-//		ucli_log(UCLI_LOG_WARN, "watchdog reset occurred!\r\n");
-//		RCC_ClearFlag();
-//	}
+	if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) != RESET) {
+		// watchdog reset occurred
+		ucli_log(UCLI_LOG_WARN, "watchdog reset occurred!\r\n");
+		RCC_ClearFlag();
+	}
 
 	ucli_log(UCLI_LOG_INFO, "device boot\r\n");
 	ucli_log(UCLI_LOG_INFO, "SYSCLK frequency: %lu\r\n", RCC_ClockFreq.SYSCLK_Frequency);
 	ucli_log(UCLI_LOG_INFO, "PCLK1 frequency: %lu\r\n", RCC_ClockFreq.PCLK1_Frequency);
 	ucli_log(UCLI_LOG_INFO, "PCLK2 frequency: %lu\r\n", RCC_ClockFreq.PCLK2_Frequency);
 }
-
-typedef struct {
-	double input;
-	double output;
-	double setpoint;
-
-	double kp;
-	double ki;
-	double kd;
-	int pon;
-
-	double output_sum;
-	double last_input;
-	double out_min;
-	double out_max;
-
-	int dir;
-} temp_pid_t;
 
 int main(void)
 {
@@ -109,8 +91,6 @@ int main(void)
 	uint16_t val = adc_autotest();
 	ucli_log(UCLI_LOG_INFO, "ADC: %s | raw: %d | VrefInt %.2f V\r\n", val == 0 ? "ERROR" : "OK", val, (float) ((val * 2.5) / 4096));
 	ucli_log(UCLI_LOG_INFO, "PGOOD: %s\r\n", GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4) ? "OK" : "ERROR");
-
-//	xTaskCreate(prvLEDTask, "LED", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
 
 	xTaskCreate(prvTempMgtTask, "FAN", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY, NULL);
 	xTaskCreate(prvADCTask, "ADC", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 3, NULL);
