@@ -237,7 +237,7 @@ void prvUDPServerTask(void *pvParameters)
 
 				lock_free(ETH_LOCK);
 
-				vTaskDelay((int)(rand() % (4) + 5));
+				vTaskDelay(5);
 			}
 		}
 	}
