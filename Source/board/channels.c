@@ -1218,7 +1218,9 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 				i2c_mux_select(channel);
 				for (int i = 0; i < 32; i++)
 				{
-					avg_current += (((ads7924_get_channel_voltage(0) / 50) / dev->p30_current_sense) * 1000);
+					float value = (((ads7924_get_channel_voltage(0) / 50) / dev->p30_current_sense) * 1000);
+					printf("Current current %0.2f\r\n", value);
+					avg_current += value;
 					vTaskDelay(20);
 				}
 				lock_free(I2C_LOCK);
@@ -1243,7 +1245,7 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 			else
 				led_bar_and((1 << channel), 0, 0);
 
-//			printf("[biascal] dacval %d, progress %d/%d, diff %d, step %d\r\n", dacval, value, current, diff, diff > 10 ? (diff * 2) : 15);
+			printf("[biascal] dacval %d, progress %d/%d, diff %d, step %d\r\n", dacval, value, current, diff, diff > 10 ? (diff * 2) : 15);
 			ucli_progress_bar(value, 0, current, true);
 
 			if (value > current * 0.98 && value < current * 1.02)

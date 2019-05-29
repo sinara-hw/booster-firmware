@@ -645,6 +645,44 @@ static scpi_result_t Interlock_StatusQ(scpi_t * context)
 	return SCPI_RES_OK;
 }
 
+static scpi_result_t Interlock_DiagQ(scpi_t * context)
+{
+	int32_t intval = 0;
+	channel_t * ch;
+
+	if (!SCPI_ParamUInt32(context, &intval, false)) {
+		return SCPI_RES_ERR;
+	}
+
+	// throw error if excess parameter is present
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
+	double results[12] = { 0x00 };
+	if (intval < 8)
+	{
+		ch = rf_channel_get(intval);
+
+		results[0] = ch->detected;
+		results[1] = ch->enabled;
+		results[2] = ch->output_interlock;
+		results[3] = ch->input_interlock;
+		results[4] = ch->measure.adc_pwr_ch1;
+		results[5] = ch->measure.adc_pwr_ch2;
+		results[6] = ch->measure.i30;
+		results[7] = ch->measure.i60;
+		results[8] = ch->measure.p5v0mp;
+		results[9] = ch->measure.remote_temp;
+		results[10] = ch->measure.fwd_pwr;
+		results[11] = ch->measure.rfl_pwr;
+
+		SCPI_ResultArrayDouble(context, results, 12, SCPI_FORMAT_ASCII);
+	}
+
+	return SCPI_RES_OK;
+}
+
 static scpi_result_t Interlock_OverloadQ(scpi_t * context)
 {
 	scpi_bool_t result;
@@ -671,7 +709,7 @@ static scpi_result_t Interlock_OverloadQ(scpi_t * context)
 
 			if ((1 << intval) & rf_channels_get_mask()) {
 				ch = rf_channel_get(intval);
-				if (ch->input_interlock || ch->output_interlock) {
+				if (ch->output_interlock) {
 					SCPI_ResultBool(context, true);
 					return SCPI_RES_OK;
 				} else {
@@ -793,6 +831,7 @@ const scpi_command_t scpi_commands[] = {
 	{.pattern = "CHANnel:DISABle", .callback = CHANNEL_Disable,},
 	{.pattern = "CHANnel:ENABle?", .callback = CHANNEL_EnableQ,},
 	{.pattern = "CHANnel:DETect?", .callback = CHANNEL_DetectQ,},
+	{.pattern = "CHANnel:DIAGnostics?", .callback = Interlock_DiagQ,},
 
 	/* Data gathering */
 	{.pattern = "MEASure:CURRent?", .callback = CHANNEL_Current,},
