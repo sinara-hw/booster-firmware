@@ -13,6 +13,7 @@
 #include "math.h"
 #include "ucli.h"
 #include "led_bar.h"
+#include "device.h"
 
 static volatile double fTemp, fAvg, chTemp = 0.0f;
 static volatile uint8_t f_speed = 0;
@@ -86,9 +87,10 @@ void set_fan_speed(uint8_t value)
 void fan_speed_control(float temp)
 {
 	uint8_t min_fan_speed = 0;
+	device_t * dev = device_get_config();
 
 	if (rf_channels_read_enabled() > 0)
-		min_fan_speed = 20;
+		min_fan_speed = dev->fan_level;
 	else
 		min_fan_speed = 0;
 
@@ -119,16 +121,20 @@ uint8_t temp_mgt_get_fanspeed(void)
 
 void prvTempMgtTask(void *pvParameters)
 {
+	device_t * dev = device_get_config();
 	double maxTemp = 0.0f;
 	fTemp = (MIN_TEMP - 2);
 
-//	// auto enable procedure after power-up
-//	vTaskDelay(2000);
-//	rf_channels_enable(rf_channels_get_mask());
+	if (dev->powercfg)
+	{
+		// auto enable procedure after power-up
+		vTaskDelay(2000);
+		rf_channels_enable(rf_channels_get_mask());
 
-//	// ensure that channel LED's are light on
-//	vTaskDelay(100);
-//	led_bar_or(rf_channels_read_sigon(), 0, 0);
+		// ensure that channel LED's are light on
+		vTaskDelay(100);
+		led_bar_or(rf_channels_read_sigon(), 0, 0);
+	}
 
 	for (;;)
 	{

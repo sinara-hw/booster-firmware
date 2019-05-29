@@ -24,6 +24,8 @@ typedef struct {
 	uint8_t gwaddr[4];
 	uint8_t netmask[4];
 
+	uint8_t powercfg;
+	uint8_t fan_level;
 } device_t;
 
 void device_read_revision(void);

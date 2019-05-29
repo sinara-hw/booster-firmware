@@ -17,6 +17,7 @@
 #include "tasks.h"
 #include "ads7924.h"
 #include "math.h"
+#include "device.h"
 
 extern xQueueHandle _xRxQueue;
 extern int __io_putchar(int ch);
@@ -42,12 +43,44 @@ static void fh_stop(void * a_data)
 
 static void fh_sw_version(void * a_data)
 {
-	printf("RFPA v%.02f, built %s %s, for hardware revision: v%0.2f\r\n", 1.2f, __DATE__, __TIME__, 1.1f);
+	printf("RFPA v%.02f, built %s %s, for hardware revision: v%0.2f\r\n", 1.31f, __DATE__, __TIME__, 1.1f);
 }
 
 static void fh_enabled(void * a_data)
 {
 	printf("[enabled] %d %d\r\n", rf_channels_read_enabled(), rf_channels_read_sigon());
+}
+
+static void fh_powercfg(void * a_data)
+{
+	int cfg = 0;
+	device_t * dev = device_get_config();
+
+	if (ucli_param_get_int(1, &cfg))
+	{
+		cfg = (uint8_t) cfg;
+		eeprom_write_mb(POWERCFG_STATUS, cfg);
+		dev->powercfg = cfg;
+		printf("[powercfg] set %d\r\n", dev->powercfg);
+	} else {
+		printf("[powercfg] %d\r\n", dev->powercfg);
+	}
+}
+
+static void fh_fanlevel(void * a_data)
+{
+	int cfg = 0;
+	device_t * dev = device_get_config();
+
+	if (ucli_param_get_int(1, &cfg))
+	{
+		cfg = (uint8_t) cfg;
+		eeprom_write_mb(FAN_MINIMUM_LEVEL, cfg);
+		dev->fan_level = cfg;
+		printf("[fanlevel] set %d\r\n", dev->fan_level);
+	} else {
+		printf("[fanlevel] %d\r\n", dev->fan_level);
+	}
 }
 
 static void fh_status(void * a_data)
@@ -978,6 +1011,8 @@ static ucli_cmd_t g_cmds[] = {
 	{ "i2cw", fh_i2cw, 0x04, "Write I2C on selected channel\r\n", "i2cw usage:\r\n\ti2cw <channel> <address> <data> - write one byte to selected channel address\r\n" },
 	{ "i2cr", fh_i2cr, 0x03, "Read I2C on selected channel\r\n", "i2cr usage:\r\n\ti2cw <channel> <address> - read one byte from selected channel address\r\n" },
 	{ "currents", fh_currents, 0x00, "Return list of all P30V currents\r\n"},
+	{ "powercfg", fh_powercfg, -1, "Configure powering channels after boot\r\n"},
+	{ "fanlevel", fh_fanlevel, -1, "Configure minimum fan level while channels are enabled\r\n"},
 
 	// "hidden" commands not for end-user
 	{ "wdtest", fh_wdtest, 0x00 },
