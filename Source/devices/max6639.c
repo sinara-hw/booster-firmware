@@ -54,6 +54,7 @@ void max6639_init(void)
 		i2c_write(MAX6639_I2C, addr, MAX6639_REG_TARGTDUTY(0), 0);
 		i2c_write(MAX6639_I2C, addr, MAX6639_REG_TARGTDUTY(1), 0);
 
+// 		AUTO RPM MODE
 //		// global conf register 0x4
 //		i2c_write(MAX6639_I2C, addr, MAX6639_REG_GCONFIG, 0b10110000);
 //
@@ -88,8 +89,8 @@ void max6639_init(void)
 //		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_START_TEMP(0), 10);
 //		i2c_write(MAX6639_I2C, addr, MAX6639_REG_FAN_START_TEMP(1), 10);
 //
-////		// enable ALERT, THERM, FANFAIL interrupts
-////		i2c_write(MAX6639_I2C, addr, MAX6639_REG_OUTPUT_MASK, 0b11001111);
+//		// enable ALERT, THERM, FANFAIL interrupts
+//		i2c_write(MAX6639_I2C, addr, MAX6639_REG_OUTPUT_MASK, 0b11001111);
 //
 //		// 60 deg ALERT limit
 //		i2c_write(MAX6639_I2C, addr, MAX6639_REG_ALERT_LIMIT(0), 0b00110010);

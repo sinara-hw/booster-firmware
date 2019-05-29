@@ -372,7 +372,8 @@ static void fh_cal(void * a_data)
 
 			vTaskDelay(500);
 
-			retval *= 1.10;
+			retval *= 1.12;
+
 			retval = rf_channel_calibrate_input_interlock_v3(channel, retval, 10);
 			if (retval == 0) retval = 10;
 
@@ -384,14 +385,14 @@ static void fh_cal(void * a_data)
 			if (retval != 0) {
 				printf("[cal] done, value = %d\n", retval);
 
-//				ch = rf_channel_get(channel);
-//				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
-//					i2c_mux_select(channel);
-//
-//					ch->cal_values.input_dac_cal_value = retval;
-//					eeprom_write16(DAC1_EEPROM_ADDRESS, retval);
-//					lock_free(I2C_LOCK);
-//				}
+				ch = rf_channel_get(channel);
+				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+					i2c_mux_select(channel);
+
+					ch->cal_values.input_dac_cal_value = retval;
+					eeprom_write16(DAC1_EEPROM_ADDRESS, retval);
+					lock_free(I2C_LOCK);
+				}
 			} else {
 				printf("[cal] error, failed\n");
 			}
@@ -584,30 +585,12 @@ static void fh_intval(void * a_data)
 {
 	int channel = 0;
 	float value = 0;
-	channel_t * ch;
 
 	ucli_param_get_int(1, &channel);
 	ucli_param_get_float(2, &value);
 
 	if ((uint8_t) channel < 8) {
 		rf_channel_interlock_set(channel, value);
-//		ch = rf_channel_get(channel);
-//		uint16_t dac_value = (uint16_t) ((ch->cal_values.hw_int_scale * value) + ch->cal_values.hw_int_offset);
-////		uint16_t dac_value = (uint16_t) (exp((value - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
-//		ch->cal_values.output_dac_cal_value = dac_value;
-//
-//		if (lock_take(I2C_LOCK, portMAX_DELAY))
-//		{
-//			i2c_mux_select((uint8_t) channel);
-//			eeprom_write16(DAC2_EEPROM_ADDRESS, dac_value);
-//			if (ch->enabled) {
-//				i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
-//			}
-//			lock_free(I2C_LOCK);
-//			printf("[intv] Interlock value for %0.2f = %d\r\n", value, ch->cal_values.output_dac_cal_value);
-//		}
-
-
 	} else
 		printf("[intv] Wrong channel number\r\n");
 }
@@ -651,7 +634,6 @@ static void fh_intparams(void * a_data)
 static void fh_intget(void * a_data)
 {
 	int channel = 0;
-	float value = 0;
 
 	ucli_param_get_int(1, &channel);
 
