@@ -17,16 +17,14 @@ static device_t booster;
 
 void device_read_revision(void)
 {
+	memset(&booster, 0x00, sizeof(device_t));
+
 	uint8_t hw_rev = GPIO_ReadInputDataBit(GPIOF, GPIO_Pin_2) << 2 | GPIO_ReadInputDataBit(GPIOF, GPIO_Pin_1) << 1 |GPIO_ReadInputDataBit(GPIOF, GPIO_Pin_0);
 	booster.hw_rev = hw_rev;
 	ucli_log(UCLI_LOG_INFO, "hardware revision %d\r\n", hw_rev);
 
 	// set appropriate resistor values for hardware revision
-	if (booster.hw_rev == 1 || booster.hw_rev == 3) {
-		booster.p30_current_sense = 0.091f;
-	} else {
-		booster.p30_current_sense = 0.02f;
-	}
+	booster.p30_current_sense = 0.091f;
 }
 
 void device_load_network_conf(void)
@@ -56,6 +54,15 @@ void device_load_network_conf(void)
 				booster.macaddr[i] = eeprom_read_mb(0xFA + i);
 			}
 		}
+
+		booster.powercfg = eeprom_read_mb(POWERCFG_STATUS);
+		if (booster.powercfg == 0xFF)
+			booster.powercfg = 1;
+
+		booster.fan_level = eeprom_read_mb(FAN_MINIMUM_LEVEL);
+		if (booster.fan_level == 0xFF)
+			booster.fan_level = 20;
+
 	} else {
 		ucli_log(UCLI_LOG_INFO, "Mainboard EEPROM not found, loading default values\r\n");
 		booster.ipsel = NETINFO_DHCP;

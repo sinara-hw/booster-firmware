@@ -17,6 +17,7 @@
 #include "tasks.h"
 #include "ads7924.h"
 #include "math.h"
+#include "device.h"
 
 extern xQueueHandle _xRxQueue;
 extern int __io_putchar(int ch);
@@ -42,12 +43,44 @@ static void fh_stop(void * a_data)
 
 static void fh_sw_version(void * a_data)
 {
-	printf("RFPA v%.02f, built %s %s, for hardware revision: v%0.2f\r\n", 1.2f, __DATE__, __TIME__, 1.1f);
+	printf("RFPA v%.02f, built %s %s, for hardware revision: v%0.2f\r\n", 1.31f, __DATE__, __TIME__, 1.1f);
 }
 
 static void fh_enabled(void * a_data)
 {
 	printf("[enabled] %d %d\r\n", rf_channels_read_enabled(), rf_channels_read_sigon());
+}
+
+static void fh_powercfg(void * a_data)
+{
+	int cfg = 0;
+	device_t * dev = device_get_config();
+
+	if (ucli_param_get_int(1, &cfg))
+	{
+		cfg = (uint8_t) cfg;
+		eeprom_write_mb(POWERCFG_STATUS, cfg);
+		dev->powercfg = cfg;
+		printf("[powercfg] set %d\r\n", dev->powercfg);
+	} else {
+		printf("[powercfg] %d\r\n", dev->powercfg);
+	}
+}
+
+static void fh_fanlevel(void * a_data)
+{
+	int cfg = 0;
+	device_t * dev = device_get_config();
+
+	if (ucli_param_get_int(1, &cfg))
+	{
+		cfg = (uint8_t) cfg;
+		eeprom_write_mb(FAN_MINIMUM_LEVEL, cfg);
+		dev->fan_level = cfg;
+		printf("[fanlevel] set %d\r\n", dev->fan_level);
+	} else {
+		printf("[fanlevel] %d\r\n", dev->fan_level);
+	}
 }
 
 static void fh_status(void * a_data)
@@ -372,7 +405,8 @@ static void fh_cal(void * a_data)
 
 			vTaskDelay(500);
 
-			retval *= 1.10;
+			retval *= 1.12;
+
 			retval = rf_channel_calibrate_input_interlock_v3(channel, retval, 10);
 			if (retval == 0) retval = 10;
 
@@ -384,14 +418,14 @@ static void fh_cal(void * a_data)
 			if (retval != 0) {
 				printf("[cal] done, value = %d\n", retval);
 
-//				ch = rf_channel_get(channel);
-//				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
-//					i2c_mux_select(channel);
-//
-//					ch->cal_values.input_dac_cal_value = retval;
-//					eeprom_write16(DAC1_EEPROM_ADDRESS, retval);
-//					lock_free(I2C_LOCK);
-//				}
+				ch = rf_channel_get(channel);
+				if (lock_take(I2C_LOCK, portMAX_DELAY)) {
+					i2c_mux_select(channel);
+
+					ch->cal_values.input_dac_cal_value = retval;
+					eeprom_write16(DAC1_EEPROM_ADDRESS, retval);
+					lock_free(I2C_LOCK);
+				}
 			} else {
 				printf("[cal] error, failed\n");
 			}
@@ -584,30 +618,12 @@ static void fh_intval(void * a_data)
 {
 	int channel = 0;
 	float value = 0;
-	channel_t * ch;
 
 	ucli_param_get_int(1, &channel);
 	ucli_param_get_float(2, &value);
 
 	if ((uint8_t) channel < 8) {
 		rf_channel_interlock_set(channel, value);
-//		ch = rf_channel_get(channel);
-//		uint16_t dac_value = (uint16_t) ((ch->cal_values.hw_int_scale * value) + ch->cal_values.hw_int_offset);
-////		uint16_t dac_value = (uint16_t) (exp((value - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale));
-//		ch->cal_values.output_dac_cal_value = dac_value;
-//
-//		if (lock_take(I2C_LOCK, portMAX_DELAY))
-//		{
-//			i2c_mux_select((uint8_t) channel);
-//			eeprom_write16(DAC2_EEPROM_ADDRESS, dac_value);
-//			if (ch->enabled) {
-//				i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
-//			}
-//			lock_free(I2C_LOCK);
-//			printf("[intv] Interlock value for %0.2f = %d\r\n", value, ch->cal_values.output_dac_cal_value);
-//		}
-
-
 	} else
 		printf("[intv] Wrong channel number\r\n");
 }
@@ -651,7 +667,6 @@ static void fh_intparams(void * a_data)
 static void fh_intget(void * a_data)
 {
 	int channel = 0;
-	float value = 0;
 
 	ucli_param_get_int(1, &channel);
 
@@ -996,6 +1011,8 @@ static ucli_cmd_t g_cmds[] = {
 	{ "i2cw", fh_i2cw, 0x04, "Write I2C on selected channel\r\n", "i2cw usage:\r\n\ti2cw <channel> <address> <data> - write one byte to selected channel address\r\n" },
 	{ "i2cr", fh_i2cr, 0x03, "Read I2C on selected channel\r\n", "i2cr usage:\r\n\ti2cw <channel> <address> - read one byte from selected channel address\r\n" },
 	{ "currents", fh_currents, 0x00, "Return list of all P30V currents\r\n"},
+	{ "powercfg", fh_powercfg, -1, "Configure powering channels after boot\r\n"},
+	{ "fanlevel", fh_fanlevel, -1, "Configure minimum fan level while channels are enabled\r\n"},
 
 	// "hidden" commands not for end-user
 	{ "wdtest", fh_wdtest, 0x00 },
