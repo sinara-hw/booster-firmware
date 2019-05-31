@@ -1,0 +1,2 @@
+JDATE:='"$(shell date +'%y%j')"'
+GIT_HASH:='"$(shell git rev-parse --short HEAD)"'

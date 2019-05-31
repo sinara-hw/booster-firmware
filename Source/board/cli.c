@@ -43,7 +43,7 @@ static void fh_stop(void * a_data)
 
 static void fh_sw_version(void * a_data)
 {
-	printf("RFPA v%.02f, built %s %s, for hardware revision: v%0.2f\r\n", 1.31f, __DATE__, __TIME__, 1.1f);
+	printf("RFPA %s, built %s %s\r\n", VERSION_STRING, __DATE__, __TIME__);
 }
 
 static void fh_enabled(void * a_data)
@@ -414,6 +414,12 @@ static void fh_cal(void * a_data)
 
 			printf("[cal] Calibration step = 10 completed = %d\n", retval);
 			retval *= 1.08;
+
+			if (retval > 4000) {
+				printf("[cal] error, failed\n");
+				return;
+			}
+
 			retval = rf_channel_calibrate_input_interlock_v3(channel, retval, 1);
 			if (retval != 0) {
 				printf("[cal] done, value = %d\n", retval);
