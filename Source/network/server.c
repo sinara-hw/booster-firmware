@@ -237,6 +237,10 @@ void prvUDPServerTask(void *pvParameters)
 
 				lock_free(ETH_LOCK);
 
+				// delay is necessary since W5500 can lost an interrupt
+				// while being supressed by large number of packets
+				// slowing down connection a little bit helps
+				// to maintain stable response time
 				vTaskDelay(5);
 			}
 		}

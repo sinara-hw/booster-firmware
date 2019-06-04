@@ -39,7 +39,6 @@ typedef struct {
 	/* Current measurements */
 	double i30;
 	double i60;
-	double in80;
 	double p5v0mp;
 
 	/* Temperatures */

@@ -451,7 +451,6 @@ void rf_channels_measure_task(void *pvParameters)
 
 					channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / 50) / dev->p30_current_sense;
 					channels[i].measure.i60 = (ads7924_get_channel_voltage(1) / 50) / 0.1f;
-					channels[i].measure.in80 = (ads7924_get_channel_voltage(2) / 50) / 4.7f;
 
 					channels[i].measure.p5v0mp = ads7924_get_channel_voltage(3) * 2.5f;
 
