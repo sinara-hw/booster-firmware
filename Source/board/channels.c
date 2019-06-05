@@ -335,7 +335,7 @@ void rf_channels_interlock_task(void *pvParameters)
 	uint8_t channel_sigon = 0;
 	uint8_t err_cnt = 0;
 	uint8_t err_cnt2 = 0;
-	uint8_t pwr_diff = 0;
+	float pwr_diff = 0;
 	uint8_t err_clear = 0;
 
 	// since it's most crucial task,
@@ -398,26 +398,30 @@ void rf_channels_interlock_task(void *pvParameters)
 					}
 				}
 
-//				if (channels[i].sigon && channels[i].enabled) {
-//					pwr_diff = abs(channels[i].measure.adc_raw_ch1 - channels[i].measure.adc_raw_ch2);
-//					if (pwr_diff < 20 || channels[i].soft_interlock)
-//					{
-//						ucli_log(UCLI_LOG_ERROR, "Reverse power interlock tripped on channel %d, tx %0.2f rfl %0.2f\r\n", i, channels[i].measure.adc_ch1, channels[i].measure.adc_ch1);
-//
-//						rf_channels_sigon(1 << i, false);
-//						if (lock_take(I2C_LOCK, portMAX_DELAY))
-//						{
-//							i2c_mux_select(i);
-//							i2c_dac_set(4095);
-//							lock_free(I2C_LOCK);
-//						}
-//
-//						led_bar_and((1UL << i), 0x00, 0x00);
-//						led_bar_or(0x00, (1UL << i), 0x00);
-//
-//						channels[i].soft_interlock = true;
-//					}
-//				}
+				if (channels[i].sigon && channels[i].enabled) {
+					pwr_diff = channels[i].measure.fwd_pwr - channels[i].measure.rfl_pwr;
+
+					// watch for a moment when
+					// RFL power measrement is close to
+					// TX pwr or higher then cut channel off
+					if (pwr_diff < 5 && channels[i].measure.fwd_pwr >= 10.0)
+					{
+						ucli_log(UCLI_LOG_ERROR, "Reverse power interlock tripped on channel %d, tx %0.2f rfl %0.2f\r\n", i, channels[i].measure.adc_ch1, channels[i].measure.adc_ch1);
+
+						rf_channels_sigon(1 << i, false);
+						if (lock_take(I2C_LOCK, portMAX_DELAY))
+						{
+							i2c_mux_select(i);
+							i2c_dac_set(4095);
+							lock_free(I2C_LOCK);
+						}
+
+						led_bar_and((1UL << i), 0x00, 0x00);
+						led_bar_or(0x00, (1UL << i), 0x00);
+
+						channels[i].soft_interlock = true;
+					}
+				}
 
 				if (err_clear++ > 200)
 				{
