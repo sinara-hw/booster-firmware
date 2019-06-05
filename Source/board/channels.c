@@ -399,12 +399,7 @@ void rf_channels_interlock_task(void *pvParameters)
 				}
 
 				if (channels[i].sigon && channels[i].enabled) {
-					pwr_diff = channels[i].measure.fwd_pwr - channels[i].measure.rfl_pwr;
-
-					// watch for a moment when
-					// RFL power measrement is close to
-					// TX pwr or higher then cut channel off
-					if (pwr_diff < 5 && channels[i].measure.fwd_pwr >= 10.0)
+					if (channels[i].measure.rfl_pwr >= 26.0)
 					{
 						ucli_log(UCLI_LOG_ERROR, "Reverse power interlock tripped on channel %d, tx %0.2f rfl %0.2f\r\n", i, channels[i].measure.adc_ch1, channels[i].measure.adc_ch1);
 
