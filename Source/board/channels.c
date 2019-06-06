@@ -458,9 +458,6 @@ void rf_channels_measure_task(void *pvParameters)
 
 						channels[i].measure.p5v0mp = ads7924_get_channel_voltage(3) * 2.5f;
 
-						channels[i].measure.local_temp = max6642_get_local_temp();
-						channels[i].measure.remote_temp = max6642_get_remote_temp();
-
 						lock_free(I2C_LOCK);
 					}
 				} else {
@@ -471,6 +468,15 @@ void rf_channels_measure_task(void *pvParameters)
 					channels[i].measure.i30 = 0;
 					channels[i].measure.i60 = 0;
 					channels[i].measure.p5v0mp = 0;
+
+					if (lock_take(I2C_LOCK, portMAX_DELAY))
+					{
+						i2c_mux_select(i);
+						channels[i].measure.local_temp = max6642_get_local_temp();
+						channels[i].measure.remote_temp = max6642_get_remote_temp();
+
+						lock_free(I2C_LOCK);
+					}
 				}
 			}
 		}
