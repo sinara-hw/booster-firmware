@@ -442,24 +442,33 @@ void rf_channels_measure_task(void *pvParameters)
 	{
 		for (int i = 0; i < 8; i++) {
 
-			if ((1 << i) & channel_mask) {
-
-				if (lock_take(I2C_LOCK, portMAX_DELAY))
+			if ((1 << i) & channel_mask)
+			{
+				if (channels[i].enabled)
 				{
-					i2c_mux_select(i);
+					if (lock_take(I2C_LOCK, portMAX_DELAY))
+					{
+						i2c_mux_select(i);
 
-					channels[i].measure.fwd_pwr = (double) (channels[i].measure.adc_raw_ch1 - channels[i].cal_values.fwd_pwr_offset) / (double) channels[i].cal_values.fwd_pwr_scale;
-					channels[i].measure.rfl_pwr = (double) (channels[i].measure.adc_raw_ch2 - channels[i].cal_values.rfl_pwr_offset) / (double) channels[i].cal_values.rfl_pwr_scale;
+						channels[i].measure.fwd_pwr = (double) (channels[i].measure.adc_raw_ch1 - channels[i].cal_values.fwd_pwr_offset) / (double) channels[i].cal_values.fwd_pwr_scale;
+						channels[i].measure.rfl_pwr = (double) (channels[i].measure.adc_raw_ch2 - channels[i].cal_values.rfl_pwr_offset) / (double) channels[i].cal_values.rfl_pwr_scale;
 
-					channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / 50) / dev->p30_current_sense;
-					channels[i].measure.i60 = (ads7924_get_channel_voltage(1) / 50) / 0.1f;
+						channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / 50) / dev->p30_current_sense;
+						channels[i].measure.i60 = (ads7924_get_channel_voltage(1) / 50) / 0.1f;
 
-					channels[i].measure.p5v0mp = ads7924_get_channel_voltage(3) * 2.5f;
+						channels[i].measure.p5v0mp = ads7924_get_channel_voltage(3) * 2.5f;
 
-					channels[i].measure.local_temp = max6642_get_local_temp();
-					channels[i].measure.remote_temp = max6642_get_remote_temp();
+						channels[i].measure.local_temp = max6642_get_local_temp();
+						channels[i].measure.remote_temp = max6642_get_remote_temp();
 
-					lock_free(I2C_LOCK);
+						lock_free(I2C_LOCK);
+					}
+				} else {
+					channels[i].measure.fwd_pwr = 0;
+					channels[i].measure.rfl_pwr = 0;
+					channels[i].measure.i30 = 0;
+					channels[i].measure.i60 = 0;
+					channels[i].measure.p5v0mp = 0;
 				}
 			}
 		}
@@ -722,15 +731,6 @@ void rf_channels_info_task(void *pvParameters)
 															channels[5].soft_interlock,
 															channels[6].soft_interlock,
 															channels[7].soft_interlock);
-
-		printf("OVC\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].overcurrent,
-															channels[1].overcurrent,
-															channels[2].overcurrent,
-															channels[3].overcurrent,
-															channels[4].overcurrent,
-															channels[5].overcurrent,
-															channels[6].overcurrent,
-															channels[7].overcurrent);
 
 		printf("ADC1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].measure.adc_raw_ch1,
 																channels[1].measure.adc_raw_ch1,
