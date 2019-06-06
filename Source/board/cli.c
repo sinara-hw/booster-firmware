@@ -43,7 +43,8 @@ static void fh_stop(void * a_data)
 
 static void fh_sw_version(void * a_data)
 {
-	printf("RFPA %s, built %s %s\r\n", VERSION_STRING, __DATE__, __TIME__);
+	device_t * dev = device_get_config();
+	printf("RFPA %s, built %s %s, hv rev %d\r\n", VERSION_STRING, __DATE__, __TIME__, dev->hw_rev);
 }
 
 static void fh_enabled(void * a_data)

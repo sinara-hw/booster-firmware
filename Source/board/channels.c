@@ -464,6 +464,8 @@ void rf_channels_measure_task(void *pvParameters)
 						lock_free(I2C_LOCK);
 					}
 				} else {
+					// avoid unnecessary confusion when channel is disabled
+					// and providing false measurements
 					channels[i].measure.fwd_pwr = 0;
 					channels[i].measure.rfl_pwr = 0;
 					channels[i].measure.i30 = 0;

@@ -48,6 +48,7 @@
 #include "locks.h"
 #include "i2c.h"
 #include "eeprom.h"
+#include "device.h"
 
 static scpi_result_t TestNumOrStrQ(scpi_t * context)
 {
@@ -81,6 +82,17 @@ static scpi_result_t TestNumOrStrQ(scpi_t * context)
 		}
 	}
 
+	return SCPI_RES_OK;
+}
+
+static scpi_result_t IDN_Query(scpi_t * context)
+{
+	char buffer[64] = { 0x00 };
+
+	device_t * dev = device_get_config();
+	int len = sprintf(buffer, "RFPA %s, built %s %s, hv rev %d\n", VERSION_STRING, __DATE__, __TIME__, dev->hw_rev);
+
+	SCPI_ResultCharacters(context, buffer, len);
 	return SCPI_RES_OK;
 }
 
@@ -798,7 +810,7 @@ const scpi_command_t scpi_commands[] = {
     { .pattern = "*ESE", .callback = SCPI_CoreEse,},
     { .pattern = "*ESE?", .callback = SCPI_CoreEseQ,},
     { .pattern = "*ESR?", .callback = SCPI_CoreEsrQ,},
-    { .pattern = "*IDN?", .callback = SCPI_CoreIdnQ,},
+//    { .pattern = "*IDN?", .callback = SCPI_CoreIdnQ,},
     { .pattern = "*OPC", .callback = SCPI_CoreOpc,},
     { .pattern = "*OPC?", .callback = SCPI_CoreOpcQ,},
     { .pattern = "*RST", .callback = SCPI_CoreRst,},
@@ -825,6 +837,7 @@ const scpi_command_t scpi_commands[] = {
     {.pattern = "STATus:QUEStionable:ENABle?", .callback = SCPI_StatusQuestionableEnableQ,},
     {.pattern = "STATus:PRESet", .callback = SCPI_StatusPreset,},
 
+	{ .pattern = "*IDN?", .callback = IDN_Query,},
 	/* Channel control */
 	{.pattern = "CHANnel:ENABle", .callback = CHANNEL_Enable,},
 	{.pattern = "CHANnel:TEST", .callback = TestNumOrStrQ,},
