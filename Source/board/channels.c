@@ -140,6 +140,9 @@ void rf_channel_load_values(channel_t * ch)
 	uint32_t u32_int_offset = eeprom_read32(HW_INT_OFFSET);
 	memcpy(&ch->cal_values.hw_int_scale, &u32_int_scale, sizeof(float));
 	memcpy(&ch->cal_values.hw_int_offset, &u32_int_offset, sizeof(float));
+
+	// load interlock setpoint in dBm
+	ch->interlock_setpoint = (double) (ch->cal_values.output_dac_cal_value - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale;
 }
 
 uint8_t rf_channels_detect(void)
@@ -746,6 +749,15 @@ void rf_channels_info_task(void *pvParameters)
 															channels[5].measure.adc_raw_ch2,
 															channels[6].measure.adc_raw_ch2,
 															channels[7].measure.adc_raw_ch2);
+
+		printf("INTSET [dBm]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].interlock_setpoint,
+																					channels[1].interlock_setpoint,
+																					channels[2].interlock_setpoint,
+																					channels[3].interlock_setpoint,
+																					channels[4].interlock_setpoint,
+																					channels[5].interlock_setpoint,
+																					channels[6].interlock_setpoint,
+																					channels[7].interlock_setpoint);
 
 		printf("DAC1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].cal_values.input_dac_cal_value,
 																channels[1].cal_values.input_dac_cal_value,
