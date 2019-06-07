@@ -37,8 +37,8 @@
 #define IP_ADDRESS_GW					22
 #define IP_ADDRESS_NETMASK				26
 
-#define POWERCFG_STATUS					28
-#define FAN_MINIMUM_LEVEL				29
+#define POWERCFG_STATUS					30
+#define FAN_MINIMUM_LEVEL				31
 
 void eeprom_write(uint8_t address, uint8_t data);
 uint8_t eeprom_read(uint8_t address);
