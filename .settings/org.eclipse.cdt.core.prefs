@@ -1,0 +1,11 @@
+eclipse.preferences.version=1
+environment/project/fr.ac6.managedbuild.config.gnu.cross.exe.debug.193508594/append=true
+environment/project/fr.ac6.managedbuild.config.gnu.cross.exe.debug.193508594/appendContributed=true
+environment/project/fr.ac6.managedbuild.config.gnu.cross.exe.release.210110490/BUILD_NUMBER/delimiter=\:
+environment/project/fr.ac6.managedbuild.config.gnu.cross.exe.release.210110490/BUILD_NUMBER/operation=append
+environment/project/fr.ac6.managedbuild.config.gnu.cross.exe.release.210110490/BUILD_NUMBER/value="qq"
+environment/project/fr.ac6.managedbuild.config.gnu.cross.exe.release.210110490/COMMIT_HASH/delimiter=\:
+environment/project/fr.ac6.managedbuild.config.gnu.cross.exe.release.210110490/COMMIT_HASH/operation=append
+environment/project/fr.ac6.managedbuild.config.gnu.cross.exe.release.210110490/COMMIT_HASH/value=$(git rev-parse --short HEAD)
+environment/project/fr.ac6.managedbuild.config.gnu.cross.exe.release.210110490/append=true
+environment/project/fr.ac6.managedbuild.config.gnu.cross.exe.release.210110490/appendContributed=true
