@@ -451,6 +451,11 @@ void rf_channels_measure_task(void *pvParameters)
 						i2c_mux_select(i);
 
 						channels[i].measure.fwd_pwr = (double) (channels[i].measure.adc_raw_ch1 - channels[i].cal_values.fwd_pwr_offset) / (double) channels[i].cal_values.fwd_pwr_scale;
+
+						// power meter clipping to avoid false readings below 5 dBm output power
+						if (channels[i].measure.fwd_pwr < 5.0f)
+							channels[i].measure.fwd_pwr = 5.0f;
+
 						channels[i].measure.rfl_pwr = (double) (channels[i].measure.adc_raw_ch2 - channels[i].cal_values.rfl_pwr_offset) / (double) channels[i].cal_values.rfl_pwr_scale;
 
 						channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / 50) / dev->p30_current_sense;
