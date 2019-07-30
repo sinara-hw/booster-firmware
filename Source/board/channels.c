@@ -552,7 +552,6 @@ double rf_channel_interlock_get(uint8_t channel)
 	if (channel < 8) {
 		ch = rf_channel_get(channel);
 		double value = (double) (ch->cal_values.output_dac_cal_value - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale;
-		value = round(value);
 		return value;
 	}
 
