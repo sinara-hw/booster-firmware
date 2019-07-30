@@ -402,7 +402,9 @@ void rf_channels_interlock_task(void *pvParameters)
 				}
 
 				if (channels[i].sigon && channels[i].enabled) {
-					if (channels[i].measure.rfl_pwr >= 30.0)
+
+					// protect against inf reflected power
+					if (channels[i].measure.rfl_pwr >= 30.0 && channels[i].measure.rfl_pwr <= 80.0)
 					{
 						ucli_log(UCLI_LOG_ERROR, "Reverse power interlock tripped on channel %d, tx %0.2f rfl %0.2f\r\n", i, channels[i].measure.adc_ch1, channels[i].measure.adc_ch1);
 

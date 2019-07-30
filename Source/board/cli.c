@@ -344,7 +344,7 @@ static void fh_intcal(void * a_data)
 			}
 
 			if (int_cal_val_s && int_cal_val_e) {
-				float a = ((float)(int_cal_val_s - int_cal_val_e) / (float)(int_cal_pwr_s - int_cal_pwr_e));
+				float a = ((float) (int_cal_val_s - int_cal_val_e) / (float)(int_cal_pwr_s - int_cal_pwr_e));
 				float b = ((float) int_cal_val_s - ((float)(int_cal_val_s - int_cal_val_e) / (float)(int_cal_pwr_s - int_cal_pwr_e)) * (float) int_cal_pwr_s);
 
 //				float a = (int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e));

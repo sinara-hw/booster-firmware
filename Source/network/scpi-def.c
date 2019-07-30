@@ -90,7 +90,7 @@ static scpi_result_t IDN_Query(scpi_t * context)
 	char buffer[64] = { 0x00 };
 
 	device_t * dev = device_get_config();
-	int len = sprintf(buffer, "RFPA %s, built %s %s, hv rev %d\n", VERSION_STRING, __DATE__, __TIME__, dev->hw_rev);
+	int len = sprintf(buffer, "RFPA %s, built %s %s, hv rev %d", VERSION_STRING, __DATE__, __TIME__, dev->hw_rev);
 
 	SCPI_ResultCharacters(context, buffer, len);
 	return SCPI_RES_OK;
@@ -485,12 +485,12 @@ static scpi_result_t CHANNEL_OutputPower(scpi_t * context)
 
 			if ((1 << intval) & rf_channels_get_mask()) {
 				ch = rf_channel_get(intval);
-				SCPI_ResultDouble(context, ch->measure.fwd_pwr);
+				double tmp = ch->measure.fwd_pwr;
+				SCPI_ResultDouble(context, tmp);
 				return SCPI_RES_OK;
 			} else {
 				return SCPI_RES_ERR;
 			}
-
 		} else {
 			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
 			if (intval) {
