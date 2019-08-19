@@ -87,10 +87,11 @@ static scpi_result_t TestNumOrStrQ(scpi_t * context)
 
 static scpi_result_t IDN_Query(scpi_t * context)
 {
-	char buffer[64] = { 0x00 };
+	char buffer[128] = { 0x00 };
+	uint32_t b2 = (*(uint32_t *) (0x1FFF7A10 + 4));
 
 	device_t * dev = device_get_config();
-	int len = sprintf(buffer, "RFPA %s, built %s %s, hv rev %d", VERSION_STRING, __DATE__, __TIME__, dev->hw_rev);
+	int len = sprintf(buffer, "RFPA %s, built %s %s, id %04X, hv rev %d", VERSION_STRING, __DATE__, __TIME__, b2, dev->hw_rev);
 
 	SCPI_ResultCharacters(context, buffer, len);
 	return SCPI_RES_OK;
@@ -659,7 +660,7 @@ static scpi_result_t Interlock_StatusQ(scpi_t * context)
 
 static scpi_result_t Interlock_DiagQ(scpi_t * context)
 {
-	int32_t intval = 0;
+	uint32_t intval = 0;
 	channel_t * ch;
 
 	if (!SCPI_ParamUInt32(context, &intval, false)) {
