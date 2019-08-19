@@ -81,8 +81,14 @@ double ads7924_get_channel_voltage(uint8_t ch)
 	i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr, &msb);
 	i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr + 1, &lsb);
 
+	device_t * dev = device_get_config();
+
 	uint16_t raw = ((msb << 8) | lsb) >> 4;
-	return (double) ((raw * 2.50f) / 4095);
+	// return appropriate calculation due to change of AVDD to 3.3V in hw rev 4
+	if (dev->hw_rev < 4)
+		return (double) ((raw * 2.50f) / 4095);
+	else
+		return (double) ((raw * 3.30f) / 4095);
 }
 
 void ads7924_get_data(uint16_t * data)

@@ -15,6 +15,9 @@ typedef struct {
 	uint8_t hw_rev;
 	double p30_current_sense;
 
+	double p30_gain;
+	double p6_gain;
+
 	// network configuration
 	uint8_t ipsel;
 	uint8_t macsel;

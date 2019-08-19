@@ -460,8 +460,12 @@ void rf_channels_measure_task(void *pvParameters)
 
 						channels[i].measure.rfl_pwr = (double) (channels[i].measure.adc_raw_ch2 - channels[i].cal_values.rfl_pwr_offset) / (double) channels[i].cal_values.rfl_pwr_scale;
 
-						channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / 50) / dev->p30_current_sense;
-						channels[i].measure.i60 = (ads7924_get_channel_voltage(1) / 50) / 0.1f;
+						channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / dev->p30_gain) / dev->p30_current_sense;
+						channels[i].measure.i60 = (ads7924_get_channel_voltage(1) / dev->p6_gain) / 0.1f;
+
+						vTaskDelay(100);
+
+//						printf("p30 %d p6v5 %d p5mp %d\r\n", ads7924_get_channel_data(0), ads7924_get_channel_data(1), ads7924_get_channel_data(3));
 
 						channels[i].measure.p5v0mp = ads7924_get_channel_voltage(3) * 2.5f;
 

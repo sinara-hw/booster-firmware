@@ -24,7 +24,17 @@ void device_read_revision(void)
 	ucli_log(UCLI_LOG_INFO, "hardware revision %d\r\n", hw_rev);
 
 	// set appropriate resistor values for hardware revision
-	booster.p30_current_sense = 0.091f;
+	if (booster.hw_rev < 4)
+	{
+		booster.p30_current_sense = 0.091f;
+		booster.p30_gain = 50;
+		booster.p6_gain = 50;
+	} else {
+		// hv rev >= 4
+		booster.p30_current_sense = 0.1f;
+		booster.p30_gain = 43;
+		booster.p6_gain = 62;
+	}
 }
 
 void device_load_network_conf(void)
@@ -57,7 +67,7 @@ void device_load_network_conf(void)
 
 		booster.powercfg = eeprom_read_mb(POWERCFG_STATUS);
 		if (booster.powercfg == 0xFF)
-			booster.powercfg = 1;
+			booster.powercfg = 0;
 
 		booster.fan_level = eeprom_read_mb(FAN_MINIMUM_LEVEL);
 		if (booster.fan_level == 0xFF)
