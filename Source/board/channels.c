@@ -1056,7 +1056,8 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 				i2c_mux_select(channel);
 				for (int i = 0; i < 32; i++)
 				{
-					float value = (((ads7924_get_channel_voltage(0) / 50) / dev->p30_current_sense) * 1000);
+					float value = (((ads7924_get_channel_voltage(0) / dev->p30_gain) / dev->p30_current_sense) * 1000);
+
 					avg_current += value;
 					vTaskDelay(20);
 				}

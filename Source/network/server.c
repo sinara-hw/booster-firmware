@@ -44,8 +44,8 @@ static void udp_int_init(void)
 	EXTI_Init(&EXTI_InitStruct);
 
 	NVIC_InitStruct.NVIC_IRQChannel = EXTI9_5_IRQn;
-	NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 0x0F;
-	NVIC_InitStruct.NVIC_IRQChannelSubPriority = 0x0F;
+	NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 0x01;
+	NVIC_InitStruct.NVIC_IRQChannelSubPriority = 0x01;
 	NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStruct);
 }
@@ -69,7 +69,7 @@ void EXTI9_5_IRQHandler(void)
 static void prvSetupUDPServer(void)
 {
 	// init RECV queue
-	xTCPServerIRQ = xQueueCreate(16, sizeof(uint8_t));
+	xTCPServerIRQ = xQueueCreate(32, sizeof(uint8_t));
 
 	uint8_t result = 0;
 	uint8_t state = 0;
@@ -234,6 +234,17 @@ void prvUDPServerTask(void *pvParameters)
 					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_2);
 				else if (sn == 3)
 					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_3);
+
+				// WIZNET IRQ GLITCH WORKAROUND
+				if (!GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_6))
+				{
+					// since w5500 irq is level based
+					// we issue another queue item if the interrupt
+					// is low after clearing because that indicates that
+					// another action is in progress and we need to process that
+					uint8_t trg = 0x01;
+					xQueueSend( xTCPServerIRQ, ( void * ) &trg, ( TickType_t ) 0);
+				}
 
 				lock_free(ETH_LOCK);
 
