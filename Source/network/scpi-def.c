@@ -672,63 +672,6 @@ static scpi_result_t Interlock_Clear(scpi_t * context)
 	return SCPI_RES_OK;
 }
 
-static scpi_result_t Interlock_StatusQ(scpi_t * context)
-{
-	scpi_bool_t result;
-	scpi_parameter_t param;
-	int32_t intval = 0;
-	channel_t * ch;
-	uint8_t mask = 0;
-
-	scpi_choice_def_t bool_options[] = {
-		{"ALL", 1},
-		SCPI_CHOICE_LIST_END /* termination of option list */
-	};
-
-	result = SCPI_Parameter(context, &param, true);
-	if (!result) {
-		return SCPI_RES_ERR;
-	}
-
-	// throw error if excess parameter is present
-	if (SCPI_IsParameterPresent(context)) {
-		return SCPI_RES_ERR;
-	}
-
-	if (result) {
-		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
-
-			if (intval >= 0 && intval < 8)
-			{
-				ch = rf_channel_get(intval);
-				if (ch->input_interlock || ch->output_interlock) {
-					SCPI_ResultBool(context, true);
-					return SCPI_RES_OK;
-				} else {
-					SCPI_ResultBool(context, false);
-					return SCPI_RES_OK;
-				}
-			}
-			return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
-		} else {
-			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
-			if (intval) {
-				for (int i = 0; i < 8; i++) {
-					ch = rf_channel_get(i);
-					if (ch->input_interlock || ch->output_interlock) {
-						mask |= 1UL << i;
-					}
-				}
-				SCPI_ResultUInt8(context, mask);
-				return SCPI_RES_OK;
-			}
-		}
-	}
-
-	return SCPI_RES_ERR;
-}
-
 static scpi_result_t Interlock_DiagQ(scpi_t * context)
 {
 	uint32_t intval = 0;
@@ -769,7 +712,64 @@ static scpi_result_t Interlock_DiagQ(scpi_t * context)
 	return SCPI_RES_ERR;
 }
 
-static scpi_result_t Interlock_OverloadQ(scpi_t * context)
+static scpi_result_t Interlock_StatusQ(scpi_t * context)
+{
+	scpi_bool_t result;
+	scpi_parameter_t param;
+	int32_t intval = 0;
+	channel_t * ch;
+	uint8_t mask = 0;
+
+	scpi_choice_def_t bool_options[] = {
+		{"ALL", 1},
+		SCPI_CHOICE_LIST_END /* termination of option list */
+	};
+
+	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
+
+	// throw error if excess parameter is present
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
+	if (result) {
+		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
+			SCPI_ParamToInt32(context, &param, &intval);
+
+			if (intval >= 0 && intval < 8)
+			{
+				ch = rf_channel_get(intval);
+				if (ch->input_interlock || ch->output_interlock || ch->soft_interlock || ch->error) {
+					SCPI_ResultBool(context, true);
+					return SCPI_RES_OK;
+				} else {
+					SCPI_ResultBool(context, false);
+					return SCPI_RES_OK;
+				}
+			}
+			return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
+		} else {
+			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
+			if (intval) {
+				for (int i = 0; i < 8; i++) {
+					ch = rf_channel_get(i);
+					if (ch->input_interlock || ch->output_interlock || ch->soft_interlock || ch->error) {
+						mask |= 1UL << i;
+					}
+				}
+				SCPI_ResultUInt8(context, mask);
+				return SCPI_RES_OK;
+			}
+		}
+	}
+
+	return SCPI_RES_ERR;
+}
+
+static scpi_result_t Interlock_FORwardQ(scpi_t * context)
 {
 	scpi_bool_t result;
 	scpi_parameter_t param;
@@ -817,7 +817,68 @@ static scpi_result_t Interlock_OverloadQ(scpi_t * context)
 			if (intval) {
 				for (int i = 0; i < 8; i++) {
 					ch = rf_channel_get(i);
-					if (ch->input_interlock || ch->output_interlock) {
+					if (ch->output_interlock) {
+						mask |= 1UL << i;
+					}
+				}
+				SCPI_ResultUInt8(context, mask);
+				return SCPI_RES_OK;
+			}
+		}
+	}
+
+	return SCPI_RES_ERR;
+}
+
+static scpi_result_t Interlock_REVerseQ(scpi_t * context)
+{
+	scpi_bool_t result;
+	scpi_parameter_t param;
+	int32_t intval = 0;
+	channel_t * ch;
+	uint8_t mask = 0;
+
+	scpi_choice_def_t bool_options[] = {
+		{"ALL", 1},
+		SCPI_CHOICE_LIST_END /* termination of option list */
+	};
+
+	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
+
+	// throw error if excess parameter is present
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
+	if (result) {
+		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
+			SCPI_ParamToInt32(context, &param, &intval);
+
+			if (intval >= 0 && intval < 8) {
+				if ((1 << intval) & rf_channels_get_mask()) {
+					ch = rf_channel_get(intval);
+					if (ch->soft_interlock) {
+						SCPI_ResultBool(context, true);
+						return SCPI_RES_OK;
+					} else {
+						SCPI_ResultBool(context, false);
+						return SCPI_RES_OK;
+					}
+				} else {
+					return SCPI_ReturnString(context, "[scpi] **ERROR: -99, \"Channel not detected\"");;
+				}
+			} else {
+				return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
+			}
+		} else {
+			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
+			if (intval) {
+				for (int i = 0; i < 8; i++) {
+					ch = rf_channel_get(i);
+					if (ch->soft_interlock) {
 						mask |= 1UL << i;
 					}
 				}
@@ -944,7 +1005,8 @@ const scpi_command_t scpi_commands[] = {
 	{.pattern = "INTerlock:POWer", .callback = INTERLOCK_Power,},
 	{.pattern = "INTerlock:CLEar", .callback = Interlock_Clear,},
 	{.pattern = "INTerlock:STATus?", .callback = Interlock_StatusQ,},
-	{.pattern = "INTerlock:OVERload?", .callback = Interlock_OverloadQ,},
+	{.pattern = "INTerlock:FORward?", .callback = Interlock_FORwardQ,},
+	{.pattern = "INTerlock:REVerse?", .callback = Interlock_REVerseQ,},
 	{.pattern = "INTerlock:ERRor?", .callback = Interlock_ErrorQ,},
 	{.pattern = "INTerlock:POWer?", .callback = INTERLOCK_PowerQ,},
 
