@@ -185,7 +185,6 @@ static uint16_t cal_rfl_pwr1 = 0;
 static uint16_t cal_rfl_val2 = 0;
 static uint16_t cal_rfl_pwr2 = 0;
 
-
 static void fh_calpwr(void * a_data)
 {
 	int channel = 0;
@@ -613,9 +612,10 @@ static void fh_int(void * a_data)
 				i2c_mux_select((uint8_t) channel);
 				i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
 				lock_free(I2C_LOCK);
-				printf("[int] Interlock value = %d\r\n", ch->cal_values.output_dac_cal_value);
 			}
 		}
+
+		printf("[int] Interlock value = %d\r\n", ch->cal_values.output_dac_cal_value);
 	} else
 		printf("[int] Wrong channel number\r\n");
 }

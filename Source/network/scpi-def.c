@@ -50,38 +50,10 @@
 #include "eeprom.h"
 #include "device.h"
 
-static scpi_result_t TestNumOrStrQ(scpi_t * context)
+static scpi_result_t SCPI_ReturnString(scpi_t * context, char * buffer)
 {
-	scpi_bool_t result;
-	scpi_parameter_t param;
-	int32_t intval = 0;
-
-	scpi_choice_def_t bool_options[] = {
-		{"ALL", 1},
-		SCPI_CHOICE_LIST_END /* termination of option list */
-	};
-
-	result = SCPI_Parameter(context, &param, true);
-	// throw error if excess parameter is present
-	if (SCPI_IsParameterPresent(context)) {
-		return SCPI_RES_ERR;
-	}
-
-	if (result) {
-		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
-
-			// enable X channel
-			printf("ENABLING %d CHANNEL\r\n", intval);
-		} else {
-			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
-			if (intval) {
-				// enable all channels
-				printf("ENABLING ALL CHANNELS\r\n");
-			}
-		}
-	}
-
+	int len = strlen(buffer);
+	SCPI_ResultCharacters(context, buffer, len);
 	return SCPI_RES_OK;
 }
 
@@ -112,7 +84,6 @@ static scpi_result_t My_CoreTstQ(scpi_t * context) {
 	}
 
     SCPI_ResultInt32(context, 0);
-
     return SCPI_RES_OK;
 }
 
@@ -129,6 +100,9 @@ static scpi_result_t CHANNEL_Enable(scpi_t * context)
 	};
 
 	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
 
 	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
@@ -139,20 +113,25 @@ static scpi_result_t CHANNEL_Enable(scpi_t * context)
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
 
-			if ((1 << intval) & ch_mask)
-				rf_channels_enable(1 << intval);
-			else
-				return SCPI_RES_ERR;
-
+			if (intval >= 0 && intval < 8) {
+				if ((1 << intval) & ch_mask) {
+					rf_channels_enable(1 << intval);
+					return SCPI_ReturnString(context, "OK");
+				} else
+					return SCPI_ReturnString(context, "[scpi] **ERROR: -99, \"Channel not detected\"");
+			} else {
+				return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
+			}
 		} else {
 			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
 			if (intval) {
 				rf_channels_enable(ch_mask);
+				return SCPI_ReturnString(context, "OK");
 			}
 		}
 	}
 
-	return SCPI_RES_OK;
+	return SCPI_RES_ERR;
 }
 
 static scpi_result_t CHANNEL_Disable(scpi_t * context)
@@ -168,8 +147,10 @@ static scpi_result_t CHANNEL_Disable(scpi_t * context)
 	};
 
 	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
 
-	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
 		return SCPI_RES_ERR;
 	}
@@ -178,33 +159,48 @@ static scpi_result_t CHANNEL_Disable(scpi_t * context)
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
 
-			if ((1 << intval) & ch_mask)
-				rf_channels_disable(1 << intval);
-			else
-				return SCPI_RES_ERR;
-
+			if (intval >= 0 && intval < 8) {
+				if ((1 << intval) & ch_mask) {
+					rf_channels_disable(1 << intval);
+					return SCPI_ReturnString(context, "OK");
+				} else {
+					return SCPI_ReturnString(context, "[scpi] **ERROR: -99, \"Channel not detected\"");
+				}
+			} else {
+				return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
+			}
 		} else {
 			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
 			if (intval) {
 				rf_channels_disable(ch_mask);
+				return SCPI_ReturnString(context, "OK");
 			}
 		}
 	}
 
-	return SCPI_RES_OK;
+	return SCPI_RES_ERR;
 }
 
 static scpi_result_t INTERLOCK_Power(scpi_t * context)
 {
 	uint32_t channel;
 	double interlock;
+	scpi_bool_t result;
+	scpi_parameter_t param;
+	int32_t intval = 0;
 	channel_t * ch;
+
+	scpi_choice_def_t bool_options[] = {
+		{"MAX", 1},
+		SCPI_CHOICE_LIST_END /* termination of option list */
+	};
 
 	if (!SCPI_ParamUInt32(context, &channel, true)) {
 		return SCPI_RES_ERR;
 	}
 
-	if (!SCPI_ParamDouble(context, &interlock, true)) {
+	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
 		return SCPI_RES_ERR;
 	}
 
@@ -213,11 +209,36 @@ static scpi_result_t INTERLOCK_Power(scpi_t * context)
 	}
 
 	if (channel < 8) {
-		if (interlock >= 0 && interlock <= 38.0) {
+		if (result) {
+			if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
+				SCPI_ParamToDouble(context, &param, &interlock);
+				if (interlock >= 0 && interlock <= 38.0) {
+					rf_channel_interlock_set(channel, interlock);
+					return SCPI_ReturnString(context, "OK");
+				} else {
+					return SCPI_ReturnString(context, "[scpi] **ERROR: -98, \"Interlock value invalid (0-38 dBm)\"");
+				}
+			} else {
+				result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
+				if (intval) {
+					ch = rf_channel_get((uint8_t) channel);
+					ch->cal_values.output_dac_cal_value = (uint16_t) 4095;
 
-			rf_channel_interlock_set(channel, interlock);
-			return SCPI_RES_OK;
+					if (ch->enabled) {
+						if (lock_take(I2C_LOCK, portMAX_DELAY))
+						{
+							i2c_mux_select((uint8_t) channel);
+							i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
+							lock_free(I2C_LOCK);
+						}
+					}
+
+					return SCPI_ReturnString(context, "OK");
+				}
+			}
 		}
+	} else {
+		return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
 	}
 
 	return SCPI_RES_ERR;
@@ -241,7 +262,7 @@ static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 
 		return SCPI_RES_OK;
 	} else {
-		return SCPI_RES_ERR;
+		return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
 	}
 
 	return SCPI_RES_OK;
@@ -261,6 +282,9 @@ static scpi_result_t CHANNEL_EnableQ(scpi_t * context)
 	};
 
 	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
 
 	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
@@ -271,12 +295,16 @@ static scpi_result_t CHANNEL_EnableQ(scpi_t * context)
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
 
-			if ((1 << intval) & rf_channels_get_mask()) {
-				ch = rf_channel_get(intval);
-				SCPI_ResultBool(context, ch->enabled);
-				return SCPI_RES_OK;
+			if (intval >= 0 && intval < 8) {
+				if ((1 << intval) & rf_channels_get_mask()) {
+					ch = rf_channel_get(intval);
+					SCPI_ResultBool(context, ch->enabled);
+					return SCPI_RES_OK;
+				} else {
+					return SCPI_ReturnString(context, "[scpi] **ERROR: -99, \"Channel not detected\"");
+				}
 			} else {
-				return SCPI_RES_ERR;
+				return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
 			}
 		} else {
 			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
@@ -310,6 +338,9 @@ static scpi_result_t CHANNEL_DetectQ(scpi_t * context)
 	};
 
 	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
 
 	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
@@ -319,13 +350,16 @@ static scpi_result_t CHANNEL_DetectQ(scpi_t * context)
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
-
-			if ((1 << intval) & rf_channels_get_mask()) {
-				ch = rf_channel_get(intval);
-				SCPI_ResultBool(context, ch->detected);
-				return SCPI_RES_OK;
+			if (intval >= 0 && intval < 8) {
+				if ((1 << intval) & rf_channels_get_mask()) {
+					SCPI_ResultBool(context, 1);
+					return SCPI_RES_OK;
+				} else {
+					SCPI_ResultBool(context, 0);
+					return SCPI_RES_OK;
+				}
 			} else {
-				return SCPI_RES_ERR;
+				return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
 			}
 		} else {
 			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
@@ -342,7 +376,7 @@ static scpi_result_t CHANNEL_DetectQ(scpi_t * context)
 		}
 	}
 
-	return SCPI_RES_OK;
+	return SCPI_RES_ERR;
 }
 
 static scpi_result_t MEASURE_FanQ(scpi_t * context)
@@ -352,7 +386,6 @@ static scpi_result_t MEASURE_FanQ(scpi_t * context)
 	}
 
 	SCPI_ResultUInt8(context, temp_mgt_get_fanspeed());
-
 	return SCPI_RES_OK;
 }
 
@@ -370,6 +403,9 @@ static scpi_result_t CHANNEL_Current(scpi_t * context)
 	};
 
 	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
 
 	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
@@ -379,13 +415,16 @@ static scpi_result_t CHANNEL_Current(scpi_t * context)
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
-
-			if ((1 << intval) & rf_channels_get_mask()) {
-				ch = rf_channel_get(intval);
-				SCPI_ResultDouble(context, ch->measure.i30);
-				return SCPI_RES_OK;
+			if (intval >= 0 && intval < 8) {
+				if ((1 << intval) & rf_channels_get_mask()) {
+					ch = rf_channel_get(intval);
+					SCPI_ResultDouble(context, ch->measure.i30);
+					return SCPI_RES_OK;
+				} else {
+					return SCPI_ReturnString(context, "[scpi] **ERROR: -99, \"Channel not detected\"");
+				}
 			} else {
-				return SCPI_RES_ERR;
+				return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
 			}
 		} else {
 			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
@@ -405,7 +444,7 @@ static scpi_result_t CHANNEL_Current(scpi_t * context)
 		}
 	}
 
-	return SCPI_RES_OK;
+	return SCPI_RES_ERR;
 }
 
 static scpi_result_t CHANNEL_Temperature(scpi_t * context)
@@ -422,6 +461,9 @@ static scpi_result_t CHANNEL_Temperature(scpi_t * context)
 	};
 
 	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
 
 	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
@@ -432,12 +474,16 @@ static scpi_result_t CHANNEL_Temperature(scpi_t * context)
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
 
-			if ((1 << intval) & rf_channels_get_mask()) {
-				ch = rf_channel_get(intval);
-				SCPI_ResultDouble(context, ch->measure.remote_temp);
-				return SCPI_RES_OK;
+			if (intval >= 0 && intval < 8) {
+				if ((1 << intval) & rf_channels_get_mask()) {
+					ch = rf_channel_get(intval);
+					SCPI_ResultDouble(context, ch->measure.remote_temp);
+					return SCPI_RES_OK;
+				} else {
+					return SCPI_ReturnString(context, "[scpi] **ERROR: -99, \"Channel not detected\"");
+				}
 			} else {
-				return SCPI_RES_ERR;
+				return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
 			}
 		} else {
 			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
@@ -457,7 +503,7 @@ static scpi_result_t CHANNEL_Temperature(scpi_t * context)
 		}
 	}
 
-	return SCPI_RES_OK;
+	return SCPI_RES_ERR;
 }
 
 static scpi_result_t CHANNEL_OutputPower(scpi_t * context)
@@ -474,6 +520,9 @@ static scpi_result_t CHANNEL_OutputPower(scpi_t * context)
 	};
 
 	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
 
 	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
@@ -484,13 +533,17 @@ static scpi_result_t CHANNEL_OutputPower(scpi_t * context)
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
 
-			if ((1 << intval) & rf_channels_get_mask()) {
-				ch = rf_channel_get(intval);
-				double tmp = ch->measure.fwd_pwr;
-				SCPI_ResultDouble(context, tmp);
-				return SCPI_RES_OK;
+			if (intval >= 0 && intval < 8) {
+				if ((1 << intval) & rf_channels_get_mask()) {
+					ch = rf_channel_get(intval);
+					double tmp = ch->measure.fwd_pwr;
+					SCPI_ResultDouble(context, tmp);
+					return SCPI_RES_OK;
+				} else {
+					return SCPI_ReturnString(context, "[scpi] **ERROR: -99, \"Channel not detected\"");
+				}
 			} else {
-				return SCPI_RES_ERR;
+				return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
 			}
 		} else {
 			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
@@ -510,7 +563,7 @@ static scpi_result_t CHANNEL_OutputPower(scpi_t * context)
 		}
 	}
 
-	return SCPI_RES_OK;
+	return SCPI_RES_ERR;
 }
 
 static scpi_result_t CHANNEL_ReversePower(scpi_t * context)
@@ -527,6 +580,9 @@ static scpi_result_t CHANNEL_ReversePower(scpi_t * context)
 	};
 
 	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
 
 	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
@@ -537,12 +593,16 @@ static scpi_result_t CHANNEL_ReversePower(scpi_t * context)
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
 
-			if ((1 << intval) & rf_channels_get_mask()) {
-				ch = rf_channel_get(intval);
-				SCPI_ResultDouble(context, ch->measure.rfl_pwr);
-				return SCPI_RES_OK;
+			if (intval >= 0 && intval < 8) {
+				if ((1 << intval) & rf_channels_get_mask()) {
+					ch = rf_channel_get(intval);
+					SCPI_ResultDouble(context, ch->measure.rfl_pwr);
+					return SCPI_RES_OK;
+				} else {
+					return SCPI_ReturnString(context, "[scpi] **ERROR: -99, \"Channel not detected\"");
+				}
 			} else {
-				return SCPI_RES_ERR;
+				return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
 			}
 		} else {
 			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
@@ -562,7 +622,7 @@ static scpi_result_t CHANNEL_ReversePower(scpi_t * context)
 		}
 	}
 
-	return SCPI_RES_OK;
+	return SCPI_RES_ERR;
 }
 
 static scpi_result_t Interlock_Clear(scpi_t * context)
@@ -579,6 +639,9 @@ static scpi_result_t Interlock_Clear(scpi_t * context)
 	};
 
 	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
 
 	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
@@ -588,16 +651,20 @@ static scpi_result_t Interlock_Clear(scpi_t * context)
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
-			if ((1 << intval) & ch_mask) {
-				rf_channel_clear_interlock(intval);
-				return SCPI_RES_OK;
-			} else
-				return SCPI_RES_ERR;
+			if (intval >= 0 && intval < 8) {
+				if ((1 << intval) & ch_mask) {
+					rf_channel_clear_interlock(intval);
+					return SCPI_ReturnString(context, "OK");
+				} else
+					return SCPI_ReturnString(context, "[scpi] **ERROR: -99, \"Channel not detected\"");
+			} else {
+				return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
+			}
 		} else {
 			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
 			if (intval) {
 				rf_clear_interlock();
-				return SCPI_RES_OK;
+				return SCPI_ReturnString(context, "OK");
 			}
 		}
 	}
@@ -619,6 +686,9 @@ static scpi_result_t Interlock_StatusQ(scpi_t * context)
 	};
 
 	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
 
 	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
@@ -628,7 +698,8 @@ static scpi_result_t Interlock_StatusQ(scpi_t * context)
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
-			if (intval < 8)
+
+			if (intval >= 0 && intval < 8)
 			{
 				ch = rf_channel_get(intval);
 				if (ch->input_interlock || ch->output_interlock) {
@@ -639,7 +710,7 @@ static scpi_result_t Interlock_StatusQ(scpi_t * context)
 					return SCPI_RES_OK;
 				}
 			}
-			return SCPI_RES_ERR;
+			return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
 		} else {
 			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
 			if (intval) {
@@ -655,7 +726,7 @@ static scpi_result_t Interlock_StatusQ(scpi_t * context)
 		}
 	}
 
-	return SCPI_RES_OK;
+	return SCPI_RES_ERR;
 }
 
 static scpi_result_t Interlock_DiagQ(scpi_t * context)
@@ -667,13 +738,12 @@ static scpi_result_t Interlock_DiagQ(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
-	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
 		return SCPI_RES_ERR;
 	}
 
 	double results[12] = { 0x00 };
-	if (intval < 8)
+	if (intval >= 0 && intval < 8)
 	{
 		ch = rf_channel_get(intval);
 
@@ -691,9 +761,12 @@ static scpi_result_t Interlock_DiagQ(scpi_t * context)
 		results[11] = ch->measure.rfl_pwr;
 
 		SCPI_ResultArrayDouble(context, results, 12, SCPI_FORMAT_ASCII);
+		return SCPI_RES_OK;
+	} else {
+		return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
 	}
 
-	return SCPI_RES_OK;
+	return SCPI_RES_ERR;
 }
 
 static scpi_result_t Interlock_OverloadQ(scpi_t * context)
@@ -710,6 +783,9 @@ static scpi_result_t Interlock_OverloadQ(scpi_t * context)
 	};
 
 	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
 
 	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
@@ -720,17 +796,21 @@ static scpi_result_t Interlock_OverloadQ(scpi_t * context)
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
 
-			if ((1 << intval) & rf_channels_get_mask()) {
-				ch = rf_channel_get(intval);
-				if (ch->output_interlock) {
-					SCPI_ResultBool(context, true);
-					return SCPI_RES_OK;
+			if (intval >= 0 && intval < 8) {
+				if ((1 << intval) & rf_channels_get_mask()) {
+					ch = rf_channel_get(intval);
+					if (ch->output_interlock) {
+						SCPI_ResultBool(context, true);
+						return SCPI_RES_OK;
+					} else {
+						SCPI_ResultBool(context, false);
+						return SCPI_RES_OK;
+					}
 				} else {
-					SCPI_ResultBool(context, false);
-					return SCPI_RES_OK;
+					return SCPI_ReturnString(context, "[scpi] **ERROR: -99, \"Channel not detected\"");;
 				}
 			} else {
-				return SCPI_RES_ERR;
+				return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
 			}
 		} else {
 			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
@@ -747,7 +827,7 @@ static scpi_result_t Interlock_OverloadQ(scpi_t * context)
 		}
 	}
 
-	return SCPI_RES_OK;
+	return SCPI_RES_ERR;
 }
 
 static scpi_result_t Interlock_ErrorQ(scpi_t * context)
@@ -764,6 +844,9 @@ static scpi_result_t Interlock_ErrorQ(scpi_t * context)
 	};
 
 	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
 
 	// throw error if excess parameter is present
 	if (SCPI_IsParameterPresent(context)) {
@@ -774,19 +857,22 @@ static scpi_result_t Interlock_ErrorQ(scpi_t * context)
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
 			SCPI_ParamToInt32(context, &param, &intval);
 
-			if ((1 << intval) & rf_channels_get_mask()) {
-				ch = rf_channel_get(intval);
-				if (ch->error) {
-					SCPI_ResultBool(context, true);
-					return SCPI_RES_OK;
+			if (intval >= 0 && intval < 8) {
+				if ((1 << intval) & rf_channels_get_mask()) {
+					ch = rf_channel_get(intval);
+					if (ch->error) {
+						SCPI_ResultBool(context, true);
+						return SCPI_RES_OK;
+					} else {
+						SCPI_ResultBool(context, false);
+						return SCPI_RES_OK;
+					}
 				} else {
-					SCPI_ResultBool(context, false);
-					return SCPI_RES_OK;
+					return SCPI_ReturnString(context, "[scpi] **ERROR: -99, \"Channel not detected\"");;
 				}
 			} else {
-				return SCPI_RES_ERR;
+				return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
 			}
-
 		} else {
 			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
 			if (intval) {
@@ -796,13 +882,14 @@ static scpi_result_t Interlock_ErrorQ(scpi_t * context)
 						mask |= 1UL << i;
 					}
 				}
+
 				SCPI_ResultUInt8(context, mask);
 				return SCPI_RES_OK;
 			}
 		}
 	}
 
-	return SCPI_RES_OK;
+	return SCPI_RES_ERR;
 }
 
 const scpi_command_t scpi_commands[] = {
@@ -841,7 +928,6 @@ const scpi_command_t scpi_commands[] = {
 	{ .pattern = "*IDN?", .callback = IDN_Query,},
 	/* Channel control */
 	{.pattern = "CHANnel:ENABle", .callback = CHANNEL_Enable,},
-	{.pattern = "CHANnel:TEST", .callback = TestNumOrStrQ,},
 	{.pattern = "CHANnel:DISABle", .callback = CHANNEL_Disable,},
 	{.pattern = "CHANnel:ENABle?", .callback = CHANNEL_EnableQ,},
 	{.pattern = "CHANnel:DETect?", .callback = CHANNEL_DetectQ,},
