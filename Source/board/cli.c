@@ -282,10 +282,10 @@ static void fh_calpwr(void * a_data)
 }
 
 
-static uint16_t int_cal_val_s = 0;
-static uint16_t int_cal_pwr_s = 0;
-static uint16_t int_cal_val_e = 0;
-static uint16_t int_cal_pwr_e = 0;
+static float int_cal_val_s = 0;
+static float int_cal_pwr_s = 0;
+static float int_cal_val_e = 0;
+static float int_cal_pwr_e = 0;
 
 static void fh_intcal(void * a_data)
 {
@@ -331,20 +331,20 @@ static void fh_intcal(void * a_data)
 			printf("[intcal] Calibration step = 1 completed = %d\n", retval);
 
 			if (pwr_type == 1) {
-				int_cal_val_s = retval;
-				int_cal_pwr_s = pwr_cal;
+				int_cal_val_s = (float) retval;
+				int_cal_pwr_s = (float) pwr_cal;
 
 				printf("[intcal] done, got 1-point cal val %d pwr %d\r\n", retval, pwr_cal);
 			} else if (pwr_type == 2) {
-				int_cal_val_e = retval;
-				int_cal_pwr_e = pwr_cal;
+				int_cal_val_e = (float) retval;
+				int_cal_pwr_e = (float) pwr_cal;
 
 				printf("[intcal] done, got 2-point cal val %d pwr %d\r\n", retval, pwr_cal);
 			}
 
 			if (int_cal_val_s && int_cal_val_e) {
-				float a = ((float) (int_cal_val_s - int_cal_val_e) / (float)(int_cal_pwr_s - int_cal_pwr_e));
-				float b = ((float) int_cal_val_s - ((float)(int_cal_val_s - int_cal_val_e) / (float)(int_cal_pwr_s - int_cal_pwr_e)) * (float) int_cal_pwr_s);
+				float a = ((int_cal_val_s - int_cal_val_e) / (int_cal_pwr_s - int_cal_pwr_e));
+				float b = (int_cal_val_s - ((int_cal_val_s - int_cal_val_e) / (int_cal_pwr_s - int_cal_pwr_e)) * int_cal_pwr_s);
 
 //				float a = (int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e));
 //				float b = (int_cal_pwr_s - ((int_cal_pwr_s - int_cal_pwr_e) / (log(int_cal_val_s) - log(int_cal_val_e))) * log(int_cal_val_s));
