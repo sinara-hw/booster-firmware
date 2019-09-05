@@ -28,6 +28,13 @@
 #define HW_INT_SCALE					30	/* 4 bytes 30-33 */
 #define HW_INT_OFFSET					34	/* 4 bytes 34-37 */
 
+#define INPUT_CAL_SCALE					38  /* 4 bytes 38-41 */
+#define INPUT_CAL_OFFSET				42  /* 4 bytes 42-45 */
+
+/* output power reading calibration with more precision (double) */
+#define OUTPUT_CAL_SCALE				46  /* 4 bytes 46-49 */
+#define OUTPUT_CAL_OFFSET				50  /* 4 bytes 50-53 */
+
 /* MAIN BOARD EEPROM ADDRESSES */
 #define IP_METHOD						10
 #define MAC_ADDRESS_SELECT				11

@@ -18,6 +18,7 @@
 #include "tasks.h"
 #include "ucli.h"
 #include "device.h"
+#include "mcp3221.h"
 
 #define SW_EEPROM_VERSION	2
 
@@ -143,6 +144,11 @@ void rf_channel_load_values(channel_t * ch)
 	uint32_t u32_int_offset = eeprom_read32(HW_INT_OFFSET);
 	memcpy(&ch->cal_values.hw_int_scale, &u32_int_scale, sizeof(float));
 	memcpy(&ch->cal_values.hw_int_offset, &u32_int_offset, sizeof(float));
+
+	uint32_t u32_inp_scale = eeprom_read32(INPUT_CAL_SCALE);
+	uint32_t u32_inp_offset = eeprom_read32(INPUT_CAL_OFFSET);
+	memcpy(&ch->cal_values.input_pwr_scale, &u32_inp_scale, sizeof(float));
+	memcpy(&ch->cal_values.input_pwr_offset, &u32_inp_offset, sizeof(float));
 
 	// load interlock setpoint in dBm
 	ch->interlock_setpoint = (double) (ch->cal_values.output_dac_cal_value - ch->cal_values.hw_int_offset) / ch->cal_values.hw_int_scale;
@@ -451,6 +457,10 @@ void rf_channels_measure_task(void *pvParameters)
 					{
 						i2c_mux_select(i);
 
+						channels[i].measure.input_raw = mcp3221_get_data();
+						channels[i].measure.input_voltage = (channels[i].measure.input_raw * 3.3f) / 4095;
+						channels[i].measure.input_power = (channels[i].cal_values.input_pwr_scale * channels[i].measure.input_raw) + channels[i].cal_values.input_pwr_offset;
+
 						channels[i].measure.fwd_pwr = (double) (channels[i].measure.adc_raw_ch1 - channels[i].cal_values.fwd_pwr_offset) / (double) channels[i].cal_values.fwd_pwr_scale;
 
 						// power meter clipping to avoid false readings below 5 dBm output power
@@ -620,6 +630,15 @@ void rf_channels_info_task(void *pvParameters)
 																channels[7].hwid[4],
 																channels[7].hwid[5]);
 
+		printf("INPWR [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.input_voltage,
+																						channels[1].measure.input_voltage,
+																						channels[2].measure.input_voltage,
+																						channels[3].measure.input_voltage,
+																						channels[4].measure.input_voltage,
+																						channels[5].measure.input_voltage,
+																						channels[6].measure.input_voltage,
+																						channels[7].measure.input_voltage);
+
 		printf("TXPWR [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.adc_ch1,
 																						channels[1].measure.adc_ch1,
 																						channels[2].measure.adc_ch1,
@@ -637,6 +656,15 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[5].measure.adc_ch2,
 																						channels[6].measure.adc_ch2,
 																						channels[7].measure.adc_ch2);
+
+		printf("INPWR [dBm]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.input_power,
+																						channels[1].measure.input_power,
+																						channels[2].measure.input_power,
+																						channels[3].measure.input_power,
+																						channels[4].measure.input_power,
+																						channels[5].measure.input_power,
+																						channels[6].measure.input_power,
+																						channels[7].measure.input_power);
 
 		printf("TXPWR [dBm]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.fwd_pwr,
 																						channels[1].measure.fwd_pwr,

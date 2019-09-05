@@ -18,6 +18,7 @@
 #include "ads7924.h"
 #include "math.h"
 #include "device.h"
+#include "mcp3221.h"
 
 extern xQueueHandle _xRxQueue;
 extern int __io_putchar(int ch);
@@ -95,10 +96,10 @@ static void fh_status(void * a_data)
 	if (channel < 8) {
 		ch = rf_channel_get(channel);
 
-		printf("[status] e=%d s=%d r1=%d r2=%d tx=%0.3f rf=%0.3f curr=%0.3f t=%0.2f\r\n", ch->enabled,
+		printf("[status] e=%d s=%d r1=%d r2=%d tx=%0.3f rf=%0.3f curr=%0.3f t=%0.2f i=%0.2f ip=%0.2f\r\n", ch->enabled,
 				ch->sigon, ch->measure.adc_raw_ch1, ch->measure.adc_raw_ch2,
-				ch->measure.fwd_pwr, ch->measure.rfl_pwr, ch->measure.i30, ch->measure.remote_temp);
-
+				ch->measure.fwd_pwr, ch->measure.rfl_pwr, ch->measure.i30, ch->measure.remote_temp,
+				ch->measure.input_voltage, ch->measure.input_power);
 	} else
 		printf("[status] Wrong channel number\r\n");
 }
@@ -286,7 +287,6 @@ static uint16_t int_cal_pwr_s = 0;
 static uint16_t int_cal_val_e = 0;
 static uint16_t int_cal_pwr_e = 0;
 
-
 static void fh_intcal(void * a_data)
 {
 	int channel = 0;
@@ -378,6 +378,100 @@ static void fh_intcal(void * a_data)
 		ch->cal_values.output_dac_cal_value = old_dac2;
 	} else
 		printf("[intcal] Wrong channel number\r\n");
+}
+
+static float input_cal_val_s = 0;
+static float input_cal_pwr_s = 0;
+static float input_cal_val_e = 0;
+static float input_cal_pwr_e = 0;
+
+static void fh_input_cal(void * a_data)
+{
+	int channel = 0;
+	int pwr_type = 0;
+	int pwr_cal = 0;
+	channel_t * ch;
+
+	int avg_val = 0;
+	int count = 0;
+
+	ucli_param_get_int(1, &channel);
+	ucli_param_get_int(2, &pwr_type);
+	ucli_param_get_int(3, &pwr_cal);
+
+	channel = (uint8_t) channel;
+	pwr_type = (uint8_t) pwr_type;
+
+	if (channel < 8) {
+
+		vTaskSuspend(task_rf_interlock);
+		vTaskDelay(100);
+		rf_channel_enable_procedure(channel);
+		rf_channels_sigon((1 << channel), false); // disable sigon
+
+		vTaskDelay(100);
+
+		avg_val = 0;
+		if (lock_take(I2C_LOCK, portMAX_DELAY))
+		{
+			i2c_mux_select(channel);
+			for (int i = 0; i < 32; i++)
+			{
+				uint16_t value = mcp3221_get_data();
+				avg_val += value;
+
+				vTaskDelay(5);
+			}
+			lock_free(I2C_LOCK);
+		}
+
+		avg_val /= 32;
+
+		if (pwr_type == 1) {
+			input_cal_val_s = (float) avg_val;
+			input_cal_pwr_s = (float) pwr_cal;
+			printf("[input_cal] done, got 1-point cal val %d pwr %d\r\n", avg_val, pwr_cal);
+		} else if (pwr_type == 2) {
+			input_cal_val_e = (float) avg_val;
+			input_cal_pwr_e = (float) pwr_cal;
+			printf("[input_cal] done, got 2-point cal val %d pwr %d\r\n", avg_val, pwr_cal);
+		}
+
+		if (input_cal_val_s && input_cal_val_e) {
+			float a = (input_cal_pwr_s - input_cal_pwr_e) / (input_cal_val_s - input_cal_val_e);
+			float b = (input_cal_pwr_s - ((input_cal_pwr_s - input_cal_pwr_e) / (input_cal_val_s - input_cal_val_e)) * input_cal_val_s);
+
+			printf("[input_cal] done, got power factors a=%0.2f b=%0.2f\n", a, b);
+
+			ch = rf_channel_get(channel);
+			ch->cal_values.input_pwr_scale = a;
+			ch->cal_values.input_pwr_offset = b;
+
+			if (lock_take(I2C_LOCK, portMAX_DELAY))
+			{
+				i2c_mux_select(channel);
+
+				uint32_t u32_scale = 0x00;
+				uint32_t u32_offset = 0x00;
+				memcpy(&u32_scale, &a, sizeof(float));
+				memcpy(&u32_offset, &b, sizeof(float));
+				eeprom_write32(INPUT_CAL_SCALE, u32_scale);
+				eeprom_write32(INPUT_CAL_OFFSET, u32_offset);
+
+				input_cal_pwr_s = 0;
+				input_cal_pwr_e = 0;
+				input_cal_val_s = 0;
+				input_cal_val_e = 0;
+
+				lock_free(I2C_LOCK);
+			}
+		}
+	} else
+		printf("[input_cal] Wrong channel number\r\n");
+
+	rf_channel_disable_procedure(channel);
+	vTaskResume(task_rf_interlock);
+	led_bar_and((1 << channel), 0, 0);
 }
 
 static void fh_cal(void * a_data)
@@ -1023,6 +1117,7 @@ static ucli_cmd_t g_cmds[] = {
 
 	// "hidden" commands not for end-user
 	{ "wdtest", fh_wdtest, 0x00 },
+	{ "inpcal", fh_input_cal, 0x03 },
 	{ "calpwr", fh_calpwr, 0x03 },
 	{ "intcal", fh_intcal, 0x03 },
 	{ "intg", fh_intget, 0x01 },

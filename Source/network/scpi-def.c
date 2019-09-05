@@ -566,6 +566,66 @@ static scpi_result_t CHANNEL_OutputPower(scpi_t * context)
 	return SCPI_RES_ERR;
 }
 
+static scpi_result_t CHANNEL_InputPower(scpi_t * context)
+{
+	scpi_bool_t result;
+	scpi_parameter_t param;
+	int32_t intval = 0;
+	channel_t * ch;
+	double data[8] = { 0 };
+
+	scpi_choice_def_t bool_options[] = {
+		{"ALL", 1},
+		SCPI_CHOICE_LIST_END /* termination of option list */
+	};
+
+	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
+
+	// throw error if excess parameter is present
+	if (SCPI_IsParameterPresent(context)) {
+		return SCPI_RES_ERR;
+	}
+
+	if (result) {
+		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
+			SCPI_ParamToInt32(context, &param, &intval);
+
+			if (intval >= 0 && intval < 8) {
+				if ((1 << intval) & rf_channels_get_mask()) {
+					ch = rf_channel_get(intval);
+					double tmp = ch->measure.input_power;
+					SCPI_ResultDouble(context, tmp);
+					return SCPI_RES_OK;
+				} else {
+					return SCPI_ReturnString(context, "[scpi] **ERROR: -99, \"Channel not detected\"");
+				}
+			} else {
+				return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");
+			}
+		} else {
+			result = SCPI_ParamToChoice(context, &param, bool_options, &intval);
+			if (intval) {
+				for (int i = 0; i < 8; i++) {
+					ch = rf_channel_get(i);
+					if (ch->enabled) {
+						data[i] = ch->measure.input_power;
+					} else {
+						data[i] = 0;
+					}
+				}
+
+				SCPI_ResultArrayDouble(context, data, 8, SCPI_FORMAT_ASCII);
+				return SCPI_RES_OK;
+			}
+		}
+	}
+
+	return SCPI_RES_ERR;
+}
+
 static scpi_result_t CHANNEL_ReversePower(scpi_t * context)
 {
 	scpi_bool_t result;
@@ -998,6 +1058,7 @@ const scpi_command_t scpi_commands[] = {
 	{.pattern = "MEASure:CURRent?", .callback = CHANNEL_Current,},
 	{.pattern = "MEASure:TEMPerature?", .callback = CHANNEL_Temperature,},
 	{.pattern = "MEASure:OUTput?", .callback = CHANNEL_OutputPower,},
+	{.pattern = "MEASure:INput?", .callback = CHANNEL_InputPower,},
 	{.pattern = "MEASure:REVerse?", .callback = CHANNEL_ReversePower,},
 	{.pattern = "MEASure:FAN?", .callback = MEASURE_FanQ,},
 

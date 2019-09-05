@@ -23,6 +23,9 @@ typedef struct {
 	uint16_t rfl_pwr_offset;
 	uint16_t rfl_pwr_scale;
 
+	float input_pwr_scale;
+	float input_pwr_offset;
+
 	float hw_int_scale;
 	float hw_int_offset;
 } channel_cal_t;
@@ -35,6 +38,11 @@ typedef struct {
 	double   adc_ch2;
 	double   adc_pwr_ch1;
 	double   adc_pwr_ch2;
+
+	/* input power measurement */
+	uint16_t input_raw;
+	double input_voltage;
+	double input_power;
 
 	/* Current measurements */
 	double i30;
