@@ -172,13 +172,14 @@ void set_default_mac_address(void)
 {
 	wiz_NetInfo glWIZNETINFO;
 	ctlnetwork(CN_GET_NETINFO, (void*) &glWIZNETINFO);
+	device_t * dev = device_get_config();
 
-	glWIZNETINFO.mac[0] = STM_GetUniqueID(6);
-	glWIZNETINFO.mac[1] = STM_GetUniqueID(7);
-	glWIZNETINFO.mac[2] = STM_GetUniqueID(8);
-	glWIZNETINFO.mac[3] = STM_GetUniqueID(9);
-	glWIZNETINFO.mac[4] = STM_GetUniqueID(10);
-	glWIZNETINFO.mac[5] = STM_GetUniqueID(11);
+	glWIZNETINFO.mac[0] = dev->macaddr[0];
+	glWIZNETINFO.mac[1] = dev->macaddr[1];
+	glWIZNETINFO.mac[2] = dev->macaddr[2];
+	glWIZNETINFO.mac[3] = dev->macaddr[3];
+	glWIZNETINFO.mac[4] = dev->macaddr[4];
+	glWIZNETINFO.mac[5] = dev->macaddr[5];
 
 	net_conf(&glWIZNETINFO);
 
