@@ -460,6 +460,8 @@ void rf_channels_measure_task(void *pvParameters)
 						channels[i].measure.input_raw = mcp3221_get_data();
 						channels[i].measure.input_voltage = (channels[i].measure.input_raw * 3.3f) / 4095;
 						channels[i].measure.input_power = (channels[i].cal_values.input_pwr_scale * channels[i].measure.input_raw) + channels[i].cal_values.input_pwr_offset;
+						if (channels[i].measure.input_power < -19.0f)
+							channels[i].measure.input_power = -19.0f;
 
 						channels[i].measure.fwd_pwr = (double) (channels[i].measure.adc_raw_ch1 - channels[i].cal_values.fwd_pwr_offset) / (double) channels[i].cal_values.fwd_pwr_scale;
 
