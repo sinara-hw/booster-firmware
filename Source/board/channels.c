@@ -1090,7 +1090,7 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 				return true;
 			}
 
-			dacval -= diff > 10 ? (diff * 2) : 10;
+			dacval -= diff > 10 ? (diff * 2) : 2;
 		}
 	}
 
