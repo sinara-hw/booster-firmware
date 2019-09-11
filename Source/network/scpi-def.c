@@ -1,4 +1,6 @@
 /*-
+no
+beka
  * Copyright (c) 2012-2013 Jan Breuer,
  *
  * All Rights Reserved
@@ -49,6 +51,14 @@
 #include "i2c.h"
 #include "eeprom.h"
 #include "device.h"
+
+scpi_bool_t SCPI_ParamIsDouble(scpi_parameter_t * parameter)
+{
+	if (strchr(parameter->ptr, '.') != NULL)
+		return TRUE;
+
+	return FALSE;
+}
 
 static scpi_result_t SCPI_ReturnString(scpi_t * context, char * buffer)
 {
@@ -109,9 +119,16 @@ static scpi_result_t CHANNEL_Enable(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
+			if (!SCPI_ParamToInt32(context, &param, &intval)) {
+				return SCPI_RES_ERR;
+			}
 
 			if (intval >= 0 && intval < 8) {
 				if ((1 << intval) & ch_mask) {
@@ -155,9 +172,16 @@ static scpi_result_t CHANNEL_Disable(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
+			if (!SCPI_ParamToInt32(context, &param, &intval)) {
+				return SCPI_RES_ERR;
+			}
 
 			if (intval >= 0 && intval < 8) {
 				if ((1 << intval) & ch_mask) {
@@ -195,10 +219,22 @@ static scpi_result_t INTERLOCK_Power(scpi_t * context)
 		SCPI_CHOICE_LIST_END /* termination of option list */
 	};
 
-	if (!SCPI_ParamUInt32(context, &channel, true)) {
+	/* Get channel number */
+	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
+	if (!SCPI_ParamToUInt32(context, &param, &channel)) {
+		return SCPI_RES_ERR;
+	}
+
+	/* Get interlock value */
 	result = SCPI_Parameter(context, &param, true);
 	if (!result) {
 		return SCPI_RES_ERR;
@@ -211,7 +247,10 @@ static scpi_result_t INTERLOCK_Power(scpi_t * context)
 	if (channel < 8) {
 		if (result) {
 			if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-				SCPI_ParamToDouble(context, &param, &interlock);
+				if (!SCPI_ParamToDouble(context, &param, &interlock)) {
+					return SCPI_RES_ERR;
+				}
+
 				if (interlock >= 0 && interlock <= 38.0) {
 					rf_channel_interlock_set(channel, interlock);
 					return SCPI_ReturnString(context, "OK");
@@ -247,8 +286,21 @@ static scpi_result_t INTERLOCK_Power(scpi_t * context)
 static scpi_result_t INTERLOCK_PowerQ(scpi_t * context)
 {
 	uint32_t channel;
+	scpi_bool_t result;
+	scpi_parameter_t param;
 
-	if (!SCPI_ParamUInt32(context, &channel, true)) {
+	/* Get channel number */
+	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
+
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
+	if (!SCPI_ParamToUInt32(context, &param, &channel)) {
 		return SCPI_RES_ERR;
 	}
 
@@ -291,9 +343,16 @@ static scpi_result_t CHANNEL_EnableQ(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
+			if (!SCPI_ParamToInt32(context, &param, &intval)) {
+				return SCPI_RES_ERR;
+			}
 
 			if (intval >= 0 && intval < 8) {
 				if ((1 << intval) & rf_channels_get_mask()) {
@@ -347,9 +406,17 @@ static scpi_result_t CHANNEL_DetectQ(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
+			if (!SCPI_ParamToInt32(context, &param, &intval)) {
+				return SCPI_RES_ERR;
+			}
+
 			if (intval >= 0 && intval < 8) {
 				if ((1 << intval) & rf_channels_get_mask()) {
 					SCPI_ResultBool(context, 1);
@@ -412,9 +479,17 @@ static scpi_result_t CHANNEL_Current(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
+			if (!SCPI_ParamToInt32(context, &param, &intval)) {
+				return SCPI_RES_ERR;
+			}
+
 			if (intval >= 0 && intval < 8) {
 				if ((1 << intval) & rf_channels_get_mask()) {
 					ch = rf_channel_get(intval);
@@ -470,9 +545,16 @@ static scpi_result_t CHANNEL_Temperature(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
+			if (!SCPI_ParamToInt32(context, &param, &intval)) {
+				return SCPI_RES_ERR;
+			}
 
 			if (intval >= 0 && intval < 8) {
 				if ((1 << intval) & rf_channels_get_mask()) {
@@ -529,9 +611,16 @@ static scpi_result_t CHANNEL_OutputPower(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
+			if (!SCPI_ParamToInt32(context, &param, &intval)) {
+				return SCPI_RES_ERR;
+			}
 
 			if (intval >= 0 && intval < 8) {
 				if ((1 << intval) & rf_channels_get_mask()) {
@@ -589,9 +678,16 @@ static scpi_result_t CHANNEL_InputPower(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
+			if (!SCPI_ParamToInt32(context, &param, &intval)) {
+				return SCPI_RES_ERR;
+			}
 
 			if (intval >= 0 && intval < 8) {
 				if ((1 << intval) & rf_channels_get_mask()) {
@@ -649,9 +745,16 @@ static scpi_result_t CHANNEL_ReversePower(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
+			if (!SCPI_ParamToInt32(context, &param, &intval)) {
+				return SCPI_RES_ERR;
+			}
 
 			if (intval >= 0 && intval < 8) {
 				if ((1 << intval) & rf_channels_get_mask()) {
@@ -708,9 +811,17 @@ static scpi_result_t Interlock_Clear(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
+			if (!SCPI_ParamToInt32(context, &param, &intval)) {
+				return SCPI_RES_ERR;
+			}
+
 			if (intval >= 0 && intval < 8) {
 				if ((1 << intval) & ch_mask) {
 					rf_channel_clear_interlock(intval);
@@ -736,8 +847,21 @@ static scpi_result_t Interlock_DiagQ(scpi_t * context)
 {
 	uint32_t intval = 0;
 	channel_t * ch;
+	scpi_bool_t result;
+	scpi_parameter_t param;
 
-	if (!SCPI_ParamUInt32(context, &intval, false)) {
+	/* Get channel number */
+	result = SCPI_Parameter(context, &param, true);
+	if (!result) {
+		return SCPI_RES_ERR;
+	}
+
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
+	if (!SCPI_ParamToUInt32(context, &param, &intval)) {
 		return SCPI_RES_ERR;
 	}
 
@@ -795,9 +919,16 @@ static scpi_result_t Interlock_StatusQ(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
+			if (!SCPI_ParamToInt32(context, &param, &intval)) {
+				return SCPI_RES_ERR;
+			}
 
 			if (intval >= 0 && intval < 8)
 			{
@@ -852,9 +983,16 @@ static scpi_result_t Interlock_FORwardQ(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
+			if (!SCPI_ParamToInt32(context, &param, &intval)) {
+				return SCPI_RES_ERR;
+			}
 
 			if (intval >= 0 && intval < 8) {
 				if ((1 << intval) & rf_channels_get_mask()) {
@@ -913,9 +1051,16 @@ static scpi_result_t Interlock_REVerseQ(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
+			if (!SCPI_ParamToInt32(context, &param, &intval)) {
+				return SCPI_RES_ERR;
+			}
 
 			if (intval >= 0 && intval < 8) {
 				if ((1 << intval) & rf_channels_get_mask()) {
@@ -974,9 +1119,16 @@ static scpi_result_t Interlock_ErrorQ(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
+	if (SCPI_ParamIsDouble(&param)) {
+		SCPI_ErrorPush(context, SCPI_ERROR_ILLEGAL_PARAMETER_VALUE);
+		return SCPI_RES_ERR;
+	}
+
 	if (result) {
 		if (param.type == SCPI_TOKEN_DECIMAL_NUMERIC_PROGRAM_DATA) {
-			SCPI_ParamToInt32(context, &param, &intval);
+			if (!SCPI_ParamToInt32(context, &param, &intval)) {
+				return SCPI_RES_ERR;
+			}
 
 			if (intval >= 0 && intval < 8) {
 				if ((1 << intval) & rf_channels_get_mask()) {

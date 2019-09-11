@@ -183,6 +183,7 @@ uint8_t rf_channels_detect(void)
 
 				ucli_log(UCLI_LOG_INFO, "RF Channel at %d detected, id = %02X:%02X\r\n", i, channels[i].hwid[4], channels[i].hwid[5]);
 			} else {
+				ucli_log(UCLI_LOG_ERROR, "RF Channel not detected at %d, detections %d %d %d\r\n", i, dual_dac_detected, dac_detected, temp_sensor_detected);
 				led_bar_or(0x00, 0x00, 1UL << i);
 			}
 		}
