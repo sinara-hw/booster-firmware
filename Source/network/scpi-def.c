@@ -54,7 +54,8 @@ beka
 
 scpi_bool_t SCPI_ParamIsDouble(scpi_parameter_t * parameter)
 {
-	if (strchr(parameter->ptr, '.') != NULL)
+	// check if parameter has either dot or e - eg. 1.1 or 1e1
+	if (strchr(parameter->ptr, '.') != NULL || strchr(parameter->ptr, 'e') != NULL || strchr(parameter->ptr, 'E') != NULL)
 		return TRUE;
 
 	return FALSE;
@@ -73,7 +74,7 @@ static scpi_result_t IDN_Query(scpi_t * context)
 	uint32_t b2 = (*(uint32_t *) (0x1FFF7A10 + 4));
 
 	device_t * dev = device_get_config();
-	int len = sprintf(buffer, "RFPA %s, built %s %s, id %04X, hv rev %d", VERSION_STRING, __DATE__, __TIME__, b2, dev->hw_rev);
+	int len = sprintf(buffer, "RFPA %s, built %s %s, id %04X, hw rev %d", VERSION_STRING, __DATE__, __TIME__, b2, dev->hw_rev);
 
 	SCPI_ResultCharacters(context, buffer, len);
 	return SCPI_RES_OK;
