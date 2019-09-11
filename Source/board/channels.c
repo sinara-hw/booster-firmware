@@ -247,6 +247,7 @@ bool rf_channel_enable_procedure(uint8_t channel)
 	int bitmask = 1 << channel;
 
 	if (channels[channel].error) {
+		ucli_log(UCLI_LOG_ERROR, "Enabling channel %d with error condition!\r\n");
 		led_bar_or(0, 0, (1UL << channel));
 		return false;
 	}
@@ -287,8 +288,11 @@ bool rf_channel_enable_procedure(uint8_t channel)
 	rf_channels_sigon(bitmask, false);
 	vTaskDelay(5);
 	rf_channels_sigon(bitmask, true);
-
 	vTaskDelay(50);
+
+	// update struct information
+	channels[channel].enabled = true;
+	channels[channel].sigon = true;
 
 	return true;
 }
@@ -331,6 +335,10 @@ void rf_channel_disable_procedure(uint8_t channel)
 
 		lock_free(I2C_LOCK);
 	}
+
+	// update struct information
+	channels[channel].enabled = false;
+	channels[channel].sigon = false;
 }
 
 channel_t * rf_channel_get(uint8_t num)
