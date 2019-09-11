@@ -870,7 +870,7 @@ static scpi_result_t Interlock_DiagQ(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
-	double results[12] = { 0x00 };
+	double results[14] = { 0x00 };
 	if (intval >= 0 && intval < 8)
 	{
 		ch = rf_channel_get(intval);
@@ -887,6 +887,8 @@ static scpi_result_t Interlock_DiagQ(scpi_t * context)
 		results[9] = ch->measure.remote_temp;
 		results[10] = ch->measure.fwd_pwr;
 		results[11] = ch->measure.rfl_pwr;
+		results[12] = ch->measure.input_power;
+		results[13] = temp_mgt_get_fanspeed();
 
 		SCPI_ResultArrayDouble(context, results, 12, SCPI_FORMAT_ASCII);
 		return SCPI_RES_OK;
