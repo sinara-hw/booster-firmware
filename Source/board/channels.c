@@ -277,6 +277,8 @@ bool rf_channel_enable_procedure(uint8_t channel)
 		// set calibration values
 		i2c_dual_dac_set(1, channels[channel].cal_values.output_dac_cal_value);
 		vTaskDelay(10);
+
+		// set calibrated bias current
 		i2c_dac_set(channels[channel].cal_values.bias_dac_cal_value);
 		vTaskDelay(10);
 

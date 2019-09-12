@@ -870,7 +870,7 @@ static scpi_result_t Interlock_DiagQ(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
-	double results[14] = { 0x00 };
+	double results[21] = { 0x00 };
 	if (intval >= 0 && intval < 8)
 	{
 		ch = rf_channel_get(intval);
@@ -889,8 +889,15 @@ static scpi_result_t Interlock_DiagQ(scpi_t * context)
 		results[11] = ch->measure.rfl_pwr;
 		results[12] = ch->measure.input_power;
 		results[13] = temp_mgt_get_fanspeed();
+		results[14] = ch->error;
+		results[15] = ch->hwid[0];
+		results[16] = ch->hwid[1];
+		results[17] = ch->hwid[2];
+		results[18] = ch->hwid[3];
+		results[19] = ch->hwid[4];
+		results[20] = ch->hwid[5];
 
-		SCPI_ResultArrayDouble(context, results, 12, SCPI_FORMAT_ASCII);
+		SCPI_ResultArrayDouble(context, results, 21, SCPI_FORMAT_ASCII);
 		return SCPI_RES_OK;
 	} else {
 		return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");

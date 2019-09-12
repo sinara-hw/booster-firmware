@@ -101,7 +101,7 @@ void i2c_init(void)
 	I2C_Cmd(I2C2, ENABLE);
 }
 
-static void i2c_reset(void)
+void i2c_reset(void)
 {
 	// due to shorting SCL pin to ground can cause glitches
 	// that are gone only after rebooting whole interface

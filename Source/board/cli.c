@@ -1066,6 +1066,19 @@ static void fh_wdtest(void * a_data)
 	for (;;);
 }
 
+static void fh_i2creset(void * a_data)
+{
+	if (lock_take(I2C_LOCK, portMAX_DELAY))
+	{
+		printf("Resetting I2C bus\r\n");
+		i2c_reset();
+
+		vTaskDelay(100);
+
+		lock_free(I2C_LOCK);
+	}
+}
+
 void cli_init(void)
 {
 	ucli_init((void*) __io_putchar, g_cmds);
@@ -1110,10 +1123,12 @@ static ucli_cmd_t g_cmds[] = {
 	{ "i2cdetect", fh_i2cd, 0x01, "Detect I2C devices on selected channel\r\n", "i2cdetect usage:\r\n\ti2cdetect <channel> - scan I2C bus for selected channel\r\n"},
 	{ "clearint", fh_clearint, -1, "Clear interlock status of selected channel\r\n", "clearcal usage:\r\n\tclearcal <channel> - clear selected channel interlock. If channel number is left blank all channel interlocks are cleared\r\n" },
 	{ "i2cw", fh_i2cw, 0x04, "Write I2C on selected channel\r\n", "i2cw usage:\r\n\ti2cw <channel> <address> <data> - write one byte to selected channel address\r\n" },
-	{ "i2cr", fh_i2cr, 0x03, "Read I2C on selected channel\r\n", "i2cr usage:\r\n\ti2cw <channel> <address> - read one byte from selected channel address\r\n" },
+	{ "i2cr", fh_i2cr, 0x03, "Read I2C on selected channel\r\n", "i2cr usage:\r\n\ti2cr <channel> <address> - read one byte from selected channel address\r\n" },
 	{ "currents", fh_currents, 0x00, "Return list of all P30V currents\r\n"},
 	{ "powercfg", fh_powercfg, -1, "Configure powering channels after boot\r\n"},
 	{ "fanlevel", fh_fanlevel, -1, "Configure minimum fan level while channels are enabled\r\n"},
+	{ "i2cerr", fh_i2cerr, 0x00, "Display i2c bus communication errors for each channel\r\n"},
+	{ "i2creset", fh_i2creset, 0x00, "Performs i2c peripherial reset\r\n" },
 
 	// "hidden" commands not for end-user
 	{ "wdtest", fh_wdtest, 0x00 },
@@ -1125,7 +1140,6 @@ static ucli_cmd_t g_cmds[] = {
 	{ "cal", fh_cal, 0x02 },
 	{ "biascal", fh_biascal, 0x02 },
 	{ "clearcal", fh_clearcal, 0x02 },
-	{ "i2cerr", fh_i2cerr, 0x00 },
 	{ "ethdbg", fh_ethdbg, 0x00 },
 
     // null
