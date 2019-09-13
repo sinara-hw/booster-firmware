@@ -57,7 +57,7 @@ void i2c_init(void)
 	GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_I2C1); // SDA
 
 	// configure I2C1
-	I2C_InitStructure.I2C_ClockSpeed = 1000000; 			// 100kHz
+	I2C_InitStructure.I2C_ClockSpeed = 400000; 			// 100kHz
 	I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;			// I2C mode
 	I2C_InitStructure.I2C_DutyCycle = I2C_DutyCycle_2;	// 50% duty cycle --> standard
 	I2C_InitStructure.I2C_OwnAddress1 = 0x00;			// own address, not relevant in master mode
@@ -88,7 +88,7 @@ void i2c_init(void)
 	GPIO_PinAFConfig(GPIOB, GPIO_PinSource11, GPIO_AF_I2C2); 	// SDA
 
 	// configure I2C1
-	I2C_InitStructure.I2C_ClockSpeed = 1000000; 			// 100kHz
+	I2C_InitStructure.I2C_ClockSpeed = 400000; 				// 100kHz
 	I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;				// I2C mode
 	I2C_InitStructure.I2C_DutyCycle = I2C_DutyCycle_2;		// 50% duty cycle --> standard
 	I2C_InitStructure.I2C_OwnAddress1 = 0x00;				// own address, not relevant in master mode
@@ -317,10 +317,15 @@ void i2c_dac_set(uint16_t value)
 	uint8_t first_byte = (value & 0xFF00) >> 8;
 	uint8_t second_byte = value & 0xFF;
 
-	i2c_start(I2C1, I2C_DAC_ADDR, I2C_Direction_Transmitter, 1);
-	i2c_write_byte(I2C1, first_byte);
-	i2c_write_byte(I2C1, second_byte);
+	uint8_t a1 = i2c_start(I2C1, I2C_DAC_ADDR, I2C_Direction_Transmitter, 1);
+	uint8_t a2 = i2c_write_byte(I2C1, first_byte);
+	uint8_t a3 = i2c_write_byte(I2C1, second_byte);
 	i2c_stop(I2C1);
+
+	if (a1 || a2 || a3)
+	{
+		printf("dac status %d %d %d\r\n", a1, a2, a3);
+	}
 }
 
 void i2c_dac_set_value(float value)
