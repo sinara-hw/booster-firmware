@@ -53,7 +53,7 @@ static void udp_int_init(void)
 void EXTI9_5_IRQHandler(void)
 {
 	static long xHigherPriorityTaskWoken;
-	xHigherPriorityTaskWoken = pdTRUE;
+	xHigherPriorityTaskWoken = pdFALSE;
 	uint8_t trg = 0x01;
 
 	if (EXTI_GetITStatus(EXTI_Line6) != RESET)
@@ -92,16 +92,119 @@ static void prvSetupUDPServer(void)
 	ucli_log(UCLI_LOG_INFO, "network socket state %s\r\n", !state ? "OK" : "ERR");
 }
 
-void prvUDPServerTask(void *pvParameters)
+static void process_server_data(void)
 {
 	uint32_t 	ir;
 	int32_t  	len;
 	uint8_t  	destip[4];
 	uint16_t 	destport;
 	uint8_t 	rx_buffer[MAX_RX_LENGTH];
-	uint8_t 	trg = 0x00;
 
 	uint8_t sn = 0;
+
+	// we can feed the dog inside to avoid interrupts
+	// because CPU get's really busy with VCP and SCPI
+	IWDG_ReloadCounter();
+
+	if (lock_take(ETH_LOCK, portMAX_DELAY)) {
+
+		ctlwizchip(CW_GET_INTERRUPT, &ir);
+
+		if (ir & IK_SOCK_0) {
+			sn = 0;
+		} else if (ir & IK_SOCK_1) {
+			sn = 1;
+		} else if (ir & IK_SOCK_2) {
+			sn = 2;
+		} else if (ir & IK_SOCK_3) {
+			sn = 3;
+		}
+
+		switch (getSn_SR(sn))
+		{
+			case SOCK_ESTABLISHED:
+				if (getSn_IR(sn) & Sn_IR_CON)
+				{
+					getSn_DIPR(sn, destip);
+					destport = getSn_DPORT(sn);
+					setSn_IR(sn, Sn_IR_CON);
+					ucli_log(UCLI_LOG_INFO, "network client %d.%d.%d.%d connected\r\n", destip[0], destip[1], destip[2], destip[3]);
+
+					// set user context ip address and port
+					if (scpi_context.user_context != NULL) {
+						user_data_t * u = (user_data_t *) (scpi_context.user_context);
+						u->socket = sn;
+						memcpy(u->ipsrc[sn], destip, 4);
+						u->ipsrc_port[sn] = destport;
+					}
+				}
+
+				GPIO_SetBits(BOARD_LED2);
+				len = getSn_RX_RSR(sn);
+				if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
+
+				recv(sn, rx_buffer, len);
+				rx_buffer[len] = '\0';
+
+				if (scpi_context.user_context != NULL) {
+					user_data_t * u = (user_data_t *) (scpi_context.user_context);
+					u->socket = sn;
+				}
+
+//						ucli_log(UCLI_LOG_DEBUG, "network debug received %s\r\n", rx_buffer);
+				SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
+				GPIO_ResetBits(BOARD_LED2);
+				break;
+			case SOCK_CLOSE_WAIT:
+			case SOCK_CLOSED:
+				ucli_log(UCLI_LOG_INFO, "network client disconnected\r\n");
+				disconnect(sn);
+				socket(sn, Sn_MR_TCP, 5000, 0x00);
+				listen(sn);
+				break;
+			case SOCK_LISTEN:
+				break;
+			default:
+				ucli_log(UCLI_LOG_ERROR, "Unhandled network socket event %d\r\n", getSn_SR(sn));
+				break;
+		}
+
+		// clear socket interrupt
+		setSn_IR(sn, 15);
+
+		if (sn == 0)
+			ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_0);
+		else if (sn == 1)
+			ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_1);
+		else if (sn == 2)
+			ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_2);
+		else if (sn == 3)
+			ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_3);
+
+		// delay is necessary since W5500 can lost an interrupt
+		// while being supressed by large number of packets
+		// slowing down connection a little bit helps
+		// to maintain stable response time
+		vTaskDelay(5);
+
+		// WIZNET IRQ GLITCH WORKAROUND
+		if (!GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_6))
+		{
+			// since w5500 irq is level based
+			// we issue another queue item if the interrupt
+			// is low after clearing because that indicates that
+			// another action is in progress and we need to process that
+			uint8_t trg = 0x01;
+			xQueueSend( xTCPServerIRQ, ( void * ) &trg, ( TickType_t ) 0);
+		}
+
+		lock_free(ETH_LOCK);
+	}
+}
+
+void prvUDPServerTask(void *pvParameters)
+{
+	uint8_t 	trg = 0x00;
 
 	/* PHY link status check */
 	uint8_t tmp = 0;
@@ -156,104 +259,11 @@ void prvUDPServerTask(void *pvParameters)
 
 	for (;;)
 	{
-		if (xQueueReceive(xTCPServerIRQ, &trg, portMAX_DELAY))
+		if (xQueueReceive(xTCPServerIRQ, &trg, 100))
 		{
-			// we can feed the dog inside to avoid interrupts
-			// because CPU get's really busy with VCP and SCPI
-			IWDG_ReloadCounter();
-
-			if (lock_take(ETH_LOCK, portMAX_DELAY)) {
-
-				ctlwizchip(CW_GET_INTERRUPT, &ir);
-
-				if (ir & IK_SOCK_0) {
-					sn = 0;
-				} else if (ir & IK_SOCK_1) {
-					sn = 1;
-				} else if (ir & IK_SOCK_2) {
-					sn = 2;
-				} else if (ir & IK_SOCK_3) {
-					sn = 3;
-				}
-
-				switch (getSn_SR(sn))
-				{
-					case SOCK_ESTABLISHED:
-						if (getSn_IR(sn) & Sn_IR_CON)
-						{
-							getSn_DIPR(sn, destip);
-							destport = getSn_DPORT(sn);
-							setSn_IR(sn, Sn_IR_CON);
-							ucli_log(UCLI_LOG_INFO, "network client %d.%d.%d.%d connected\r\n", destip[0], destip[1], destip[2], destip[3]);
-
-							// set user context ip address and port
-							if (scpi_context.user_context != NULL) {
-								user_data_t * u = (user_data_t *) (scpi_context.user_context);
-								u->socket = sn;
-								memcpy(u->ipsrc[sn], destip, 4);
-								u->ipsrc_port[sn] = destport;
-							}
-						}
-
-						GPIO_SetBits(BOARD_LED2);
-						len = getSn_RX_RSR(sn);
-						if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
-
-						recv(sn, rx_buffer, len);
-						rx_buffer[len] = '\0';
-
-						if (scpi_context.user_context != NULL) {
-							user_data_t * u = (user_data_t *) (scpi_context.user_context);
-							u->socket = sn;
-						}
-
-//						ucli_log(UCLI_LOG_DEBUG, "network debug received %s\r\n", rx_buffer);
-						SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
-						GPIO_ResetBits(BOARD_LED2);
-						break;
-					case SOCK_CLOSE_WAIT:
-					case SOCK_CLOSED:
-						ucli_log(UCLI_LOG_INFO, "network client disconnected\r\n");
-						disconnect(sn);
-						socket(sn, Sn_MR_TCP, 5000, 0x00);
-						listen(sn);
-						break;
-					default:
-						ucli_log(UCLI_LOG_ERROR, "Unhandled network socket event %d\r\n", getSn_SR(sn));
-						break;
-				}
-
-				// clear socket interrupt
-				setSn_IR(sn, 15);
-
-				if (sn == 0)
-					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_0);
-				else if (sn == 1)
-					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_1);
-				else if (sn == 2)
-					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_2);
-				else if (sn == 3)
-					ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_3);
-
-				// WIZNET IRQ GLITCH WORKAROUND
-				if (!GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_6))
-				{
-					// since w5500 irq is level based
-					// we issue another queue item if the interrupt
-					// is low after clearing because that indicates that
-					// another action is in progress and we need to process that
-					uint8_t trg = 0x01;
-					xQueueSend( xTCPServerIRQ, ( void * ) &trg, ( TickType_t ) 0);
-				}
-
-				lock_free(ETH_LOCK);
-
-				// delay is necessary since W5500 can lost an interrupt
-				// while being supressed by large number of packets
-				// slowing down connection a little bit helps
-				// to maintain stable response time
-				vTaskDelay(5);
-			}
+			process_server_data();
 		}
+
+		process_server_data();
 	}
 }
