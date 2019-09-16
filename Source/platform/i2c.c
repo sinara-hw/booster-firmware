@@ -214,6 +214,7 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 	while (I2C_GetFlagStatus(I2Cx, I2C_FLAG_BUSY)) {
 		if (--timeout == 0x00) {
 			i2c_errors[mux_channel]++;
+			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_BUSY error\r\n");
 			return I2C_TRANSMIT_BUSY;
 		}
 	}
@@ -228,6 +229,7 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_MODE_SELECT)) {
 		if (--timeout == 0x00) {
 			i2c_errors[mux_channel]++;
+			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_SELECT_TIMEOUT error\r\n");
 			return I2C_TRANSMIT_SELECT_TIMEOUT;
 		}
 	}
@@ -240,6 +242,7 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 		while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) {
 			if (--timeout == 0x00) {
 				i2c_errors[mux_channel]++;
+				ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_DIRECION_TIMEOUT error\r\n");
 				return I2C_TRANSMIT_DIRECION_TIMEOUT;
 			}
 		}
@@ -248,6 +251,7 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 		while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) {
 			if (--timeout == 0x00) {
 				i2c_errors[mux_channel]++;
+				ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_DIRECION_TIMEOUT error\r\n");
 				return I2C_TRANSMIT_DIRECION_TIMEOUT;
 			}
 		}
@@ -273,6 +277,7 @@ uint8_t i2c_write_byte(I2C_TypeDef* I2Cx, uint8_t data)
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) {
 		if (--timeout == 0x00) {
 			i2c_errors[mux_channel]++;
+			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_TIMEOUT error\r\n");
 			return I2C_TRANSMIT_TIMEOUT;
 		}
 	}
@@ -288,6 +293,7 @@ uint8_t i2c_read_byte_ack(I2C_TypeDef* I2Cx, uint8_t * data)
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
 		if (--timeout == 0x00) {
 			i2c_errors[mux_channel]++;
+			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_TIMEOUT error\r\n");
 			return I2C_TRANSMIT_TIMEOUT;
 		}
 	}
@@ -304,6 +310,7 @@ uint8_t i2c_read_byte_nack(I2C_TypeDef* I2Cx, uint8_t * data)
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED)) {
 		if (--timeout == 0x00) {
 			i2c_errors[mux_channel]++;
+			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_TIMEOUT error\r\n");
 			return I2C_TRANSMIT_TIMEOUT;
 		}
 	}
