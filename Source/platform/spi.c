@@ -72,7 +72,7 @@ void spi_init(void)
 	SPI_InitStructure.SPI_CPOL = SPI_CPOL_Low;
 	SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
 	SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_4;
+	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_16;
 	SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
 	SPI_InitStructure.SPI_CRCPolynomial = 7;
 
@@ -160,7 +160,7 @@ void spi_dma_read(uint8_t* Addref, uint8_t* pRxBuf, uint16_t rx_len)
 	SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Tx, ENABLE);
 
 	/* Waiting the end of Data transfer */
-	uint16_t timeout = 0xFFFF;
+	uint16_t timeout = SPI_TIMEOUT;
 	while (DMA_GetFlagStatus(DMA2_Stream3, DMA_FLAG_TCIF3) == RESET)
 	{
 		if (!timeout--) {
@@ -169,7 +169,7 @@ void spi_dma_read(uint8_t* Addref, uint8_t* pRxBuf, uint16_t rx_len)
 		}
 	}
 
-	timeout = 0xFFFF;
+	timeout = SPI_TIMEOUT;
 	while (DMA_GetFlagStatus(DMA2_Stream2, DMA_FLAG_TCIF2) == RESET)
 	{
 		if (!timeout--) {
@@ -243,7 +243,7 @@ void spi_dma_write(uint8_t* Addref, uint8_t* pTxBuf, uint16_t tx_len)
 	SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Tx, ENABLE);
 
 	/* Waiting the end of Data transfer */
-	uint16_t timeout = 0xFFFF;
+	uint16_t timeout = SPI_TIMEOUT;
 	while (DMA_GetFlagStatus(DMA2_Stream3, DMA_FLAG_TCIF3) == RESET)
 	{
 		if (!timeout--) {
@@ -252,7 +252,7 @@ void spi_dma_write(uint8_t* Addref, uint8_t* pTxBuf, uint16_t tx_len)
 		}
 	}
 
-	timeout = 0xFFFF;
+	timeout = SPI_TIMEOUT;
 	while (DMA_GetFlagStatus(DMA2_Stream2, DMA_FLAG_TCIF2) == RESET)
 	{
 		if (!timeout--) {
