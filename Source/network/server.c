@@ -259,11 +259,9 @@ void prvUDPServerTask(void *pvParameters)
 
 	for (;;)
 	{
-		if (xQueueReceive(xTCPServerIRQ, &trg, 100))
+		if (xQueueReceive(xTCPServerIRQ, &trg, portMAX_DELAY))
 		{
 			process_server_data();
 		}
-
-		process_server_data();
 	}
 }
