@@ -368,7 +368,7 @@ void rf_channels_interlock_task(void *pvParameters)
 	rf_channels_detect();
 
 	xTaskCreate(rf_channels_measure_task, "CH MEAS", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 2, &task_rf_measure);
-	xTaskCreate(rf_channels_info_task, "CH INFO", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 1, &task_rf_info);
+	xTaskCreate(rf_channels_info_task, "CH INFO", configMINIMAL_STACK_SIZE + 2048UL, NULL, tskIDLE_PRIORITY + 1, &task_rf_info);
 	vTaskSuspend(task_rf_info);
 
 	for (;;)
@@ -417,6 +417,22 @@ void rf_channels_interlock_task(void *pvParameters)
 					}
 				}
 
+				// if p6v0 current goes of out 400mA range
+				if (channels[i].enabled && (channels[i].measure.i60 > 0.40f ))
+				{
+					double current = channels[i].measure.i60;
+
+					err_clear = 0;
+					if (err_cnt++ > 32) {
+						rf_channel_disable_procedure(i);
+						led_bar_and((1UL << i), 0x00, 0x00);
+						led_bar_or(0, 0, (1UL << i));
+						channels[i].error = 1;
+						ucli_log(UCLI_LOG_ERROR, "Overcurrent on P6V0 bus, channel %d current = %0.2f, disabling\r\n", i, current);
+						err_cnt = 0;
+					}
+				}
+
 				if (channels[i].sigon && channels[i].enabled) {
 
 					// protect against inf value after wrong reflected power calibration
@@ -448,6 +464,23 @@ void rf_channels_interlock_task(void *pvParameters)
 		}
 
 		vTaskDelay(10);
+	}
+}
+
+void rf_channel_disable_on_i2c_err(uint8_t channel)
+{
+	if (channel < 8)
+	{
+		uint8_t i = channel;
+		if (channels[i].enabled)
+		{
+			rf_channel_disable_procedure(i);
+			led_bar_and((1UL << i), 0x00, 0x00);
+			led_bar_or(0, 0, (1UL << i));
+			channels[i].error = 1;
+			channels[i].detected = 0;
+			ucli_log(UCLI_LOG_ERROR, "I2C error on channel %d! Disabling\r\n", i);
+		}
 	}
 }
 
@@ -614,7 +647,7 @@ void rf_channels_info_task(void *pvParameters)
 		printf("PGOOD: %d\n", GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_4));
 
 		printf("FAN SPEED: %d %%\n", temp_mgt_get_fanspeed());
-		printf("AVG TEMP: %0.2f CURRENT: %0.2f\n", temp_mgt_get_avg_temp(), temp_mgt_get_max_temp());
+//		printf("AVG TEMP: %0.2f CURRENT: %0.2f\n", temp_mgt_get_avg_temp(), temp_mgt_get_max_temp());
 		printf("CHANNELS INFO\n");
 		printf("==============================================================================\n");
 		printf("\t\t#0\t#1\t#2\t#3\t#4\t#5\t#6\t#7\n");

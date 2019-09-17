@@ -140,9 +140,10 @@ void prvTempMgtTask(void *pvParameters)
 	{
 		for (int i = 0; i < 8; i++) {
 			channel_t * ch = rf_channel_get(i);
-
-			if (ch->measure.remote_temp > maxTemp)
-				maxTemp = ch->measure.remote_temp;
+			if (ch->enabled) {
+				if (ch->measure.remote_temp > maxTemp)
+					maxTemp = ch->measure.remote_temp;
+			}
 
 			vTaskDelay(10);
 		}
@@ -152,6 +153,7 @@ void prvTempMgtTask(void *pvParameters)
 
 		// guard for NaN values
 		if (isnan(fAvg)) fAvg = maxTemp;
+
 		fan_speed_control(fAvg);
 
 		maxTemp = 0.0f;

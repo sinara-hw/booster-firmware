@@ -391,7 +391,7 @@ void send_DHCP_DISCOVER(void)
 
 	/* CUSTOM HOSTNAME START */
 	char hostname[64] = { 0x00 };
-    int len = sprintf(hostname, "Booster ");
+    int len = snprintf(hostname, 64, "Booster ");
 
 	for(i = 0 ; i < len; i++)
 		pDHCPMSG->OPT[k++] = hostname[i];
@@ -500,7 +500,7 @@ void send_DHCP_REQUEST(void)
 	
 	/* CUSTOM HOSTNAME START */
 	char hostname[64] = { 0x00 };
-    int len = sprintf(hostname, "Booster ");
+    int len = snprintf(hostname, 64, "Booster ");
 
 	for(i = 0 ; i < len; i++)
 		pDHCPMSG->OPT[k++] = hostname[i];

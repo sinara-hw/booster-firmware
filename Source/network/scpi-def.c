@@ -77,7 +77,7 @@ static scpi_result_t IDN_Query(scpi_t * context)
 	uint32_t b2 = (*(uint32_t *) (0x1FFF7A10 + 4));
 
 	device_t * dev = device_get_config();
-	int len = sprintf(buffer, "RFPA %s, built %s %s, id %04X, hw rev 1.%d", VERSION_STRING, __DATE__, __TIME__, b2, dev->hw_rev);
+	int len = snprintf(buffer, 128, "RFPA %s, built %s %s, id %04X, hw rev 1.%d", VERSION_STRING, __DATE__, __TIME__, b2, dev->hw_rev);
 
 	SCPI_ResultCharacters(context, buffer, len);
 	return SCPI_RES_OK;
