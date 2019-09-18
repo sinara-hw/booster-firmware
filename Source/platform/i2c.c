@@ -65,7 +65,7 @@ void i2c_init(void)
 	I2C_InitStructure.I2C_Ack = I2C_Ack_Disable;		// disable acknowledge when reading (can be changed later on)
 	I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit; // set address length to 7 bit addresses
 	I2C_InitStructure.I2C_OwnAddress1 = 0x00;
-	I2C_Init(I2C1, &I2C_InitStructure);		// init I2C1
+	I2C_Init(I2C1, &I2C_InitStructure);					// init I2C1
 
 	// enable I2C1
 	I2C_Cmd(I2C1, ENABLE);
