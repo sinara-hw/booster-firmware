@@ -645,8 +645,6 @@ bool rf_channel_clear_interlock(uint8_t channel)
 
 void rf_channels_info_task(void *pvParameters)
 {
-	char buffer[512] = { 0 };
-
 	for (;;)
 	{
 		puts("\033[2J");
@@ -685,7 +683,7 @@ void rf_channels_info_task(void *pvParameters)
 																channels[7].hwid[4],
 																channels[7].hwid[5]);
 
-		snprintf(buffer, 512, "INPWR [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.input_voltage,
+		printf("INPWR [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.input_voltage,
 																						channels[1].measure.input_voltage,
 																						channels[2].measure.input_voltage,
 																						channels[3].measure.input_voltage,
@@ -693,9 +691,8 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[5].measure.input_voltage,
 																						channels[6].measure.input_voltage,
 																						channels[7].measure.input_voltage);
-		puts(buffer);
 
-		snprintf(buffer, 512, "TXPWR [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.adc_ch1,
+		printf("TXPWR [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.adc_ch1,
 																						channels[1].measure.adc_ch1,
 																						channels[2].measure.adc_ch1,
 																						channels[3].measure.adc_ch1,
@@ -703,9 +700,8 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[5].measure.adc_ch1,
 																						channels[6].measure.adc_ch1,
 																						channels[7].measure.adc_ch1);
-		puts(buffer);
 
-		snprintf(buffer, 512, "RFLPWR [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.adc_ch2,
+		printf("RFLPWR [V]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.adc_ch2,
 																						channels[1].measure.adc_ch2,
 																						channels[2].measure.adc_ch2,
 																						channels[3].measure.adc_ch2,
@@ -713,9 +709,8 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[5].measure.adc_ch2,
 																						channels[6].measure.adc_ch2,
 																						channels[7].measure.adc_ch2);
-		puts(buffer);
 
-		snprintf(buffer, 512, "INPWR [dBm]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.input_power,
+		printf("INPWR [dBm]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.input_power,
 																						channels[1].measure.input_power,
 																						channels[2].measure.input_power,
 																						channels[3].measure.input_power,
@@ -723,9 +718,8 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[5].measure.input_power,
 																						channels[6].measure.input_power,
 																						channels[7].measure.input_power);
-		puts(buffer);
 
-		snprintf(buffer, 512, "TXPWR [dBm]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.fwd_pwr,
+		printf("TXPWR [dBm]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.fwd_pwr,
 																						channels[1].measure.fwd_pwr,
 																						channels[2].measure.fwd_pwr,
 																						channels[3].measure.fwd_pwr,
@@ -733,9 +727,8 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[5].measure.fwd_pwr,
 																						channels[6].measure.fwd_pwr,
 																						channels[7].measure.fwd_pwr);
-		puts(buffer);
 
-		snprintf(buffer, 512, "RFLPWR [dBm]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.rfl_pwr,
+		printf("RFLPWR [dBm]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].measure.rfl_pwr,
 																						channels[1].measure.rfl_pwr,
 																						channels[2].measure.rfl_pwr,
 																						channels[3].measure.rfl_pwr,
@@ -743,9 +736,8 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[5].measure.rfl_pwr,
 																						channels[6].measure.rfl_pwr,
 																						channels[7].measure.rfl_pwr);
-		puts(buffer);
 
-		snprintf(buffer, 512, "I30V [A]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.i30,
+		printf("I30V [A]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.i30,
 																						channels[1].measure.i30,
 																						channels[2].measure.i30,
 																						channels[3].measure.i30,
@@ -753,9 +745,8 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[5].measure.i30,
 																						channels[6].measure.i30,
 																						channels[7].measure.i30);
-		puts(buffer);
 
-		snprintf(buffer, 512, "I6V0 [A]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.i60,
+		printf("I6V0 [A]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.i60,
 																						channels[1].measure.i60,
 																						channels[2].measure.i60,
 																						channels[3].measure.i60,
@@ -763,9 +754,8 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[5].measure.i60,
 																						channels[6].measure.i60,
 																						channels[7].measure.i60);
-		puts(buffer);
 
-		snprintf(buffer, 512, "5V0MP [V]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.p5v0mp,
+		printf("5V0MP [V]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.p5v0mp,
 																						channels[1].measure.p5v0mp,
 																						channels[2].measure.p5v0mp,
 																						channels[3].measure.p5v0mp,
@@ -773,7 +763,6 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[5].measure.p5v0mp,
 																						channels[6].measure.p5v0mp,
 																						channels[7].measure.p5v0mp);
-		puts(buffer);
 
 		printf("ON\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].enabled,
 															channels[1].enabled,
@@ -838,7 +827,7 @@ void rf_channels_info_task(void *pvParameters)
 															channels[6].measure.adc_raw_ch2,
 															channels[7].measure.adc_raw_ch2);
 
-		snprintf(buffer, 512, "INTSET [dBm]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].interlock_setpoint,
+		printf("INTSET [dBm]\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t\n", channels[0].interlock_setpoint,
 																					channels[1].interlock_setpoint,
 																					channels[2].interlock_setpoint,
 																					channels[3].interlock_setpoint,
@@ -846,9 +835,8 @@ void rf_channels_info_task(void *pvParameters)
 																					channels[5].interlock_setpoint,
 																					channels[6].interlock_setpoint,
 																					channels[7].interlock_setpoint);
-		puts(buffer);
 
-		snprintf(buffer, 512, "DAC1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].cal_values.input_dac_cal_value,
+		printf("DAC1\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].cal_values.input_dac_cal_value,
 																channels[1].cal_values.input_dac_cal_value,
 																channels[2].cal_values.input_dac_cal_value,
 																channels[3].cal_values.input_dac_cal_value,
@@ -856,7 +844,6 @@ void rf_channels_info_task(void *pvParameters)
 																channels[5].cal_values.input_dac_cal_value,
 																channels[6].cal_values.input_dac_cal_value,
 																channels[7].cal_values.input_dac_cal_value);
-		puts(buffer);
 
 		printf("DAC2\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t\n", channels[0].cal_values.output_dac_cal_value,
 															channels[1].cal_values.output_dac_cal_value,
@@ -894,7 +881,7 @@ void rf_channels_info_task(void *pvParameters)
 																	channels[6].cal_values.bias_dac_cal_value,
 																	channels[7].cal_values.bias_dac_cal_value);
 
-		snprintf(buffer, 512, "HWIS\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].cal_values.hw_int_scale,
+		printf("HWIS\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].cal_values.hw_int_scale,
 																			channels[1].cal_values.hw_int_scale,
 																			channels[2].cal_values.hw_int_scale,
 																			channels[3].cal_values.hw_int_scale,
@@ -902,9 +889,8 @@ void rf_channels_info_task(void *pvParameters)
 																			channels[5].cal_values.hw_int_scale,
 																			channels[6].cal_values.hw_int_scale,
 																			channels[7].cal_values.hw_int_scale);
-		puts(buffer);
 
-		snprintf(buffer, 512, "HWIO\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].cal_values.hw_int_offset,
+		printf("HWIO\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].cal_values.hw_int_offset,
 															channels[1].cal_values.hw_int_offset,
 															channels[2].cal_values.hw_int_offset,
 															channels[3].cal_values.hw_int_offset,
@@ -912,9 +898,8 @@ void rf_channels_info_task(void *pvParameters)
 															channels[5].cal_values.hw_int_offset,
 															channels[6].cal_values.hw_int_offset,
 															channels[7].cal_values.hw_int_offset);
-		puts(buffer);
 
-		snprintf(buffer, 512, "LTEMP\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].measure.local_temp,
+		printf("LTEMP\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].measure.local_temp,
 																			channels[1].measure.local_temp,
 																			channels[2].measure.local_temp,
 																			channels[3].measure.local_temp,
@@ -922,9 +907,8 @@ void rf_channels_info_task(void *pvParameters)
 																			channels[5].measure.local_temp,
 																			channels[6].measure.local_temp,
 																			channels[7].measure.local_temp);
-		puts(buffer);
 
-		snprintf(buffer, 512, "RTEMP\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].measure.remote_temp,
+		printf("RTEMP\t\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n", channels[0].measure.remote_temp,
 																				channels[1].measure.remote_temp,
 																				channels[2].measure.remote_temp,
 																				channels[3].measure.remote_temp,
@@ -932,7 +916,6 @@ void rf_channels_info_task(void *pvParameters)
 																				channels[5].measure.remote_temp,
 																				channels[6].measure.remote_temp,
 																				channels[7].measure.remote_temp);
-		puts(buffer);
 
 		printf("==============================================================================\n");
 
