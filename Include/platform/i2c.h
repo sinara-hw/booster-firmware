@@ -10,7 +10,7 @@
 
 #include "config.h"
 
-#define I2C_TIMEOUT 		256
+#define I2C_TIMEOUT 		2048
 #define I2C_ACK_ENABLE		1
 #define I2C_ACK_DISABLE		0
 
