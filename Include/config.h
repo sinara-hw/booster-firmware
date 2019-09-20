@@ -21,6 +21,9 @@
 #include "semphr.h"
 #include "queue.h"
 
+// printf override
+#include "printf.h"
+
 #define BOARD_LED1 			GPIOC, GPIO_Pin_9
 #define BOARD_LED2 			GPIOC, GPIO_Pin_8
 #define BOARD_LED3 			GPIOC, GPIO_Pin_10

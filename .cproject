@@ -39,6 +39,7 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/Libs/Ethernet&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/Libs/Ethernet/W5500&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/Libs/Ethernet/DHCP&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/Libs/printf&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/Include/usb&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/Include/platform&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/Include/board&quot;"/>

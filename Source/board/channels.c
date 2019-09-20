@@ -246,6 +246,10 @@ bool rf_channel_enable_procedure(uint8_t channel)
 {
 	int bitmask = 1 << channel;
 
+	if (channels[channel].enabled) {
+		return true;
+	}
+
 	if (channels[channel].error) {
 		ucli_log(UCLI_LOG_ERROR, "Enabling channel %d with error condition!\r\n");
 		led_bar_or(0, 0, (1UL << channel));
@@ -327,6 +331,10 @@ void rf_channels_disable(uint8_t mask)
 void rf_channel_disable_procedure(uint8_t channel)
 {
 	int bitmask = 1 << channel;
+
+	if (!channels[channel].enabled) {
+		return;
+	}
 
 	rf_channels_control(bitmask, false);
 	rf_channels_sigon(bitmask, false);
@@ -469,23 +477,23 @@ void rf_channels_interlock_task(void *pvParameters)
 
 void rf_channel_disable_on_i2c_err(uint8_t channel)
 {
-	if (channel < 8)
-	{
-		uint8_t i = channel;
-		if (channels[i].detected)
-		{
-			rf_channel_disable_procedure(i);
-			led_bar_and((1UL << i), 0x00, 0x00);
-			led_bar_or(0, 0, (1UL << i));
-
-			// set error to 1 and remove channel from detected list
-			channels[i].error = 1;
-			channels[i].detected = 0;
-			channel_mask &= ~(1 << channel);
-
-			ucli_log(UCLI_LOG_ERROR, "I2C error on channel %d! Disabling\r\n", i);
-		}
-	}
+//	if (channel < 8)
+//	{
+//		uint8_t i = channel;
+//		if (channels[i].detected)
+//		{
+//			rf_channel_disable_procedure(i);
+//			led_bar_and((1UL << i), 0x00, 0x00);
+//			led_bar_or(0, 0, (1UL << i));
+//
+//			// set error to 1 and remove channel from detected list
+//			channels[i].error = 1;
+//			channels[i].detected = 0;
+//			channel_mask &= ~(1 << channel);
+//
+//			ucli_log(UCLI_LOG_ERROR, "I2C error on channel %d! Disabling\r\n", i);
+//		}
+//	}
 }
 
 void rf_channels_measure_task(void *pvParameters)
@@ -746,7 +754,7 @@ void rf_channels_info_task(void *pvParameters)
 																						channels[6].measure.i30,
 																						channels[7].measure.i30);
 
-		printf("I6V0 [A]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.i60,
+		printf("I5V0 [A]\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t%0.3f\t\n", channels[0].measure.i60,
 																						channels[1].measure.i60,
 																						channels[2].measure.i60,
 																						channels[3].measure.i60,

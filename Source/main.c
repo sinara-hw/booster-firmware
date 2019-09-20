@@ -41,6 +41,17 @@
 // usb
 #include "usb.h"
 
+// implement malloc lock and unlock functions
+void __malloc_lock(struct _reent *ptr)
+{
+	vTaskSuspendAll();
+}
+
+void __malloc_unlock(struct _reent *ptr)
+{
+	xTaskResumeAll();
+}
+
 static void watchdog_init(void)
 {
 //	IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);

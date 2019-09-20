@@ -134,9 +134,5 @@
  NVIC value of 255. */
 #define configLIBRARY_KERNEL_INTERRUPT_PRIORITY	15
 
-// REDEFINE MALLOC FUNCTIONS FOR MORE THREAD`ISH SAFETY
-#define malloc(size) pvPortMalloc(size)
-#define free(ptr) vPortFree(ptr)
-
 #endif /* FREERTOS_CONFIG_H */
 
