@@ -544,7 +544,7 @@ bool rf_channel_interlock_set(uint8_t channel, double value)
 				i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
 			}
 			lock_free(I2C_LOCK);
-			printf("[intv] Interlock value for %0.2f = %d\r\n", value, ch->cal_values.output_dac_cal_value);
+			//printf("[intv] Interlock value for %0.2f = %d\r\n", value, ch->cal_values.output_dac_cal_value);
 		}
 
 		return true;
