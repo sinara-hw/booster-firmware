@@ -148,6 +148,8 @@ static void fh_devid(void * a_data)
 	unsigned int b2 = (*(uint32_t *) (0x1FFF7A10 + 4));
 	unsigned int b3 = (*(uint32_t *) (0x1FFF7A10 + 8));
 	printf("[devid] %08X%08X%08X\r\n", b1, b2, b3);
+
+	GPIO_ResetBits(BOARD_LED1);
 }
 
 static void fh_bootloader(void * a_data)
@@ -654,6 +656,19 @@ static void fh_biascal(void * a_data)
 		printf("[biascal] Wrong channel number\r\n");
 }
 
+static void fh_biascalall(void * a_data)
+{
+	int value = 0;
+
+	ucli_param_get_int(1, &value);
+	value = (uint8_t) value;
+
+	for (int i = 0; i < 8; i++)
+	{
+		printf("[biascalall] Calibrating channel %d current %d\r\n", i, value);
+		rf_channel_calibrate_bias(i, value);
+	}
+}
 
 static void fh_chanid(void * a_data)
 {
@@ -719,12 +734,14 @@ static void fh_intval(void * a_data)
 {
 	int channel = 0;
 	float value = 0;
+	uint16_t set = 0;
 
 	ucli_param_get_int(1, &channel);
 	ucli_param_get_float(2, &value);
 
 	if ((uint8_t) channel < 8) {
-		rf_channel_interlock_set(channel, value);
+		set = rf_channel_interlock_set(channel, value);
+		printf("[intv] Interlock value for %0.2f = %d\r\n", value, set);
 	} else
 		printf("[intv] Wrong channel number\r\n");
 }
@@ -845,6 +862,12 @@ static void fh_clearcal(void * a_data)
 			eeprom_write16(DAC1_EEPROM_ADDRESS, (uint16_t) value);
 			vTaskDelay(10);
 			eeprom_write16(DAC2_EEPROM_ADDRESS, (uint16_t) value);
+//
+//			// clear reverse input reading
+//			eeprom_write16(ADC2_SCALE_ADDRESS, 0xFFFF);
+//			vTaskDelay(10);
+//			eeprom_write16(ADC2_SCALE_ADDRESS, 0xFFFF);
+
 			lock_free(I2C_LOCK);
 		}
 		printf("[clearcal] DAC values override = %d\r\n", (uint16_t) value);
@@ -1119,6 +1142,7 @@ static ucli_cmd_t g_cmds[] = {
 	{ "intcal", fh_intcal, 0x03, "Calibrate the channel's output interlock\r\n", "intcal usage:\r\n\tAdjust the input power until the output power is approximately 23 dBm\r\n\tRun intcal <channel number> 1 <p_out> where <p_out> it the actual output power (e.g. intcal 0 1 23.2 for 23.2 dBm output power when calibrating channel 0)\r\n\tAdjust the input power until the output power reaches approximately 33dB\r\n\tRun intcal <channel number> 2 <p_out>\r\n" },
 	{ "intg", fh_intget, 0x01, "Return output interlock setpoint\r\n", "intget usage:\r\n\tintget <channel>" },
 	{ "biascal", fh_biascal, 0x02, "Calibrate channel bias current\r\n", "biascal usage:\r\n\tbiascal <channel number> <desired current>\r\n" },
+	{ "biascalall", fh_biascalall, 0x01, "Calibrate all channels bias current\r\n", "biascal usage:\r\n\tbiascalall <desired current>\r\n" },
 	{ "clearcal", fh_clearcal, 0x02, "Clear channel calibration values\r\n" },
 	{ "i2cerr", fh_i2cerr, 0x00, "Display I2C error summary\r\n" },
 
