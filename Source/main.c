@@ -41,13 +41,24 @@
 // usb
 #include "usb.h"
 
+// implement malloc lock and unlock functions
+void __malloc_lock(struct _reent *ptr)
+{
+	vTaskSuspendAll();
+}
+
+void __malloc_unlock(struct _reent *ptr)
+{
+	xTaskResumeAll();
+}
+
 static void watchdog_init(void)
 {
-	IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);
-	IWDG_SetPrescaler(IWDG_Prescaler_32); // 1024 Hz clock
-	IWDG_SetReload(0x1400); // 2 second reset timeout
-	IWDG_ReloadCounter();
-	IWDG_Enable();
+//	IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);
+//	IWDG_SetPrescaler(IWDG_Prescaler_32); // 1024 Hz clock
+//	IWDG_SetReload(0x1400); // 2 second reset timeout
+//	IWDG_ReloadCounter();
+//	IWDG_Enable();
 }
 
 static void prvSetupHardware(void)
@@ -76,6 +87,14 @@ static void prvSetupHardware(void)
 		// watchdog reset occurred
 		ucli_log(UCLI_LOG_WARN, "watchdog reset occurred!\r\n");
 		RCC_ClearFlag();
+
+		rf_channels_control(255, false);
+		rf_channels_sigon(0xFF, false);
+		led_bar_write(0, 0, 255);
+
+		// start only CLI task to access logstash
+		xTaskCreate(vCommandConsoleTask, "CLI", configMINIMAL_STACK_SIZE + 256UL, NULL, tskIDLE_PRIORITY + 1, NULL );
+		vTaskStartScheduler();
 	}
 
 	ucli_log(UCLI_LOG_INFO, "device boot\r\n");

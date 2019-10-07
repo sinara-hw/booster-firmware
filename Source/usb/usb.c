@@ -31,6 +31,13 @@ int __io_putchar(int ch)
 #endif
 }
 
+void _putchar(char ch)
+{
+	taskENTER_CRITICAL();
+	VCP_put_char(ch);
+	taskEXIT_CRITICAL();
+}
+
 void usb_enter_bootloader(void)
 {
 	led_bar_write(225, 131, 231);

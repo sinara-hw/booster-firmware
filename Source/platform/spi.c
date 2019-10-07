@@ -13,7 +13,7 @@
 
 #define SPI_TIMEOUT 2000
 
-#define DATA_SIZE 	640
+#define DATA_SIZE 	1024
 DMA_InitTypeDef 	DMA_InitStructure;
 uint8_t 			pTmpBuf1[DATA_SIZE + 3];
 uint8_t 			pTmpBuf2[DATA_SIZE + 3];

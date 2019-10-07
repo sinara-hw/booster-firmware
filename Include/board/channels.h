@@ -117,6 +117,7 @@ void rf_channels_info_task(void *pvParameters);
 uint16_t rf_channel_calibrate_input_interlock_v3(uint8_t channel, int16_t start_value, uint8_t step);
 uint16_t rf_channel_calibrate_output_interlock_v3(uint8_t channel, int16_t start_value, uint8_t step);
 bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current);
+void rf_channel_disable_on_i2c_err(uint8_t channel);
 
 
 #endif /* CHANNELS_H_ */

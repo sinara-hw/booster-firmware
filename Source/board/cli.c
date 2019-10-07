@@ -1091,7 +1091,7 @@ static void fh_wdtest(void * a_data)
 
 void cli_init(void)
 {
-	ucli_init((void*) __io_putchar, g_cmds);
+	ucli_init((void*) _putchar, g_cmds);
 }
 
 void vCommandConsoleTask(void *pvParameters)

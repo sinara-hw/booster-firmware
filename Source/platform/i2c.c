@@ -10,6 +10,7 @@
 #include "stm32f4xx_i2c.h"
 #include "i2c.h"
 #include "ucli.h"
+#include "channels.h"
 
 typedef enum {
 	I2C_TRANSMIT_OK,
@@ -64,7 +65,7 @@ void i2c_init(void)
 	I2C_InitStructure.I2C_Ack = I2C_Ack_Disable;		// disable acknowledge when reading (can be changed later on)
 	I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit; // set address length to 7 bit addresses
 	I2C_InitStructure.I2C_OwnAddress1 = 0x00;
-	I2C_Init(I2C1, &I2C_InitStructure);		// init I2C1
+	I2C_Init(I2C1, &I2C_InitStructure);					// init I2C1
 
 	// enable I2C1
 	I2C_Cmd(I2C1, ENABLE);
@@ -215,7 +216,7 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 		if (--timeout == 0x00) {
 			i2c_errors[mux_channel]++;
 			rf_channel_disable_on_error(mux_channel);
-			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_BUSY error\r\n");
+			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_BUSY error ch %d\r\n", mux_channel);
 			return I2C_TRANSMIT_BUSY;
 		}
 	}
@@ -231,7 +232,7 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 		if (--timeout == 0x00) {
 			i2c_errors[mux_channel]++;
 			rf_channel_disable_on_error(mux_channel);
-			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_SELECT_TIMEOUT error\r\n");
+			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_SELECT_TIMEOUT error ch %d\r\n", mux_channel);
 			return I2C_TRANSMIT_SELECT_TIMEOUT;
 		}
 	}
@@ -245,7 +246,7 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 			if (--timeout == 0x00) {
 				i2c_errors[mux_channel]++;
 				rf_channel_disable_on_error(mux_channel);
-				ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_DIRECION_TIMEOUT error\r\n");
+				ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_DIRECION_TIMEOUT error ch %d\r\n", mux_channel);
 				return I2C_TRANSMIT_DIRECION_TIMEOUT;
 			}
 		}
@@ -254,8 +255,8 @@ uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t
 		while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED)) {
 			if (--timeout == 0x00) {
 				i2c_errors[mux_channel]++;
+				ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_DIRECION_TIMEOUT error ch %d\r\n", mux_channel);
 				rf_channel_disable_on_error(mux_channel);
-				ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_DIRECION_TIMEOUT error\r\n");
 				return I2C_TRANSMIT_DIRECION_TIMEOUT;
 			}
 		}
@@ -281,7 +282,8 @@ uint8_t i2c_write_byte(I2C_TypeDef* I2Cx, uint8_t data)
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) {
 		if (--timeout == 0x00) {
 			i2c_errors[mux_channel]++;
-			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_TIMEOUT error\r\n");
+			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_TIMEOUT error ch %d\r\n", mux_channel);
+			rf_channel_disable_on_i2c_err(mux_channel);
 			return I2C_TRANSMIT_TIMEOUT;
 		}
 	}
@@ -298,7 +300,7 @@ uint8_t i2c_read_byte_ack(I2C_TypeDef* I2Cx, uint8_t * data)
 		if (--timeout == 0x00) {
 			i2c_errors[mux_channel]++;
 			rf_channel_disable_on_error(mux_channel);
-			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_TIMEOUT error\r\n");
+			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_TIMEOUT error ch %d\r\n", mux_channel);
 			return I2C_TRANSMIT_TIMEOUT;
 		}
 	}
@@ -316,7 +318,7 @@ uint8_t i2c_read_byte_nack(I2C_TypeDef* I2Cx, uint8_t * data)
 		if (--timeout == 0x00) {
 			i2c_errors[mux_channel]++;
 			rf_channel_disable_on_error(mux_channel);
-			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_TIMEOUT error\r\n");
+			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_TIMEOUT error ch %d\r\n", mux_channel);
 			return I2C_TRANSMIT_TIMEOUT;
 		}
 	}
@@ -330,9 +332,9 @@ void i2c_dac_set(uint16_t value)
 	uint8_t first_byte = (value & 0xFF00) >> 8;
 	uint8_t second_byte = value & 0xFF;
 
-	uint8_t a1 = i2c_start(I2C1, I2C_DAC_ADDR, I2C_Direction_Transmitter, 1);
-	uint8_t a2 = i2c_write_byte(I2C1, first_byte);
-	uint8_t a3 = i2c_write_byte(I2C1, second_byte);
+	i2c_start(I2C1, I2C_DAC_ADDR, I2C_Direction_Transmitter, 1);
+	i2c_write_byte(I2C1, first_byte);
+	i2c_write_byte(I2C1, second_byte);
 	i2c_stop(I2C1);
 }
 

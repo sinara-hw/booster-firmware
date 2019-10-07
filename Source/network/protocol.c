@@ -34,8 +34,8 @@ scpi_result_t SCPI_Flush(scpi_t * context)
 int SCPI_Error(scpi_t * context, int_fast16_t err) {
     (void) context;
     /* BEEP */
-    uint8_t errmsg[64] = { 0 };
-    uint8_t len = sprintf((char*) errmsg, "[scpi] **ERROR: %ld, \"%s\"\r\n", (int32_t) err, SCPI_ErrorTranslate(err));
+    uint8_t errmsg[128] = { 0 };
+    uint8_t len = snprintf((char*) errmsg, 128, "[scpi] **ERROR: %ld, \"%s\"\r\n", (int32_t) err, SCPI_ErrorTranslate(err));
 
     if (err != 0) {
     	user_data_t * u = (user_data_t *) (context->user_context);

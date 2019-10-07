@@ -21,6 +21,7 @@
 							<option id="fr.ac6.managedbuild.option.gnu.cross.board.886248704" name="Board" superClass="fr.ac6.managedbuild.option.gnu.cross.board" useByScannerDiscovery="false" value="rf-board" valueType="string"/>
 							<option id="fr.ac6.managedbuild.option.gnu.cross.fpu.1401339476" name="Floating point hardware" superClass="fr.ac6.managedbuild.option.gnu.cross.fpu" useByScannerDiscovery="false" value="fr.ac6.managedbuild.option.gnu.cross.fpu.fpv4-sp-d16" valueType="enumerated"/>
 							<option id="fr.ac6.managedbuild.option.gnu.cross.floatabi.696032588" name="Floating-point ABI" superClass="fr.ac6.managedbuild.option.gnu.cross.floatabi" useByScannerDiscovery="false" value="fr.ac6.managedbuild.option.gnu.cross.floatabi.hard" valueType="enumerated"/>
+							<option id="fr.ac6.managedbuild.option.gnu.cross.path.1119762465" name="Path" superClass="fr.ac6.managedbuild.option.gnu.cross.path" useByScannerDiscovery="false" value="/usr/bin" valueType="string"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="fr.ac6.managedbuild.targetPlatform.gnu.cross.956475649" isAbstract="false" osList="all" superClass="fr.ac6.managedbuild.targetPlatform.gnu.cross"/>
 							<builder buildPath="${workspace_loc:/eth-scpi}/Debug" id="fr.ac6.managedbuild.builder.gnu.cross.1457183064" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="fr.ac6.managedbuild.builder.gnu.cross"/>
 							<tool id="fr.ac6.managedbuild.tool.gnu.cross.c.compiler.1779542968" name="MCU GCC Compiler" superClass="fr.ac6.managedbuild.tool.gnu.cross.c.compiler">
@@ -38,6 +39,7 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/Libs/Ethernet&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/Libs/Ethernet/W5500&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/Libs/Ethernet/DHCP&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/Libs/printf&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/Include/usb&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/Include/platform&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/Include/board&quot;"/>
@@ -59,6 +61,7 @@
 								</option>
 								<option id="gnu.c.compiler.option.dialect.std.1761800081" name="Language standard" superClass="gnu.c.compiler.option.dialect.std" useByScannerDiscovery="true" value="gnu.c.compiler.dialect.c99" valueType="enumerated"/>
 								<option id="fr.ac6.managedbuid.gnu.c.compiler.option.misc.other.1575747917" name="Other flags" superClass="fr.ac6.managedbuid.gnu.c.compiler.option.misc.other" useByScannerDiscovery="false" value="-fmessage-length=0" valueType="string"/>
+								<option id="fr.ac6.managedbuild.tool.gnu.cross.c.compiler.fdata.1308265971" name="Place the data in their own section (-fdata-sections)" superClass="fr.ac6.managedbuild.tool.gnu.cross.c.compiler.fdata" useByScannerDiscovery="false" value="false" valueType="boolean"/>
 								<inputType id="fr.ac6.managedbuild.tool.gnu.cross.c.compiler.input.c.2035769419" superClass="fr.ac6.managedbuild.tool.gnu.cross.c.compiler.input.c"/>
 								<inputType id="fr.ac6.managedbuild.tool.gnu.cross.c.compiler.input.s.1841358587" superClass="fr.ac6.managedbuild.tool.gnu.cross.c.compiler.input.s"/>
 							</tool>
