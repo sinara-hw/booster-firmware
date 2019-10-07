@@ -475,27 +475,6 @@ void rf_channels_interlock_task(void *pvParameters)
 	}
 }
 
-void rf_channel_disable_on_i2c_err(uint8_t channel)
-{
-//	if (channel < 8)
-//	{
-//		uint8_t i = channel;
-//		if (channels[i].detected)
-//		{
-//			rf_channel_disable_procedure(i);
-//			led_bar_and((1UL << i), 0x00, 0x00);
-//			led_bar_or(0, 0, (1UL << i));
-//
-//			// set error to 1 and remove channel from detected list
-//			channels[i].error = 1;
-//			channels[i].detected = 0;
-//			channel_mask &= ~(1 << channel);
-//
-//			ucli_log(UCLI_LOG_ERROR, "I2C error on channel %d! Disabling\r\n", i);
-//		}
-//	}
-}
-
 void rf_channels_measure_task(void *pvParameters)
 {
 	device_t * dev;

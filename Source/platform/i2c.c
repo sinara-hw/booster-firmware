@@ -282,8 +282,8 @@ uint8_t i2c_write_byte(I2C_TypeDef* I2Cx, uint8_t data)
 	while (!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED)) {
 		if (--timeout == 0x00) {
 			i2c_errors[mux_channel]++;
+			rf_channel_disable_on_error(mux_channel);
 			ucli_log(UCLI_LOG_ERROR, "I2C_TRANSMIT_TIMEOUT error ch %d\r\n", mux_channel);
-			rf_channel_disable_on_i2c_err(mux_channel);
 			return I2C_TRANSMIT_TIMEOUT;
 		}
 	}
