@@ -340,7 +340,7 @@ void rf_channel_disable_procedure(uint8_t channel)
 	rf_channels_sigon(bitmask, false);
 
 	if (lock_take(I2C_LOCK, portMAX_DELAY)) {
-		i2c_mux_select(channel);
+		i2c_mux_select(channel);https://9gag.com/gag/a858A7Z
 		i2c_dac_set(4095);
 
 		lock_free(I2C_LOCK);
@@ -570,7 +570,7 @@ void rf_clear_interlock(void)
 	}
 }
 
-bool rf_channel_interlock_set(uint8_t channel, double value)
+uint16_t rf_channel_interlock_set(uint8_t channel, double value)
 {
 	channel_t * ch;
 	uint16_t dac_value = 0;
@@ -589,13 +589,12 @@ bool rf_channel_interlock_set(uint8_t channel, double value)
 				i2c_dual_dac_set(1, ch->cal_values.output_dac_cal_value);
 			}
 			lock_free(I2C_LOCK);
-			printf("[intv] Interlock value for %0.2f = %d\r\n", value, ch->cal_values.output_dac_cal_value);
 		}
 
-		return true;
+		return ch->cal_values.output_dac_cal_value;
 	}
 
-	return false;
+	return 0;
 }
 
 double rf_channel_interlock_get(uint8_t channel)
@@ -931,6 +930,11 @@ void rf_channels_info_task(void *pvParameters)
 	}
 }
 
+void rf_channel_disable_on_error(uint8_t channel)
+{
+	GPIO_SetBits(BOARD_LED1);
+}
+
 uint16_t rf_channel_calibrate_input_interlock_v3(uint8_t channel, int16_t start_value, uint8_t step)
 {
 	int16_t dacval = start_value;
@@ -1151,7 +1155,7 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 				return true;
 			}
 
-			dacval -= diff > 10 ? (diff * 2) : 2;
+			dacval -= diff > 15 ? (diff * 2) : 2;
 		}
 	}
 

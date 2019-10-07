@@ -103,8 +103,9 @@ bool rf_channel_clear_interlock(uint8_t channel);
 uint8_t rf_channels_get_mask(void);
 void rf_channels_soft_interlock_set(uint8_t channel, double value);
 void rf_channels_hwint_override(uint8_t channel, double int_value);
+void rf_channel_disable_on_error(uint8_t channel);
 
-bool rf_channel_interlock_set(uint8_t channel, double value);
+uint16_t rf_channel_interlock_set(uint8_t channel, double value);
 double rf_channel_interlock_get(uint8_t channel);
 
 /* tasks */

@@ -58,7 +58,7 @@ void EXTI9_5_IRQHandler(void)
 
 	if (EXTI_GetITStatus(EXTI_Line6) != RESET)
 	{
-		GPIO_ToggleBits(BOARD_LED1);
+//		GPIO_ToggleBits(BOARD_LED1);
 		xQueueSendFromISR(xTCPServerIRQ, &trg, false);
     	EXTI_ClearITPendingBit(EXTI_Line6);
     }
