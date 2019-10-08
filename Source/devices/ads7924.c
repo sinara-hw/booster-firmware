@@ -77,13 +77,13 @@ double ads7924_get_channel_voltage(uint8_t ch)
 	if (ch > 3) return 0;
 	uint8_t base_addr = data_channels[ch];
 
-	uint8_t msb, lsb = 0;
-	i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr, &msb);
-	i2c_read(ADS7924_I2C, ADS7924_ADDRESS, base_addr + 1, &lsb);
+	base_addr |= (1 << 8); // enable INC by setting last bit 1
+	uint16_t data = 0;
+	i2c_read16(ADS7924_I2C, ADS7924_ADDRESS, base_addr, &data);
 
 	device_t * dev = device_get_config();
+	uint16_t raw = data >> 4;
 
-	uint16_t raw = ((msb << 8) | lsb) >> 4;
 	// return appropriate calculation due to change of AVDD to 3.3V in hw rev 4
 	if (dev->hw_rev < 4)
 		return (double) ((raw * 2.50f) / 4095);

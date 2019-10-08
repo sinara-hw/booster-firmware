@@ -25,6 +25,7 @@ uint8_t i2c_device_connected(I2C_TypeDef* I2Cx, uint8_t address);
 // generic read / write
 uint8_t i2c_write(I2C_TypeDef* I2Cx, uint8_t address, uint8_t reg, uint8_t data);
 uint8_t i2c_read(I2C_TypeDef* I2Cx, uint8_t address, uint8_t reg, uint8_t * data);
+uint16_t i2c_read16(I2C_TypeDef* I2Cx, uint8_t address, uint8_t reg, uint16_t * data);
 
 // core functions
 uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t ack);
@@ -42,5 +43,6 @@ void i2c_dual_dac_set_val(float v1, float v2);
 void i2c_dac_set_value(float value);
 void i2c_mux_reset(void);
 void i2c_reset(void);
+void i2c_sequence_delay(void);
 
 #endif /* I2C_H_ */

@@ -103,7 +103,7 @@ void rf_channels_init(void)
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
 	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
 	/* ADC reset off */
@@ -912,6 +912,8 @@ void rf_channels_info_task(void *pvParameters)
 void rf_channel_disable_on_error(uint8_t channel)
 {
 	GPIO_SetBits(BOARD_LED1);
+
+	for( ;; );
 }
 
 uint16_t rf_channel_calibrate_input_interlock_v3(uint8_t channel, int16_t start_value, uint8_t step)

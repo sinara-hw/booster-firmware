@@ -126,14 +126,17 @@ uint8_t i2c_mux_select(uint8_t channel)
 		return 0;
 	}
 
+	for (int i = 0; i < 256; i++){};
+
 	return 1;
 }
 
 void i2c_mux_reset(void)
 {
 	GPIO_ResetBits(GPIOB, GPIO_Pin_14);
-	for (int i = 0; i < 256; i++){};
+	for (int i = 0; i < 512; i++){};
 	GPIO_SetBits(GPIOB, GPIO_Pin_14);
+	for (int i = 0; i < 512; i++){};
 }
 
 uint8_t i2c_scan_devices(bool verbose)
@@ -170,7 +173,7 @@ uint8_t i2c_device_connected(I2C_TypeDef* I2Cx, uint8_t address)
 
 uint8_t i2c_write(I2C_TypeDef* I2Cx, uint8_t address, uint8_t reg, uint8_t data)
 {
-	if (i2c_start(I2Cx, address, I2C_Direction_Transmitter, I2C_ACK_DISABLE))
+	if (i2c_start(I2Cx, address, I2C_Direction_Transmitter, I2C_ACK_ENABLE))
 		return I2C_ERR;
 
 	if (i2c_write_byte(I2Cx, reg))
@@ -185,7 +188,7 @@ uint8_t i2c_write(I2C_TypeDef* I2Cx, uint8_t address, uint8_t reg, uint8_t data)
 
 uint8_t i2c_read(I2C_TypeDef* I2Cx, uint8_t address, uint8_t reg, uint8_t * data)
 {
-	if (i2c_start(I2Cx, address, I2C_Direction_Transmitter, I2C_ACK_DISABLE))
+	if (i2c_start(I2Cx, address, I2C_Direction_Transmitter, I2C_ACK_ENABLE))
 		return I2C_ERR;
 
 	if (i2c_write_byte(I2Cx, reg))
@@ -193,7 +196,7 @@ uint8_t i2c_read(I2C_TypeDef* I2Cx, uint8_t address, uint8_t reg, uint8_t * data
 
 	i2c_stop(I2Cx);
 
-	if (i2c_start(I2Cx, address, I2C_Direction_Receiver, I2C_ACK_DISABLE))
+	if (i2c_start(I2Cx, address, I2C_Direction_Receiver, I2C_ACK_ENABLE))
 		return I2C_ERR;
 
 	uint8_t received_data;
@@ -202,10 +205,40 @@ uint8_t i2c_read(I2C_TypeDef* I2Cx, uint8_t address, uint8_t reg, uint8_t * data
 
 	i2c_stop(I2Cx);
 	*data = received_data;
-
 	return received_data;
 }
 
+uint16_t i2c_read16(I2C_TypeDef* I2Cx, uint8_t address, uint8_t reg, uint16_t * data)
+{
+	uint16_t result = 0;
+
+	if (i2c_start(I2Cx, address, I2C_Direction_Transmitter, I2C_ACK_ENABLE))
+			return I2C_ERR;
+
+	if (i2c_write_byte(I2Cx, reg))
+		return I2C_ERR;
+
+	i2c_stop(I2Cx);
+
+	if (i2c_start(I2Cx, address, I2C_Direction_Receiver, I2C_ACK_ENABLE))
+		return I2C_ERR;
+
+	uint8_t received_data;
+	if (i2c_read_byte_ack(I2Cx, &received_data))
+		return I2C_ERR;
+
+	result = (received_data << 8);
+	received_data = 0;
+
+	if (i2c_read_byte_nack(I2Cx, &received_data))
+		return I2C_ERR;
+
+	result |= received_data;
+
+	i2c_stop(I2Cx);
+	*data = result;
+	return received_data;
+}
 
 uint8_t i2c_start(I2C_TypeDef* I2Cx, uint8_t address, uint8_t direction, uint8_t ack)
 {
@@ -288,6 +321,7 @@ uint8_t i2c_write_byte(I2C_TypeDef* I2Cx, uint8_t data)
 		}
 	}
 
+	i2c_sequence_delay();
 	return I2C_TRANSMIT_OK;
 }
 
@@ -306,6 +340,7 @@ uint8_t i2c_read_byte_ack(I2C_TypeDef* I2Cx, uint8_t * data)
 	}
 
 	*data = I2C_ReceiveData(I2Cx);
+	i2c_sequence_delay();
 	return I2C_TRANSMIT_OK;
 }
 
@@ -324,6 +359,7 @@ uint8_t i2c_read_byte_nack(I2C_TypeDef* I2Cx, uint8_t * data)
 	}
 
 	*data = I2C_ReceiveData(I2Cx);
+	i2c_sequence_delay();
 	return I2C_TRANSMIT_OK;
 }
 
@@ -406,4 +442,12 @@ void i2c_dual_dac_set_val(float v1, float v2)
 	i2c_write_byte(I2C1, (value2 & 0xFF0) >> 4);
 	i2c_write_byte(I2C1, (value2 & 0x00F) << 4);
 	i2c_stop(I2C1);
+}
+
+void i2c_sequence_delay(void)
+{
+//	// 140 us delay
+//	for (int i = 0; i < 1024; i++) {
+////		__asm("nop");
+//	};
 }
