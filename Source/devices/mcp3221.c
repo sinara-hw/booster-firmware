@@ -13,7 +13,7 @@ uint16_t mcp3221_get_data(void)
 	uint8_t msb, lsb = 0;
 
 	i2c_start(I2C1, MCP3221_ADDR, I2C_Direction_Receiver, 1);
-	vTaskDelay(1);
+	vTaskDelay(2);
 	i2c_read_byte_ack(I2C1, &msb);
 	i2c_read_byte_nack(I2C1, &lsb);
 	i2c_stop(I2C1);

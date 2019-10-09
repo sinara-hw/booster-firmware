@@ -913,7 +913,29 @@ void rf_channel_disable_on_error(uint8_t channel)
 {
 	GPIO_SetBits(BOARD_LED1);
 
-	for( ;; );
+	int bitmask = 1 << channel;
+
+	// generate stop condition just in case
+	i2c_stop(I2C1);
+
+	if (!channels[channel].enabled) {
+		return;
+	}
+
+	// error led
+	led_bar_or(0x00, 0x00, (1 << channel));
+
+	rf_channels_control(bitmask, false);
+	rf_channels_sigon(bitmask, false);
+
+	i2c_mux_select(channel);
+	i2c_dac_set(4095);
+
+	// update struct information
+	channels[channel].enabled = false;
+	channels[channel].sigon = false;
+	channels[channel].detected = false;
+	channel_mask &= ~(1 << channel);
 }
 
 uint16_t rf_channel_calibrate_input_interlock_v3(uint8_t channel, int16_t start_value, uint8_t step)
