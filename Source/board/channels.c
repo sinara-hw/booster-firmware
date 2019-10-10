@@ -915,6 +915,8 @@ void rf_channel_disable_on_error(uint8_t channel)
 
 	int bitmask = 1 << channel;
 
+	ucli_log(UCLI_LOG_ERROR, "Disabling channel %d due to I2C error\r\n");
+
 	// generate stop condition just in case
 	i2c_stop(I2C1);
 
@@ -937,7 +939,7 @@ void rf_channel_disable_on_error(uint8_t channel)
 	channels[channel].detected = false;
 	channel_mask &= ~(1 << channel);
 
-	for (;;);
+//	for (;;);
 }
 
 uint16_t rf_channel_calibrate_input_interlock_v3(uint8_t channel, int16_t start_value, uint8_t step)
