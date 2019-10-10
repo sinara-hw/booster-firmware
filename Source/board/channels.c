@@ -936,6 +936,8 @@ void rf_channel_disable_on_error(uint8_t channel)
 	channels[channel].sigon = false;
 	channels[channel].detected = false;
 	channel_mask &= ~(1 << channel);
+
+	for (;;);
 }
 
 uint16_t rf_channel_calibrate_input_interlock_v3(uint8_t channel, int16_t start_value, uint8_t step)

@@ -1145,6 +1145,7 @@ static ucli_cmd_t g_cmds[] = {
 	{ "biascalall", fh_biascalall, 0x01, "Calibrate all channels bias current\r\n", "biascal usage:\r\n\tbiascalall <desired current>\r\n" },
 	{ "clearcal", fh_clearcal, 0x02, "Clear channel calibration values\r\n" },
 	{ "i2cerr", fh_i2cerr, 0x00, "Display I2C error summary\r\n" },
+	{ "ethdbg", fh_ethdbg, 0x00, "Displays some useful info for debugging Ethernet IC status\r\n" },
 
 	// "hidden" commands not for end-user
 	{ "wdtest", fh_wdtest, 0x00 },

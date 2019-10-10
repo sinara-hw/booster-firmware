@@ -273,6 +273,7 @@ void ldhcp_ip_conflict(void)
 	net_init();
 	DHCP_init(DHCP_SOCKET, dhcp_buf);
 	reg_dhcp_cbfunc(ldhcp_ip_assign, ldhcp_ip_assign, ldhcp_ip_conflict);
+	reset_DHCP_timeout();
 }
 
 void prvDHCPTaskStop(void)
@@ -289,6 +290,7 @@ void prvDHCPTaskRestart(void)
 	DHCP_init(DHCP_SOCKET, dhcp_buf);
 	reg_dhcp_cbfunc(ldhcp_ip_assign, ldhcp_ip_assign, ldhcp_ip_conflict);
 	dhcp_timer_init();
+	reset_DHCP_timeout();
 
 	vTaskResume(xDHCPTask);
 	eeprom_write_mb(IP_METHOD, NETINFO_DHCP);

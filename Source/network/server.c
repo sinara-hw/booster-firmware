@@ -5,6 +5,7 @@
  *      Author: wizath
  */
 
+#include "math.h"
 #include "wizchip_conf.h"
 #include "socket.h"
 #include "server.h"
@@ -101,6 +102,7 @@ static void process_server_data(void)
 	uint8_t 	rx_buffer[MAX_RX_LENGTH];
 
 	uint8_t sn = 0;
+	uint8_t last_sn = 0;
 
 	// we can feed the dog inside to avoid interrupts
 	// because CPU get's really busy with VCP and SCPI
@@ -118,6 +120,26 @@ static void process_server_data(void)
 			sn = 2;
 		} else if (ir & IK_SOCK_3) {
 			sn = 3;
+		}
+
+		// avoid handling only one socket continously
+		// if there are other waiting
+		if (last_sn == sn)
+		{
+			uint32_t sn_ir = 256 * (1 << last_sn);
+			uint32_t ir_mask = (ir & ~(sn_ir)); // exclude last_sn from ir list
+
+			if (ir_mask != 0) {
+				if (ir_mask & IK_SOCK_0) {
+					sn = 0;
+				} else if (ir_mask & IK_SOCK_1) {
+					sn = 1;
+				} else if (ir_mask & IK_SOCK_2) {
+					sn = 2;
+				} else if (ir_mask & IK_SOCK_3) {
+					sn = 3;
+				}
+			}
 		}
 
 		switch (getSn_SR(sn))
@@ -151,7 +173,7 @@ static void process_server_data(void)
 					u->socket = sn;
 				}
 
-//						ucli_log(UCLI_LOG_DEBUG, "network debug received %s\r\n", rx_buffer);
+//				ucli_log(UCLI_LOG_DEBUG, "network debug received %s\r\n", rx_buffer);
 				SCPI_Input(&scpi_context, (char *) rx_buffer, (int) len);
 				GPIO_ResetBits(BOARD_LED2);
 				break;
@@ -180,6 +202,8 @@ static void process_server_data(void)
 			ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_2);
 		else if (sn == 3)
 			ctlwizchip(CW_CLR_INTERRUPT, (void*) IK_SOCK_3);
+
+		last_sn = sn;
 
 		// delay is necessary since W5500 can lost an interrupt
 		// while being supressed by large number of packets
