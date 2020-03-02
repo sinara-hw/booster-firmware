@@ -95,7 +95,7 @@ void ext_timer_init(void)
 
 void TIM4_IRQHandler()
 {
-	static long xHigherPriorityTaskWoken;
+	BaseType_t xHigherPriorityTaskWoken;
 	xHigherPriorityTaskWoken = pdFALSE;
 
 	static uint8_t count_btn1 = 0;
@@ -115,7 +115,7 @@ void TIM4_IRQHandler()
 				state_btn1 = btn1;
 				if (state_btn1 != 0) {
 					evt_id = 2;
-					xQueueSendFromISR(ExtQueue, &evt_id, xHigherPriorityTaskWoken);
+					xQueueSendFromISR(ExtQueue, &evt_id, &xHigherPriorityTaskWoken);
 				}
 			}
 		} else count_btn1 = 0;
@@ -127,7 +127,7 @@ void TIM4_IRQHandler()
 				state_btn2 = btn2;
 				if (state_btn2 != 0) {
 					evt_id = 1;
-					xQueueSendFromISR(ExtQueue, &evt_id, xHigherPriorityTaskWoken);
+					xQueueSendFromISR(ExtQueue, &evt_id, &xHigherPriorityTaskWoken);
 				}
 			}
 		} else count_btn2 = 0;

@@ -70,7 +70,8 @@ uint8_t  WIZCHIP_READ(uint32_t AddrSel)
    uint8_t ret = 0;
    uint8_t spi_data[3] = { 0 };
 
-   WIZCHIP_CRITICAL_ENTER();
+    //WIZCHIP_CRITICAL_ENTER();
+   taskENTER_CRITICAL();
    WIZCHIP.CS._select();
 
    AddrSel |= (_W5500_SPI_READ_ | _W5500_SPI_VDM_OP_);
@@ -98,7 +99,8 @@ uint8_t  WIZCHIP_READ(uint32_t AddrSel)
 //#endif
 
    WIZCHIP.CS._deselect();
-   WIZCHIP_CRITICAL_EXIT();
+    //WIZCHIP_CRITICAL_EXIT();
+   taskEXIT_CRITICAL();
    return ret;
 }
 
@@ -106,7 +108,8 @@ void     WIZCHIP_WRITE(uint32_t AddrSel, uint8_t wb )
 {
    uint8_t spi_data[4];
 
-   WIZCHIP_CRITICAL_ENTER();
+    //WIZCHIP_CRITICAL_ENTER();
+   taskENTER_CRITICAL();
    WIZCHIP.CS._select();
 
    AddrSel |= (_W5500_SPI_WRITE_ | _W5500_SPI_VDM_OP_);
@@ -136,7 +139,8 @@ void     WIZCHIP_WRITE(uint32_t AddrSel, uint8_t wb )
 //#endif
 
    WIZCHIP.CS._deselect();
-   WIZCHIP_CRITICAL_EXIT();
+    //WIZCHIP_CRITICAL_EXIT();
+   taskEXIT_CRITICAL();
 }
          
 void     WIZCHIP_READ_BUF (uint32_t AddrSel, uint8_t* pBuf, uint16_t len)
@@ -144,7 +148,9 @@ void     WIZCHIP_READ_BUF (uint32_t AddrSel, uint8_t* pBuf, uint16_t len)
    uint8_t spi_data[3];
    uint16_t i;
 
-   WIZCHIP_CRITICAL_ENTER();
+
+//   WIZCHIP_CRITICAL_ENTER();
+   taskENTER_CRITICAL();
 //   WIZCHIP.CS._select();
 
    AddrSel |= (_W5500_SPI_READ_ | _W5500_SPI_VDM_OP_);
@@ -174,7 +180,8 @@ void     WIZCHIP_READ_BUF (uint32_t AddrSel, uint8_t* pBuf, uint16_t len)
 #endif
 
 //   WIZCHIP.CS._deselect();
-   WIZCHIP_CRITICAL_EXIT();
+    //WIZCHIP_CRITICAL_EXIT();
+	taskEXIT_CRITICAL();
 }
 
 void     WIZCHIP_WRITE_BUF(uint32_t AddrSel, uint8_t* pBuf, uint16_t len)
@@ -182,7 +189,8 @@ void     WIZCHIP_WRITE_BUF(uint32_t AddrSel, uint8_t* pBuf, uint16_t len)
    uint8_t spi_data[3];
    uint16_t i;
 
-   WIZCHIP_CRITICAL_ENTER();
+    //WIZCHIP_CRITICAL_ENTER();
+   taskENTER_CRITICAL();
 //   WIZCHIP.CS._select();
 
    AddrSel |= (_W5500_SPI_WRITE_ | _W5500_SPI_VDM_OP_);
@@ -212,7 +220,8 @@ void     WIZCHIP_WRITE_BUF(uint32_t AddrSel, uint8_t* pBuf, uint16_t len)
 #endif
 
 //   WIZCHIP.CS._deselect();
-   WIZCHIP_CRITICAL_EXIT();
+    //WIZCHIP_CRITICAL_EXIT();
+	taskEXIT_CRITICAL();
 }
 
 

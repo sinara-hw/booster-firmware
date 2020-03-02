@@ -115,20 +115,33 @@ uint8_t i2c_mux_select(uint8_t channel)
 {
 	if (channel > 7) return 2;
 
-	i2c_mux_reset();
+	while(1){
 
-	if (!i2c_start(I2C1, I2C_MUX_ADDR, I2C_Direction_Transmitter, 0))
-	{
-		i2c_write_byte(I2C1, (1 << channel));
-		i2c_stop(I2C1);
-		mux_channel = channel;
+		i2c_mux_reset();
 
-		return 0;
+		if (!i2c_start(I2C1, I2C_MUX_ADDR, I2C_Direction_Transmitter, 0)){
+			i2c_write_byte(I2C1, (1 << channel));
+			i2c_stop(I2C1);
+			mux_channel = channel;
+			return 0;
+		}
+		else{
+			i2c_reset();
+		}
+		vTaskDelay(10);
 	}
-
-	for (int i = 0; i < 256; i++){};
-
-	return 1;
+//	if (!i2c_start(I2C1, I2C_MUX_ADDR, I2C_Direction_Transmitter, 0))
+//	{
+//		i2c_write_byte(I2C1, (1 << channel));
+//		i2c_stop(I2C1);
+//		mux_channel = channel;
+//
+//		return 0;
+//	}
+//
+//	for (int i = 0; i < 256; i++){};
+//
+//	return 1;
 }
 
 void i2c_mux_reset(void)

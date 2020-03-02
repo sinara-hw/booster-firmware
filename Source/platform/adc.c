@@ -210,7 +210,7 @@ void adc_init(void)
 
 void DMA2_Stream0_IRQHandler(void)
 {
-	static long xHigherPriorityTaskWoken;
+	BaseType_t xHigherPriorityTaskWoken;
 	xHigherPriorityTaskWoken = pdFALSE;
 
 	/* Test on DMA Stream Half Transfer interrupt */
@@ -233,7 +233,7 @@ void DMA2_Stream0_IRQHandler(void)
 		 * Skipping channel 2 values
 		 */
 		memcpy(converted_values + HALF_BUFFER_MEMSIZE / 2, adc_samples + HALF_BUFFER_MEMSIZE / 2, HALF_BUFFER_MEMSIZE);
-		xSemaphoreGiveFromISR(xADCSemaphore, xHigherPriorityTaskWoken);
+		xSemaphoreGiveFromISR(xADCSemaphore, &xHigherPriorityTaskWoken);
 
 		GPIO_ToggleBits(BOARD_LED3);
 	}

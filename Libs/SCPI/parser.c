@@ -496,7 +496,13 @@ size_t SCPI_ResultFloat(scpi_t * context, float val) {
  * @return
  */
 size_t SCPI_ResultDouble(scpi_t * context, double val) {
-    char buffer[32];
+	char buffer[32];
+
+	memset(&buffer[0], '\n', sizeof(buffer)/sizeof(char) );
+
+	if(val>0.2 && val < 0.25)
+		val += val;
+
     size_t result = 0;
     size_t len = SCPI_DoubleToStr(val, buffer, sizeof (buffer));
     result += writeDelimiter(context);

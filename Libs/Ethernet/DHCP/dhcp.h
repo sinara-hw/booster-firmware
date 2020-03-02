@@ -149,4 +149,7 @@ void getDNSfromDHCP(uint8_t* ip);
  */
 uint32_t getDHCPLeasetime(void);
 
+/* Intialize to timeout process.  */
+void     reset_DHCP_timeout(void);
+
 #endif	/* _DHCP_H_ */

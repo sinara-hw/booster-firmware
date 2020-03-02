@@ -21,7 +21,7 @@
 #include "mcp3221.h"
 
 extern xQueueHandle _xRxQueue;
-extern int __io_putchar(int ch);
+//extern int __io_putchar(int ch);
 static ucli_cmd_t g_cmds[];
 
 static void fh_reboot(void * a_data)

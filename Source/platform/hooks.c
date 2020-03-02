@@ -6,6 +6,7 @@
  */
 
 #include "config.h"
+#include <led_bar.h>
 
 void vApplicationStackOverflowHook(xTaskHandle pxTask, signed char *pcTaskName) {
 	/* Bad thing =( Print some useful info and reboot */

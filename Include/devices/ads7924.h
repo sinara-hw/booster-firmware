@@ -57,6 +57,9 @@ void ads7924_get_data(uint16_t * data);
 void ads7924_init(void);
 void ads7924_stop(void);
 
+uint8_t ads7924_getCONVCTRL(void);
+void 	ads7924_clrCONVCTRL(void);
+
 /* threshold alerts for ch0 */
 void ads7924_enable_alert(void);
 void ads7924_disable_alert(void);

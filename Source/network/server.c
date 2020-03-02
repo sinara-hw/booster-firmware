@@ -53,14 +53,14 @@ static void udp_int_init(void)
 
 void EXTI9_5_IRQHandler(void)
 {
-	static long xHigherPriorityTaskWoken;
-	xHigherPriorityTaskWoken = pdFALSE;
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
 	uint8_t trg = 0x01;
 
 	if (EXTI_GetITStatus(EXTI_Line6) != RESET)
 	{
 //		GPIO_ToggleBits(BOARD_LED1);
-		xQueueSendFromISR(xTCPServerIRQ, &trg, false);
+		xQueueSendFromISR(xTCPServerIRQ, &trg, &xHigherPriorityTaskWoken);
     	EXTI_ClearITPendingBit(EXTI_Line6);
     }
 
@@ -163,7 +163,7 @@ static void process_server_data(void)
 
 				GPIO_SetBits(BOARD_LED2);
 				len = getSn_RX_RSR(sn);
-				if (len > MAX_RX_LENGTH) len = MAX_RX_LENGTH;
+				if (len >= MAX_RX_LENGTH) len = MAX_RX_LENGTH-1;
 
 				recv(sn, rx_buffer, len);
 				rx_buffer[len] = '\0';
@@ -288,6 +288,6 @@ void prvUDPServerTask(void *pvParameters)
 			process_server_data();
 		}
 
-		process_server_data();
+		//process_server_data();
 	}
 }

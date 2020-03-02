@@ -52,6 +52,10 @@ beka
 #include "eeprom.h"
 #include "device.h"
 
+#include <scpi/parser.h>
+#include <temp_mgt.h>
+#include <printf.h>
+
 scpi_bool_t SCPI_ParamIsDouble(scpi_parameter_t * parameter)
 {
 	// check if parameter has either dot or e - eg. 1.1 or 1e1
@@ -873,39 +877,58 @@ static scpi_result_t Interlock_DiagQ(scpi_t * context)
 		return SCPI_RES_ERR;
 	}
 
-	double results[22] = { 0x00 };
+
+	double results_double[10] = { 0x00 };
+	uint8_t results_uint8[10] = { 0x00 };
+
 	if (intval >= 0 && intval < 8)
 	{
 		ch = rf_channel_get(intval);
 
-		results[0] = ch->detected;
-		results[1] = ch->enabled;
-		results[2] = ch->output_interlock;
-		results[3] = ch->input_interlock;
+//		results[0] = ch->detected;
+//		results[1] = ch->enabled;
+//		results[2] = ch->output_interlock;
+//		results[3] = ch->input_interlock;
 
-		results[4] = ch->measure.adc_pwr_ch1;
-		results[5] = ch->measure.adc_pwr_ch2;
-		results[6] = ch->measure.i30;
-		results[7] = ch->measure.i60;
-		results[8] = ch->measure.p5v0mp;
-		results[9] = ch->measure.remote_temp;
-		results[10] = ch->measure.fwd_pwr;
-		results[11] = ch->measure.rfl_pwr;
-		results[12] = ch->measure.input_power;
+		SCPI_ResultBool(context, ch->detected);
+		SCPI_ResultBool(context, ch->enabled);
+		SCPI_ResultBool(context, ch->output_interlock);
+		SCPI_ResultBool(context, ch->input_interlock);
 
-		results[13] = temp_mgt_get_fanspeed();
-		results[14] = ch->error;
+		results_uint8[0] = ch->measure.adc_pwr_ch1;
+		results_uint8[1] = ch->measure.adc_pwr_ch2;
 
-		results[15] = ch->hwid[0];
-		results[16] = ch->hwid[1];
-		results[17] = ch->hwid[2];
-		results[18] = ch->hwid[3];
-		results[19] = ch->hwid[4];
-		results[20] = ch->hwid[5];
+		SCPI_ResultArrayUInt8(context, &results_uint8[0], 2, SCPI_FORMAT_ASCII);
 
-		results[21] = i2c_get_channel_errors(intval);
+		results_double[0] = ch->measure.i30;
+		results_double[1] = ch->measure.i60;
+		results_double[2] = ch->measure.p5v0mp;
+		results_double[3] = ch->measure.remote_temp;
+		results_double[4] = ch->measure.fwd_pwr;
+		results_double[5] = ch->measure.rfl_pwr;
+		results_double[6] = ch->measure.input_power;
 
-		SCPI_ResultArrayDouble(context, results, 22, SCPI_FORMAT_ASCII);
+		SCPI_ResultArrayDouble(context, &results_double[0], 7, SCPI_FORMAT_ASCII);
+
+//		results[13] = temp_mgt_get_fanspeed();
+		SCPI_ResultUInt8(context, temp_mgt_get_fanspeed());
+
+//		results[14] = ch->error;
+		SCPI_ResultBool(context, ch->error);
+
+		results_uint8[0] = ch->hwid[0];
+		results_uint8[1] = ch->hwid[1];
+		results_uint8[2] = ch->hwid[2];
+		results_uint8[3] = ch->hwid[3];
+		results_uint8[4] = ch->hwid[4];
+		results_uint8[5] = ch->hwid[5];
+
+		SCPI_ResultArrayUInt8(context, &results_uint8[0], 6, SCPI_FORMAT_ASCII);
+
+//		results[21] = i2c_get_channel_errors(intval);
+		SCPI_ResultUInt32(context, i2c_get_channel_errors(intval));
+
+//		SCPI_ResultArrayDouble(context, results, 22, SCPI_FORMAT_ASCII);
 		return SCPI_RES_OK;
 	} else {
 		return SCPI_ReturnString(context, "[scpi] **ERROR: -97, \"Wrong channel selected (0-7)\"");

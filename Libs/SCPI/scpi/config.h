@@ -42,6 +42,7 @@ extern "C" {
 #endif
 
 #include <Libs/SCPI/scpi/cc.h>
+#include <printf.h>
 
 #ifdef SCPI_USER_CONFIG
 #include "scpi_user_config.h"
@@ -200,7 +201,7 @@ extern "C" {
 #elif USE_CUSTOM_DTOSTRE
 #define SCPIDEFINE_doubleToStr(v, s, l) SCPI_dtostre((v), (s), (l), 15, 0)
 #elif HAVE_SNPRINTF
-#define SCPIDEFINE_doubleToStr(v, s, l) snprintf((s), (l), "%.15lg", (v))
+#define SCPIDEFINE_doubleToStr(v, s, l) snprintf((s), (l), "%.15f", (v))
 #else
 #define SCPIDEFINE_doubleToStr(v, s, l) SCPI_dtostre((v), (s), (l), 15, 0)
 #endif

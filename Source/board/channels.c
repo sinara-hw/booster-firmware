@@ -340,7 +340,7 @@ void rf_channel_disable_procedure(uint8_t channel)
 	rf_channels_sigon(bitmask, false);
 
 	if (lock_take(I2C_LOCK, portMAX_DELAY)) {
-		i2c_mux_select(channel);https://9gag.com/gag/a858A7Z
+		i2c_mux_select(channel);
 		i2c_dac_set(4095);
 
 		lock_free(I2C_LOCK);
@@ -490,6 +490,8 @@ void rf_channels_measure_task(void *pvParameters)
 				{
 					if (lock_take(I2C_LOCK, portMAX_DELAY))
 					{
+						vPortEnterCritical();
+
 						i2c_mux_select(i);
 
 						channels[i].measure.input_raw = mcp3221_get_data();
@@ -506,11 +508,20 @@ void rf_channels_measure_task(void *pvParameters)
 
 						channels[i].measure.rfl_pwr = (double) (channels[i].measure.adc_raw_ch2 - channels[i].cal_values.rfl_pwr_offset) / (double) channels[i].cal_values.rfl_pwr_scale;
 
-						channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / dev->p30_gain) / dev->p30_current_sense;
-						channels[i].measure.i60 = (ads7924_get_channel_voltage(1) / dev->p6_gain) / 0.1f;
-						channels[i].measure.p5v0mp = ads7924_get_channel_voltage(3) * 2.5f;
+//						if( (ads7924_get_alarm() & 0xf0) == 0xf0)
+//						{
+							channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / dev->p30_gain) / dev->p30_current_sense;
+							channels[i].measure.i60 = (ads7924_get_channel_voltage(1) / dev->p6_gain) / 0.1f;
+							channels[i].measure.p5v0mp = ads7924_get_channel_voltage(3) * 2.5f;
+
+							ads7924_set_mode(MODE_MANUAL_SCAN);
+//						}
+//						else
+//							while(1);
 
 						lock_free(I2C_LOCK);
+
+						vPortExitCritical();
 					}
 				} else {
 					// avoid unnecessary confusion when channel is disabled
@@ -525,11 +536,15 @@ void rf_channels_measure_task(void *pvParameters)
 					{
 						if (lock_take(I2C_LOCK, portMAX_DELAY))
 						{
+							vPortEnterCritical();
+
 							i2c_mux_select(i);
 							channels[i].measure.local_temp = max6642_get_local_temp();
 							channels[i].measure.remote_temp = max6642_get_remote_temp();
 
 							lock_free(I2C_LOCK);
+
+							vPortExitCritical();
 						}
 					}
 				}

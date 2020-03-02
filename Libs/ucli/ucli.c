@@ -1,4 +1,5 @@
 #include "ucli.h"
+#include <printf.h>
 
 static ucli_ctx_t _ucli_ctx;
 

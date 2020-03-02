@@ -45,6 +45,8 @@
 #include "utils_private.h"
 #include "scpi/utils.h"
 
+#include <printf.h>
+
 static size_t patternSeparatorShortPos(const char * pattern, size_t len);
 static size_t patternSeparatorPos(const char * pattern, size_t len);
 static size_t cmdSeparatorPos(const char * cmd, size_t len);
@@ -261,7 +263,11 @@ size_t SCPI_FloatToStr(float val, char * str, size_t len) {
  * @return number of bytes written to str (without '\0')
  */
 size_t SCPI_DoubleToStr(double val, char * str, size_t len) {
-    SCPIDEFINE_doubleToStr(val, str, len);
+
+
+//	return snprintf((str), (len), "%.15lg", (val));
+
+	SCPIDEFINE_doubleToStr(val, str, len);
     return strlen(str);
 }
 

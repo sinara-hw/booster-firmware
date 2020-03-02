@@ -516,8 +516,8 @@ int32_t sendto(uint8_t sn, uint8_t * buf, uint16_t len, uint8_t * addr, uint16_t
    //}
    //
    //if(*((uint32_t*)addr) == 0) return SOCKERR_IPINVALID;
-   if((taddr == 0)&(getSn_MR(sn)&Sn_MR_MACRAW != Sn_MR_MACRAW)) return SOCKERR_IPINVALID;
-   if((port  == 0)&(getSn_MR(sn)&Sn_MR_MACRAW != Sn_MR_MACRAW)) return SOCKERR_PORTZERO;
+   if( (taddr == 0) & (getSn_MR(sn) & (Sn_MR_MACRAW != Sn_MR_MACRAW) ) ) return SOCKERR_IPINVALID;
+   if( (port  == 0) & (getSn_MR(sn) & (Sn_MR_MACRAW != Sn_MR_MACRAW) ) ) return SOCKERR_PORTZERO;
    tmp = getSn_SR(sn);
    if(tmp != SOCK_MACRAW && tmp != SOCK_UDP && tmp != SOCK_IPRAW) return SOCKERR_SOCKSTATUS;
       
