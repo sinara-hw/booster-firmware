@@ -508,22 +508,21 @@ void rf_channels_measure_task(void *pvParameters)
 
 						channels[i].measure.rfl_pwr = (double) (channels[i].measure.adc_raw_ch2 - channels[i].cal_values.rfl_pwr_offset) / (double) channels[i].cal_values.rfl_pwr_scale;
 
-//						if( (ads7924_get_alarm() & 0xf0) == 0xf0)
-//						{
-							channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / dev->p30_gain) / dev->p30_current_sense;
-							channels[i].measure.i60 = (ads7924_get_channel_voltage(1) / dev->p6_gain) / 0.1f;
-							channels[i].measure.p5v0mp = ads7924_get_channel_voltage(3) * 2.5f;
+						channels[i].measure.i30 = (ads7924_get_channel_voltage(0) / dev->p30_gain) / dev->p30_current_sense;
+						channels[i].measure.i60 = (ads7924_get_channel_voltage(1) / dev->p6_gain) / 0.1f;
+						channels[i].measure.p5v0mp = ads7924_get_channel_voltage(3) * 2.5f;
 
-							ads7924_set_mode(MODE_MANUAL_SCAN);
-//						}
-//						else
-//							while(1);
+						ads7924_set_mode(MODE_MANUAL_SCAN);
+
+						channels[i].measure.local_temp  = max6642_get_local_temp();
+						channels[i].measure.remote_temp = max6642_get_remote_temp();
 
 						lock_free(I2C_LOCK);
 
 						vPortExitCritical();
 					}
-				} else {
+				}
+				else{
 					// avoid unnecessary confusion when channel is disabled
 					// and providing false measurements
 					channels[i].measure.fwd_pwr = 0;
