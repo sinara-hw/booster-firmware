@@ -106,8 +106,13 @@ float max6639_get_temperature(uint8_t addr, uint8_t ch)
 {
 	float total = 0.0;
 	uint8_t temp, temp_ext = 0;
+
+	vPortEnterCritical();
+
 	i2c_read(MAX6639_I2C, addr, MAX6639_REG_TEMP(ch), &temp);
 	i2c_read(MAX6639_I2C, addr, MAX6639_REG_TEMP_EXT(ch), &temp_ext);
+
+	vPortExitCritical();
 
 	total = (float) temp;
 	if (temp_ext & 0x80) total += 0.50;
