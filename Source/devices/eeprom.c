@@ -70,9 +70,9 @@ void eeprom_write16(uint8_t address, uint16_t value)
 	uint8_t hb = (value >> 8) & 0xFF;
 
 	eeprom_write(address, hb);
-	vTaskDelay(10);
+	vTaskDelay(50);
 	eeprom_write(address + 1, lb);
-	vTaskDelay(10);
+	vTaskDelay(50);
 }
 
 uint32_t eeprom_read32(uint8_t address)

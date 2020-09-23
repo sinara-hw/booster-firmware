@@ -305,7 +305,7 @@ static void fh_intcal(void * a_data)
 	pwr_cal = (uint8_t) pwr_cal;
 
 	uint16_t retval = 0;
-	uint16_t dacval = 4095;
+	uint16_t dacval = 3500; //4095;
 
 	if (channel < 8) {
 		ch = rf_channel_get(channel);
@@ -488,7 +488,7 @@ static void fh_cal(void * a_data)
 	channel = (uint8_t) channel;
 	type = (uint8_t) type;
 
-	uint16_t dacval = 4095;
+	uint16_t dacval = 3500;//4095;
 	uint16_t retval = 0;
 
 	if (channel < 8)
@@ -862,6 +862,17 @@ static void fh_clearcal(void * a_data)
 			eeprom_write16(DAC1_EEPROM_ADDRESS, (uint16_t) value);
 			vTaskDelay(10);
 			eeprom_write16(DAC2_EEPROM_ADDRESS, (uint16_t) value);
+
+			// clear reverse input reading
+			eeprom_write16(ADC2_SCALE_ADDRESS, 0xFFFF);
+			vTaskDelay(10);
+			eeprom_write16(ADC2_OFFSET_ADDRESS, 0xFFFF);
+
+			// clear reverse input reading
+			eeprom_write16(ADC1_SCALE_ADDRESS, 0xFFFF);
+			vTaskDelay(10);
+			eeprom_write16(ADC1_OFFSET_ADDRESS, 0xFFFF);
+
 //
 //			// clear reverse input reading
 //			eeprom_write16(ADC2_SCALE_ADDRESS, 0xFFFF);

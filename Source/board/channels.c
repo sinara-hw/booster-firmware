@@ -1101,7 +1101,7 @@ uint16_t rf_channel_calibrate_output_interlock_v3(uint8_t channel, int16_t start
 
 bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 {
-	int16_t dacval = 4095;
+	int16_t dacval = 4090;
 	uint8_t count = 0;
 	uint16_t value;
 	double avg_current = 0.0f;
@@ -1168,7 +1168,14 @@ bool rf_channel_calibrate_bias(uint8_t channel, uint16_t current)
 				vTaskResume(task_rf_interlock);
 				led_bar_and((1 << channel), 0, 0);
 
-				eeprom_write16(BIAS_DAC_VALUE_ADDRESS, dacval);
+				//eeprom_write16(BIAS_DAC_VALUE_ADDRESS, dacval);
+				if (lock_take(I2C_LOCK, portMAX_DELAY))
+				{
+					i2c_mux_select((uint8_t) channel);
+					eeprom_write16(BIAS_DAC_VALUE_ADDRESS, dacval);
+					lock_free(I2C_LOCK);
+				}
+
 				channels[channel].cal_values.bias_dac_cal_value = dacval;
 
 				ucli_progress_bar(value, 0, value, false);
