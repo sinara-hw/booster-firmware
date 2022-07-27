@@ -131,6 +131,12 @@ void prvTempMgtTask(void *pvParameters)
 		vTaskDelay(2000);
 		rf_channels_enable(rf_channels_get_mask());
 
+        // clear interlocks after power-up (it is necessary due to hardware changes in channels v1.6)
+        vTaskDelay(100);
+        rf_clear_interlock();
+        vTaskDelay(100);
+        rf_clear_interlock();
+
 		// ensure that channel LED's are light on
 		vTaskDelay(100);
 		led_bar_or(rf_channels_read_sigon(), 0, 0);
